@@ -2,7 +2,14 @@
 
 All notable changes are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow [Semantic Versioning](https://semver.org/). Before 1.0, minor versions may contain breaking changes.
 
-## Unreleased
+## 0.8.1 — 2026-10-19
+
+Accuracy fixes found by reviewing an end-to-end run on a real cluster.
+
+### Fixed
+- Workloads in `kube-system` (kube-proxy, the CNI, CoreDNS) were assessed by default and reported as critical. They are platform components with host access by design; workload rules now skip `kube-system` unless `--include-system`, as the RBAC and networking rules already did.
+- kubeadm's own RBAC (`kubeadm:bootstrap-signer-clusterinfo`, which kubeadm requires for node bootstrap, and `kubeadm:cluster-admins`) was reported as critical or high on every kubeadm cluster; `kubeadm:` objects are now treated like `system:` objects.
+- HX-WL-003 (and the escape analysis behind HX-PATH-001) treated every mount of a sensitive host path as node takeover. Runtime sockets and paths that hold credentials stay critical even read-only; other sensitive paths are critical only when a container can write to them (mounted without `readOnly`, or privileged / `CAP_SYS_ADMIN`). Read-only mounts of, for example, the kubelet configuration file are high. Hardex's own node DaemonSet no longer reports itself as an escape path.
 
 ### Added
 - End-to-end tests on a real cluster (kind, Kubernetes 1.37) on every push: least-privilege live scan, remediation apply and rollback, the node scanner DaemonSet and the admission webhook. `make e2e`.

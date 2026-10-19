@@ -17,8 +17,8 @@ func EscapeVector(pod map[string]any) (string, bool) {
 		return "runs as a Windows HostProcess", true
 	}
 	for _, vol := range resource.Maps(pod, "volumes") {
-		if p := resource.String(vol, "hostPath", "path"); p != "" && isCriticalHostPath(p) {
-			return fmt.Sprintf("mounts host path %s", p), true
+		if critical, _ := hostPathCritical(pod, vol); critical {
+			return fmt.Sprintf("mounts host path %s", resource.String(vol, "hostPath", "path")), true
 		}
 	}
 	for _, c := range resource.Containers(pod) {

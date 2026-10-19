@@ -691,7 +691,7 @@ Severity is the default; individual findings may be raised or lowered where the 
 
 **HostPath volume** — high, workloads
 
-**Checks:** Detects pods that mount directories from the node's filesystem. Mounts of sensitive paths (root, /etc, container runtime sockets, kubelet state) are raised to critical.
+**Checks:** Detects pods that mount directories from the node's filesystem. Mounts of sensitive paths are raised to critical when they give node or cluster compromise: runtime sockets and paths holding credentials (keys, kubeconfigs, other pods' volumes, etcd data) even read-only, and other sensitive paths (root, /etc, kubelet state, system binaries) when a container can write to them.
 
 **Why it matters:** HostPath mounts bypass container filesystem isolation. Writable mounts of sensitive paths allow node takeover; a mounted container runtime socket is equivalent to root on the node.
 

@@ -56,11 +56,87 @@ var hostNamespaces = eachPod(assessment.Metadata{
 })
 
 // Host paths whose exposure gives near-immediate node or cluster compromise.
+// Writing to any of them (a static pod manifest, the kubelet's state, a
+// binary under /usr) takes over the node.
 var criticalHostPaths = []string{
-	"/", "/etc", "/root", "/proc", "/sys", "/dev", "/boot",
-	"/var/run", "/run", "/var/lib/kubelet", "/var/lib/docker", "/var/lib/containerd",
+	"/", "/etc", "/root", "/proc", "/sys", "/dev", "/boot", "/usr", "/bin", "/sbin", "/lib",
+	"/var/run", "/run", "/var/lib/kubelet", "/var/lib/docker", "/var/lib/containerd", "/var/lib/etcd",
 	"/var/run/docker.sock", "/run/containerd/containerd.sock", "/var/run/crio/crio.sock",
 	"/etc/kubernetes",
+}
+
+// Host paths where even *reading* compromises the node or cluster: keys,
+// kubeconfigs, other pods' Secret volumes, etcd data. A read-only mount of a
+// path that contains, or is inside, one of these is still critical.
+var readSensitivePaths = []string{
+	"/etc/kubernetes/pki", "/etc/kubernetes/admin.conf", "/etc/kubernetes/super-admin.conf",
+	"/etc/kubernetes/kubelet.conf", "/etc/kubernetes/controller-manager.conf", "/etc/kubernetes/scheduler.conf",
+	"/etc/kubernetes/bootstrap-kubelet.conf", "/var/lib/kubelet/pki", "/var/lib/kubelet/pods",
+	"/var/lib/kubelet/kubeconfig", "/var/lib/etcd", "/etc/shadow", "/etc/ssh", "/root", "/home",
+	"/proc", "/sys", "/dev", "/var/lib/docker", "/var/lib/containerd",
+}
+
+// Runtime sockets and the directories that hold them: a read-only mount
+// does not stop a process from connecting to a socket.
+func isSocketPath(p string) bool {
+	return strings.HasSuffix(p, ".sock") || p == "/var/run" || p == "/run" ||
+		strings.HasPrefix(p, "/var/run/") || strings.HasPrefix(p, "/run/")
+}
+
+func cleanPath(p string) string { return "/" + strings.Trim(p, "/") }
+
+// isReadSensitive reports whether p is, contains, or lies inside a path
+// whose contents are credentials.
+func isReadSensitive(p string) bool {
+	p = cleanPath(p)
+	for _, s := range readSensitivePaths {
+		if p == s || p == "/" || strings.HasPrefix(s, p+"/") || strings.HasPrefix(p, s+"/") {
+			return true
+		}
+	}
+	return false
+}
+
+// hostPathCritical reports whether a hostPath volume gives node or cluster
+// compromise in this pod: always for sockets and credential paths, and for
+// other sensitive paths only if some container can write to it — mounts it
+// without readOnly, or could remount it (privileged or CAP_SYS_ADMIN).
+func hostPathCritical(pod map[string]any, vol map[string]any) (bool, string) {
+	raw := resource.String(vol, "hostPath", "path")
+	if raw == "" {
+		return false, ""
+	}
+	path := cleanPath(raw)
+	if !isCriticalHostPath(path) {
+		return false, ""
+	}
+	if isSocketPath(path) {
+		return true, "sensitive node path"
+	}
+	if isReadSensitive(path) {
+		return true, "sensitive node path: contains credentials"
+	}
+	name := resource.String(vol, "name")
+	for _, c := range resource.Containers(pod) {
+		canRemount := false
+		if v, _ := resource.Bool(c.Spec, "securityContext", "privileged"); v {
+			canRemount = true
+		}
+		for _, cp := range resource.Strings(c.Spec, "securityContext", "capabilities", "add") {
+			if n := normalizeCap(cp); n == "SYS_ADMIN" || n == "ALL" {
+				canRemount = true
+			}
+		}
+		for _, m := range resource.Maps(c.Spec, "volumeMounts") {
+			if resource.String(m, "name") != name {
+				continue
+			}
+			if ro, _ := resource.Bool(m, "readOnly"); !ro || canRemount {
+				return true, "sensitive node path, writable"
+			}
+		}
+	}
+	return false, "sensitive node path, mounted read-only"
 }
 
 var hostPathVolumes = eachPod(assessment.Metadata{
@@ -68,7 +144,7 @@ var hostPathVolumes = eachPod(assessment.Metadata{
 	Title:       "HostPath volume",
 	Severity:    finding.High,
 	Category:    assessment.CategoryWorkloads,
-	Description: "Detects pods that mount directories from the node's filesystem. Mounts of sensitive paths (root, /etc, container runtime sockets, kubelet state) are raised to critical.",
+	Description: "Detects pods that mount directories from the node's filesystem. Mounts of sensitive paths are raised to critical when they give node or cluster compromise: runtime sockets and paths holding credentials (keys, kubeconfigs, other pods' volumes, etcd data) even read-only, and other sensitive paths (root, /etc, kubelet state, system binaries) when a container can write to them.",
 	Rationale:   "HostPath mounts bypass container filesystem isolation. Writable mounts of sensitive paths allow node takeover; a mounted container runtime socket is equivalent to root on the node.",
 	Remediation: "Replace hostPath with emptyDir, a ConfigMap/Secret, or a PersistentVolumeClaim. If node access is unavoidable (e.g. a log collector), mount the narrowest path read-only and isolate the workload in a dedicated namespace.",
 	References:  []finding.Reference{baselines.PSS("Baseline", "HostPath Volumes"), refNSAPod, refCISPods},
@@ -81,16 +157,18 @@ var hostPathVolumes = eachPod(assessment.Metadata{
 		path := resource.String(hp, "path")
 		hit := assessment.Hit{Object: obj, Path: fmt.Sprintf("%s.volumes[%d].hostPath.path", prefix, i), Observed: path,
 			Message: fmt.Sprintf("volume %q mounts host path %s", resource.String(vol, "name"), path)}
-		if isCriticalHostPath(path) {
+		if critical, why := hostPathCritical(pod, vol); critical {
 			hit.Severity = sevCritical
-			hit.Message += " (sensitive node path)"
+			hit.Message += " (" + why + ")"
+		} else if why != "" {
+			hit.Message += " (" + why + ")"
 		}
 		ctx.Report(hit)
 	}
 })
 
 func isCriticalHostPath(p string) bool {
-	p = "/" + strings.Trim(p, "/")
+	p = cleanPath(p)
 	for _, c := range criticalHostPaths {
 		if p == c {
 			return true

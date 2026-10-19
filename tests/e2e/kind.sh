@@ -156,5 +156,9 @@ if [ -n "${GITHUB_ACTIONS:-}" ]; then
   for f in "$WORK"/own.??; do [ -e "$f" ] && annotate notice "REVIEW-OWN: $(paste -sd ';' "$f")"; done
 fi
 
+crit="$(jq -r '[.findings[] | select((.resource.namespace=="hardex" or .resource.namespace=="hardex-node") and .severity=="critical") | "\(.ruleId) \(.resource.namespace)/\(.resource.name)"] | join(", ")' "$WORK/final.json")"
+[ -z "$crit" ] || fail "Hardex's own deployments have critical findings: $crit"
+pass "Hardex's own deployments have no critical findings"
+
 echo
 echo "All end-to-end checks passed."
