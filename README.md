@@ -116,6 +116,28 @@ hardex diff before.json after.json          # exit 1 if anything >= high was int
 
 Configuration is **never loaded implicitly** — a `hardex.yaml` planted in a scanned repository cannot suppress findings. Pass it with `--config`. See [docs/configuration.md](docs/configuration.md) and [examples/hardex.yaml](examples/hardex.yaml).
 
+
+### In GitHub Actions
+
+```yaml
+permissions:
+  contents: read
+  security-events: write   # to upload SARIF to code scanning
+steps:
+  - uses: actions/checkout@v5
+  - uses: ManintheiCloud/Hardex@v0.8.3
+    with:
+      paths: k8s/
+      profile: baseline
+      fail-on: high
+  - uses: github/codeql-action/upload-sarif@v4
+    if: always()
+    with:
+      sarif_file: hardex.sarif
+```
+
+The action downloads the release for the runner (Linux, macOS, Windows; x64 and ARM64), checks it against the release's `SHA256SUMS`, and verifies its SLSA build provenance with `gh attestation verify` before running it. Pin it by commit SHA in production workflows.
+
 ## The problem
 
 Kubernetes security is not a single configuration problem. It is an interconnected collection of risks: misconfigured workloads and excessive privileges, weak RBAC, unrestricted east-west traffic, insecure runtime settings, exposed API components, inadequate secrets management, unverified images, insufficient audit logging, configuration drift, and inconsistent practices across clusters.

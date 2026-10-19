@@ -1,0 +1,69 @@
+name: Hardex
+description: Kubernetes security assessment of manifests, with SARIF for GitHub code scanning. Downloads a signed Hardex release and verifies its checksum and build provenance before running it.
+author: ManintheiCloud
+branding:
+  icon: shield
+  color: blue
+
+inputs:
+  paths:
+    description: Files or directories to assess (space-separated).
+    default: "."
+  profile:
+    description: "Profile: minimal, baseline or restricted."
+    default: baseline
+  fail-on:
+    description: Fail the step if a finding is at or above this severity (info..critical, or none).
+    default: high
+  format:
+    description: "Report format: sarif, json, text, markdown or html."
+    default: sarif
+  output:
+    description: Report file to write.
+    default: hardex.sarif
+  config:
+    description: Optional policy configuration file (waivers, disabled rules).
+    default: ""
+  args:
+    description: Extra arguments for hardex scan.
+    default: ""
+  version:
+    description: Hardex release to use (without the v).
+    default: "0.8.3"
+  verify-provenance:
+    description: Verify the release's SLSA build provenance with `gh attestation verify` (needs the gh CLI, present on GitHub-hosted runners).
+    default: "true"
+  token:
+    description: Token for downloading the release and verifying provenance.
+    default: ${{ github.token }}
+
+outputs:
+  report:
+    description: Path of the report file.
+    value: ${{ steps.scan.outputs.report }}
+  exit-code:
+    description: "hardex exit code: 0 clean, 1 findings at or above fail-on, 2 usage error, 3 incomplete assessment."
+    value: ${{ steps.scan.outputs.exit-code }}
+
+runs:
+  using: composite
+  steps:
+    - id: install
+      shell: bash
+      env:
+        VERSION: ${{ inputs.version }}
+        GH_TOKEN: ${{ inputs.token }}
+        VERIFY: ${{ inputs.verify-provenance }}
+      run: '"$GITHUB_ACTION_PATH/tools/action-install.sh"'
+    - id: scan
+      shell: bash
+      env:
+        HARDEX: ${{ steps.install.outputs.path }}
+        PATHS: ${{ inputs.paths }}
+        PROFILE: ${{ inputs.profile }}
+        FAIL_ON: ${{ inputs.fail-on }}
+        FORMAT: ${{ inputs.format }}
+        OUTPUT: ${{ inputs.output }}
+        CONFIG: ${{ inputs.config }}
+        ARGS: ${{ inputs.args }}
+      run: '"$GITHUB_ACTION_PATH/tools/action-scan.sh"'

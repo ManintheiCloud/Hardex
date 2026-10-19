@@ -1,0 +1,57 @@
+name: action
+
+# Tests the Hardex GitHub Action (action.yml) on every hosted runner type:
+# release download, checksum and provenance verification, scan, SARIF.
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: [ubuntu-24.04, ubuntu-24.04-arm, macos-15, windows-2025]
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Wait for the release the action defaults to
+        shell: bash
+        run: |
+          v="$(sed -n 's/^    default: "\([0-9][0-9.]*\)"$/\1/p' action.yml | head -1)"
+          for i in $(seq 1 40); do
+            curl -sfIL -o /dev/null "https://github.com/ManintheiCloud/Hardex/releases/download/v$v/SHA256SUMS" && exit 0
+            echo "waiting for release v$v ($i)"; sleep 30
+          done
+          echo "release v$v not published"; exit 1
+      - name: Clean manifests pass
+        uses: ./
+        with:
+          paths: tests/fixtures/hardened
+          profile: restricted
+          output: hardened.sarif
+      - name: Insecure manifests fail
+        id: insecure
+        uses: ./
+        continue-on-error: true
+        with:
+          paths: tests/fixtures/insecure
+          output: insecure.sarif
+      - name: Check results
+        shell: bash
+        env:
+          CODE: ${{ steps.insecure.outputs.exit-code }}
+          REPORT: ${{ steps.insecure.outputs.report }}
+        run: |
+          set -euo pipefail
+          [ "$CODE" = 1 ] || { echo "expected exit code 1 for insecure manifests, got '$CODE'"; exit 1; }
+          n="$(jq '.runs[0].results | length' "$REPORT")"
+          [ "$n" -gt 20 ] || { echo "expected SARIF results, got $n"; exit 1; }
+          jq -e '.version == "2.1.0" and (.runs[0].tool.driver.rules | length) > 40' "$REPORT" >/dev/null
+          echo "SARIF ok: $n results"

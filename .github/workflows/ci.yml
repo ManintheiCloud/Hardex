@@ -34,6 +34,11 @@ jobs:
       - run: make selfcheck
       - name: Kustomize overlay end-to-end
         run: kubectl version --client && make kustomize-check
+      - name: Action defaults to the current version
+        run: |
+          v="$(tr -d '[:space:]' < VERSION)"
+          grep -q "^    default: \"$v\"$" action.yml || { echo "::error::action.yml version default must be $v"; exit 1; }
+          grep -q "ManintheiCloud/Hardex@v$v" README.md || { echo "::error::README action example must use v$v"; exit 1; }
       - name: Rule reference is up to date
         run: go run ./tools/gendocs && git diff --exit-code docs/rules.md
       - run: make vuln
