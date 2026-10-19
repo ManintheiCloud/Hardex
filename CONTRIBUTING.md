@@ -53,3 +53,7 @@ These require approval from two maintainers:
 ## Conduct
 
 Participation is governed by our [Code of Conduct](CODE_OF_CONDUCT.md).
+
+## Releasing
+
+Releases are cut by changing the `VERSION` file on `main` (together with the CHANGELOG entry). The release workflow then tests, builds, signs and publishes binaries and the container image, and creates the `v<VERSION>` tag and GitHub release. Pushing a `v*` tag by hand works too. See [docs/verifying-releases.md](docs/verifying-releases.md).

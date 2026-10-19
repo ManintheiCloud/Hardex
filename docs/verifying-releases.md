@@ -14,7 +14,7 @@ Every release is built by [`.github/workflows/release.yml`](../.github/workflows
 # 1. Checksums are signed by the release workflow of this repository
 cosign verify-blob SHA256SUMS \
   --bundle SHA256SUMS.sigstore.json \
-  --certificate-identity-regexp '^https://github.com/ManintheiCloud/Hardex/\.github/workflows/release\.yml@refs/tags/v' \
+  --certificate-identity-regexp '^https://github.com/ManintheiCloud/Hardex/\.github/workflows/release\.yml@refs/(tags/v|heads/main)' \
   --certificate-oidc-issuer https://token.actions.githubusercontent.com
 
 # 2. Your download matches the signed checksums
@@ -28,7 +28,7 @@ gh attestation verify hardex_0.4.0_linux_amd64.tar.gz --repo ManintheiCloud/Hard
 
 ```sh
 cosign verify ghcr.io/manintheicloud/hardex:0.4.0 \
-  --certificate-identity-regexp '^https://github.com/ManintheiCloud/Hardex/\.github/workflows/release\.yml@refs/tags/v' \
+  --certificate-identity-regexp '^https://github.com/ManintheiCloud/Hardex/\.github/workflows/release\.yml@refs/(tags/v|heads/main)' \
   --certificate-oidc-issuer https://token.actions.githubusercontent.com
 
 gh attestation verify oci://ghcr.io/manintheicloud/hardex:0.4.0 --repo ManintheiCloud/Hardex
