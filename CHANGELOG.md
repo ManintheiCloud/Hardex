@@ -2,6 +2,14 @@
 
 All notable changes are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow [Semantic Versioning](https://semver.org/). Before 1.0, minor versions may contain breaking changes.
 
+## 0.8.3 — 2026-10-19
+
+### Added
+- Accuracy regression corpus (`tests/corpus`, `make corpus`, CI on every push): pinned releases of cert-manager, Argo CD, prometheus-operator, Calico, kube-state-metrics, Gatekeeper, Longhorn, metrics-server, Kyverno and Envoy Gateway are scanned and every finding compared with reviewed golden files.
+
+### Changed
+- HX-RBAC-008: reading Secrets only in the workload's own namespace is medium (high when other namespaces or cluster-wide).
+
 ## 0.8.2 — 2026-10-19
 
 Accuracy fixes from reviewing findings on widely used components (docs/accuracy.md).

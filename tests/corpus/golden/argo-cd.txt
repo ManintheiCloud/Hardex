@@ -1,0 +1,15 @@
+HX-NET-001 medium Namespace -/default | namespace default has no NetworkPolicy isolating all pods for Ingress traffic
+HX-RBAC-001 high ClusterRole -/argocd-application-controller | rule 0 uses a wildcard in apiGroups, resources, verbs
+HX-RBAC-001 high ClusterRole -/argocd-application-controller | rule 1 uses a wildcard in verbs
+HX-RBAC-001 high ClusterRole -/argocd-server | rule 0 uses a wildcard in apiGroups, resources
+HX-RBAC-003 high ClusterRole -/argocd-applicationset-controller | rule 4 grants get on all secrets in scope
+HX-RBAC-003 medium Role default/argocd-application-controller | rule 0 grants get on all secrets in scope
+HX-RBAC-003 medium Role default/argocd-applicationset-controller | rule 4 grants get on all secrets in scope
+HX-RBAC-003 medium Role default/argocd-dex-server | rule 0 grants get on all secrets in scope
+HX-RBAC-003 medium Role default/argocd-notifications-controller | rule 1 grants list on all secrets in scope
+HX-RBAC-003 medium Role default/argocd-server | rule 0 grants get on all secrets in scope
+HX-RBAC-008 medium Deployment default/argocd-applicationset-controller | pods run as service account default/argocd-applicationset-controller, whose token can: read secrets in namespace default (via RoleBinding argocd-applicationset-controller → Role argocd-applicationset-controller)
+HX-RBAC-008 medium Deployment default/argocd-dex-server | pods run as service account default/argocd-dex-server, whose token can: read secrets in namespace default (via RoleBinding argocd-dex-server → Role argocd-dex-server)
+HX-RBAC-008 medium Deployment default/argocd-notifications-controller | pods run as service account default/argocd-notifications-controller, whose token can: read secrets in namespace default (via RoleBinding argocd-notifications-controller → Role argocd-notifications-controller)
+HX-RBAC-008 medium Deployment default/argocd-server | pods run as service account default/argocd-server, whose token can: read secrets in namespace default (via RoleBinding argocd-server → Role argocd-server)
+HX-RBAC-008 medium StatefulSet default/argocd-application-controller | pods run as service account default/argocd-application-controller, whose token can: read secrets in namespace default (via RoleBinding argocd-application-controller → Role argocd-application-controller)

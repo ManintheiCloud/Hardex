@@ -606,7 +606,7 @@ Severity is the default; individual findings may be raised or lowered where the 
 
 **Workload holds dangerous API permissions** — high, rbac
 
-**Checks:** Follows each workload's service account through RoleBindings and ClusterRoleBindings to the permissions its mounted token carries, and reports workloads that can read secrets, exec into pods, mint tokens, reach kubelets, create workloads (medium), escalate or impersonate, or control everything (critical).
+**Checks:** Follows each workload's service account through RoleBindings and ClusterRoleBindings to the permissions its mounted token carries, and reports workloads that can read secrets (high; medium when only in the workload's own namespace), exec into pods, mint tokens, reach kubelets, create workloads (medium), escalate or impersonate, or control everything (critical).
 
 **Why it matters:** Container compromise is common; what matters is what the stolen token can do next. A web server whose service account can read every secret turns one application bug into a cluster-wide breach.
 

@@ -1,0 +1,33 @@
+HX-NET-001 medium Namespace -/longhorn-system | namespace longhorn-system has no NetworkPolicy isolating all pods for Ingress traffic
+HX-RBAC-001 high ClusterRole -/longhorn-role | rule 0 uses a wildcard in verbs
+HX-RBAC-001 high ClusterRole -/longhorn-role | rule 10 uses a wildcard in verbs
+HX-RBAC-001 high ClusterRole -/longhorn-role | rule 11 uses a wildcard in verbs
+HX-RBAC-001 high ClusterRole -/longhorn-role | rule 12 uses a wildcard in verbs
+HX-RBAC-001 high ClusterRole -/longhorn-role | rule 19 uses a wildcard in verbs
+HX-RBAC-001 high ClusterRole -/longhorn-role | rule 3 uses a wildcard in verbs
+HX-RBAC-001 high ClusterRole -/longhorn-role | rule 9 uses a wildcard in verbs
+HX-RBAC-001 medium Role longhorn-system/longhorn | rule 0 uses a wildcard in verbs
+HX-RBAC-001 medium Role longhorn-system/longhorn | rule 1 uses a wildcard in verbs
+HX-RBAC-001 medium Role longhorn-system/longhorn | rule 2 uses a wildcard in verbs
+HX-RBAC-001 medium Role longhorn-system/longhorn | rule 3 uses a wildcard in verbs
+HX-RBAC-001 medium Role longhorn-system/longhorn | rule 4 uses a wildcard in verbs
+HX-RBAC-001 medium Role longhorn-system/longhorn | rule 5 uses a wildcard in verbs
+HX-RBAC-001 medium Role longhorn-system/longhorn | rule 6 uses a wildcard in verbs
+HX-RBAC-002 critical ClusterRoleBinding -/longhorn-support-bundle | ServiceAccount longhorn-system/longhorn-support-bundle has cluster-admin; any pod running as it controls the cluster
+HX-RBAC-003 high ClusterRole -/longhorn-csi-secret-role | rule 0 grants get on all secrets in scope
+HX-RBAC-003 high ClusterRole -/longhorn-role | rule 2 grants get on all secrets in scope
+HX-RBAC-008 critical DaemonSet longhorn-system/longhorn-manager | pods run as service account longhorn-system/longhorn-service-account, whose token can: create workloads in namespace longhorn-system (via RoleBinding longhorn → Role longhorn); grant itself any permission (escalate/bind) cluster-wide (via ClusterRoleBinding longhorn-bind → ClusterRole longhorn-role); grant itself any permission (escalate/bind) in namespace longhorn-system (via RoleBinding longhorn → Role longhorn); impersonate other identities in namespace longhorn-system (via RoleBinding longhorn → Role longhorn); read secrets cluster-wide (via ClusterRoleBinding longhorn-bind → ClusterRole longhorn-role); read secrets in namespace longhorn-system (via RoleBinding longhorn → Role longhorn)
+HX-RBAC-008 critical Deployment longhorn-system/longhorn-driver-deployer | pods run as service account longhorn-system/longhorn-service-account, whose token can: create workloads in namespace longhorn-system (via RoleBinding longhorn → Role longhorn); grant itself any permission (escalate/bind) cluster-wide (via ClusterRoleBinding longhorn-bind → ClusterRole longhorn-role); grant itself any permission (escalate/bind) in namespace longhorn-system (via RoleBinding longhorn → Role longhorn); impersonate other identities in namespace longhorn-system (via RoleBinding longhorn → Role longhorn); read secrets cluster-wide (via ClusterRoleBinding longhorn-bind → ClusterRole longhorn-role); read secrets in namespace longhorn-system (via RoleBinding longhorn → Role longhorn)
+HX-RBAC-008 critical Deployment longhorn-system/longhorn-global-manager | pods run as service account longhorn-system/longhorn-service-account, whose token can: create workloads in namespace longhorn-system (via RoleBinding longhorn → Role longhorn); grant itself any permission (escalate/bind) cluster-wide (via ClusterRoleBinding longhorn-bind → ClusterRole longhorn-role); grant itself any permission (escalate/bind) in namespace longhorn-system (via RoleBinding longhorn → Role longhorn); impersonate other identities in namespace longhorn-system (via RoleBinding longhorn → Role longhorn); read secrets cluster-wide (via ClusterRoleBinding longhorn-bind → ClusterRole longhorn-role); read secrets in namespace longhorn-system (via RoleBinding longhorn → Role longhorn)
+HX-WL-001 critical DaemonSet longhorn-system/longhorn-manager[longhorn-manager] | container "longhorn-manager" runs privileged
+HX-WL-003 critical DaemonSet longhorn-system/longhorn-manager | volume "boot" mounts host path /boot/ (sensitive node path, writable)
+HX-WL-003 critical DaemonSet longhorn-system/longhorn-manager | volume "dev" mounts host path /dev/ (sensitive node path: readable contents expose credentials or data)
+HX-WL-003 critical DaemonSet longhorn-system/longhorn-manager | volume "etc" mounts host path /etc/ (sensitive node path: readable contents expose credentials or data)
+HX-WL-003 critical DaemonSet longhorn-system/longhorn-manager | volume "proc" mounts host path /proc/ (sensitive node path: readable contents expose credentials or data)
+HX-WL-003 high DaemonSet longhorn-system/longhorn-manager | volume "longhorn" mounts host path /var/lib/longhorn/
+HX-WL-008 medium DaemonSet longhorn-system/longhorn-manager[longhorn-manager] | container "longhorn-manager" has no seccomp profile
+HX-WL-008 medium DaemonSet longhorn-system/longhorn-manager[pre-pull-share-manager-image] | container "pre-pull-share-manager-image" has no seccomp profile
+HX-WL-008 medium Deployment longhorn-system/longhorn-driver-deployer[longhorn-driver-deployer] | container "longhorn-driver-deployer" has no seccomp profile
+HX-WL-008 medium Deployment longhorn-system/longhorn-driver-deployer[wait-longhorn-manager] | container "wait-longhorn-manager" has no seccomp profile
+HX-WL-008 medium Deployment longhorn-system/longhorn-global-manager[longhorn-global-manager] | container "longhorn-global-manager" has no seccomp profile
+HX-WL-008 medium Deployment longhorn-system/longhorn-ui[longhorn-ui] | container "longhorn-ui" has no seccomp profile

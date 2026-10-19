@@ -1,0 +1,12 @@
+# name  url [url...]   — pinned releases of widely used components.
+# Reviewed findings are in golden/<name>.txt; see docs/accuracy.md.
+cert-manager https://github.com/cert-manager/cert-manager/releases/download/v1.21.2/cert-manager.yaml
+argo-cd https://raw.githubusercontent.com/argoproj/argo-cd/v3.5.5/manifests/install.yaml
+prometheus-operator https://github.com/prometheus-operator/prometheus-operator/releases/download/v0.94.1/bundle.yaml
+calico https://raw.githubusercontent.com/projectcalico/calico/v3.33.0/manifests/calico.yaml
+kube-state-metrics https://raw.githubusercontent.com/kubernetes/kube-state-metrics/v2.20.0/examples/standard/cluster-role.yaml https://raw.githubusercontent.com/kubernetes/kube-state-metrics/v2.20.0/examples/standard/cluster-role-binding.yaml https://raw.githubusercontent.com/kubernetes/kube-state-metrics/v2.20.0/examples/standard/deployment.yaml https://raw.githubusercontent.com/kubernetes/kube-state-metrics/v2.20.0/examples/standard/service-account.yaml https://raw.githubusercontent.com/kubernetes/kube-state-metrics/v2.20.0/examples/standard/service.yaml
+gatekeeper https://raw.githubusercontent.com/open-policy-agent/gatekeeper/v3.23.1/deploy/gatekeeper.yaml
+longhorn https://raw.githubusercontent.com/longhorn/longhorn/v1.13.0/deploy/longhorn.yaml
+metrics-server https://github.com/kubernetes-sigs/metrics-server/releases/download/v0.9.0/components.yaml
+kyverno https://github.com/kyverno/kyverno/releases/download/v1.19.1/install.yaml
+envoy-gateway https://github.com/envoyproxy/gateway/releases/download/v1.9.2/install.yaml

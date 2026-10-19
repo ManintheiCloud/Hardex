@@ -1,0 +1,7 @@
+HX-NET-001 medium Namespace -/kyverno | namespace kyverno has no NetworkPolicy isolating all pods for Ingress traffic
+HX-RBAC-003 medium Role kyverno/kyverno:admission-controller | rule 0 grants get on all secrets in scope
+HX-RBAC-003 medium Role kyverno/kyverno:background-controller | rule 3 grants get on all secrets in scope
+HX-RBAC-003 medium Role kyverno/kyverno:reports-controller | rule 1 grants get on all secrets in scope
+HX-RBAC-008 medium Deployment kyverno/kyverno-admission-controller | pods run as service account kyverno/kyverno-admission-controller, whose token can: read secrets in namespace kyverno (via RoleBinding kyverno:admission-controller → Role kyverno:admission-controller)
+HX-RBAC-008 medium Deployment kyverno/kyverno-background-controller | pods run as service account kyverno/kyverno-background-controller, whose token can: read secrets in namespace kyverno (via RoleBinding kyverno:background-controller → Role kyverno:background-controller)
+HX-RBAC-008 medium Deployment kyverno/kyverno-reports-controller | pods run as service account kyverno/kyverno-reports-controller, whose token can: read secrets in namespace kyverno (via RoleBinding kyverno:reports-controller → Role kyverno:reports-controller)

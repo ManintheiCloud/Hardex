@@ -307,7 +307,7 @@ var reachableWorkloads = assessment.InventoryRule{
 		Title:          "Workload holds dangerous API permissions",
 		Severity:       finding.High,
 		Category:       assessment.CategoryRBAC,
-		Description:    "Follows each workload's service account through RoleBindings and ClusterRoleBindings to the permissions its mounted token carries, and reports workloads that can read secrets, exec into pods, mint tokens, reach kubelets, create workloads (medium), escalate or impersonate, or control everything (critical).",
+		Description:    "Follows each workload's service account through RoleBindings and ClusterRoleBindings to the permissions its mounted token carries, and reports workloads that can read secrets (high; medium when only in the workload's own namespace), exec into pods, mint tokens, reach kubelets, create workloads (medium), escalate or impersonate, or control everything (critical).",
 		Rationale:      "Container compromise is common; what matters is what the stolen token can do next. A web server whose service account can read every secret turns one application bug into a cluster-wide breach.",
 		Remediation:    "Give the workload a dedicated service account bound only to what it needs, or set automountServiceAccountToken: false if it never calls the API. Remove broad grants found through the listed binding.",
 		References:     []finding.Reference{refCISRBAC, refNSAAuth, baselines.K8s("RBAC good practices", "https://kubernetes.io/docs/concepts/security/rbac-good-practices/")},
@@ -334,8 +334,16 @@ var reachableWorkloads = assessment.InventoryRule{
 					seen[desc] = true
 					found = append(found, desc)
 				}
-				if p.Cap.Severity() > worst {
-					worst = p.Cap.Severity()
+				capSev := p.Cap.Severity()
+				if p.Cap == CapReadSecrets && p.Namespace == obj.EffectiveNamespace() && capSev > finding.Medium {
+					// Controllers commonly keep their own certificates in
+					// their namespace; reading only those Secrets exposes
+					// less than reading other namespaces' (but still any
+					// token Secrets there, so not less than medium).
+					capSev = finding.Medium
+				}
+				if capSev > worst {
+					worst = capSev
 				}
 			}
 			if len(found) == 0 {

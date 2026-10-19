@@ -71,3 +71,30 @@ spec: {serviceAccountName: audit, containers: [{name: c, image: x}]}
 		t.Errorf("get on nodes/proxy not reported: %s", joined)
 	}
 }
+
+func TestOwnNamespaceSecretsAreMedium(t *testing.T) {
+	grant := func(ns string) string {
+		return `apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata: {name: certs, namespace: ` + ns + `}
+rules: [{apiGroups: [""], resources: [secrets], verbs: [get]}]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata: {name: certs, namespace: ` + ns + `}
+roleRef: {kind: Role, name: certs, apiGroup: rbac.authorization.k8s.io}
+subjects: [{kind: ServiceAccount, name: ctl, namespace: ops}]
+---
+apiVersion: v1
+kind: Pod
+metadata: {name: ctl, namespace: ops}
+spec: {serviceAccountName: ctl, containers: [{name: c, image: x}]}
+`
+	}
+	if got := strings.Join(reach(t, grant("ops")), "\n"); !strings.Contains(got, "ctl: medium") {
+		t.Errorf("own namespace: %s", got)
+	}
+	if got := strings.Join(reach(t, grant("payments")), "\n"); !strings.Contains(got, "ctl: high") {
+		t.Errorf("other namespace: %s", got)
+	}
+}

@@ -1,0 +1,4 @@
+HX-NET-001 medium Namespace -/default | namespace default has no NetworkPolicy isolating all pods for Ingress traffic
+HX-PATH-001 high Deployment default/prometheus-operator | compromise of this workload leads to root on a node: uses its mounted token (service account default/prometheus-operator) → creates a privileged pod, scheduled on any node, in namespace default, which does not enforce Pod Security (cluster-wide, via ClusterRoleBinding prometheus-operator → ClusterRole prometheus-operator)
+HX-RBAC-003 high ClusterRole -/prometheus-operator | rule 5 grants get on all secrets in scope
+HX-RBAC-008 high Deployment default/prometheus-operator | pods run as service account default/prometheus-operator, whose token can: create workloads cluster-wide (via ClusterRoleBinding prometheus-operator → ClusterRole prometheus-operator); read secrets cluster-wide (via ClusterRoleBinding prometheus-operator → ClusterRole prometheus-operator)

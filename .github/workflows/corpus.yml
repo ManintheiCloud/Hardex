@@ -1,0 +1,36 @@
+name: corpus
+
+# Accuracy regression test: scans pinned releases of widely used components
+# (tests/corpus/corpus.txt) and compares every finding with the reviewed
+# golden files. A rule change that alters findings on real-world software
+# must update the golden files in the same pull request, so the change is
+# reviewed rather than discovered by users. See docs/accuracy.md.
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    - cron: "11 6 * * 3"
+
+permissions:
+  contents: read
+
+jobs:
+  corpus:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: stable
+      - run: make build
+      - name: Compare findings with the reviewed golden files
+        run: |
+          if ! tests/corpus/run.sh > corpus.txt 2>&1; then
+            cat corpus.txt
+            grep '^CHANGED' corpus.txt | while read -r _ name; do echo "::error title=corpus::findings changed for $name; review the diff and run tests/corpus/run.sh --update"; done
+            exit 1
+          fi
+          cat corpus.txt

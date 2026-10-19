@@ -1,0 +1,1 @@
+HX-RBAC-003 high ClusterRole -/kube-state-metrics | rule 0 grants list on all secrets in scope

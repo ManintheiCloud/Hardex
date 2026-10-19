@@ -1,0 +1,2 @@
+HX-RBAC-001 low ClusterRole -/calico-kube-controllers | rule 16 uses a wildcard in resources (limited to the API group projectcalico.org)
+HX-RBAC-001 low ClusterRole -/calico-kube-controllers | rule 17 uses a wildcard in resources (limited to the API group crd.projectcalico.org)
