@@ -2,7 +2,7 @@ VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo 0.8.
 LDFLAGS := -s -w -X github.com/ManintheiCloud/Hardex.Version=$(VERSION)
 GOVULNCHECK := golang.org/x/vuln/cmd/govulncheck@v1.9.0
 
-.PHONY: build test check fmt vet vuln docs selfcheck fuzz bench kustomize-check clean
+.PHONY: build test check fmt vet vuln docs selfcheck fuzz bench kustomize-check e2e clean
 
 build:
 	CGO_ENABLED=0 go build -trimpath -ldflags '$(LDFLAGS)' -o bin/hardex ./cmd/hardex
@@ -50,6 +50,10 @@ selfcheck: build
 	@./bin/hardex scan --fail-on critical tests/fixtures/insecure > /dev/null; test $$? -eq 1
 
 check: fmt vet test selfcheck
+
+# End-to-end on a real cluster (kind, docker, kubectl, jq). See tests/e2e/kind.sh.
+e2e:
+	tests/e2e/kind.sh
 
 clean:
 	rm -rf bin

@@ -1,0 +1,35 @@
+name: e2e
+
+# End-to-end on a real Kubernetes cluster (kind): the live client under the
+# least-privilege reader role, remediation apply and rollback, the node
+# scanner DaemonSet, and the admission webhook behind a real API server.
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    - cron: "41 5 * * 2"
+
+permissions:
+  contents: read
+
+jobs:
+  kind:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: stable
+      - name: Install kind
+        run: |
+          go install sigs.k8s.io/kind@v0.33.0
+          echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
+      - name: End-to-end
+        run: |
+          kind version
+          kubectl version --client
+          make e2e
