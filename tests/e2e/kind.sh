@@ -45,14 +45,8 @@ kind load docker-image --name "$CLUSTER" "$IMAGE"
 step "workloads under assessment"
 kubectl apply -f deploy/hardex-reader.yaml
 for ns in shop ci; do kubectl create namespace "$ns" --dry-run=client -o yaml | kubectl apply -f -; done
-# The fixtures are deliberately insecure; only the objects are needed, not
-# running containers, so controllers are scaled to zero.
 kubectl apply -f tests/fixtures/insecure/rbac.yaml
-# Objects the API server rejects on this platform (the Windows HostProcess
-# pod) are expected to fail; the Deployment must be created.
-kubectl apply -f tests/fixtures/insecure/workloads.yaml 2>&1 | tee "$WORK/apply.txt" || true
-kubectl get deployment -n shop insecure-web >/dev/null || fail "fixture Deployment shop/insecure-web was not created: $(cat "$WORK/apply.txt")"
-kubectl scale deployment -n shop insecure-web --replicas 0
+kubectl apply -f tests/e2e/insecure.yaml
 
 step "live scan as the least-privilege reader"
 server="$(kubectl config view --raw --minify -o jsonpath='{.clusters[0].cluster.server}')"

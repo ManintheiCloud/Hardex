@@ -1,0 +1,29 @@
+# Deliberately insecure but API-valid workloads for the end-to-end test
+# (the detection fixtures in tests/fixtures include combinations a current
+# API server rejects). Scaled to zero: only the objects are assessed.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: insecure-web
+  namespace: shop
+spec:
+  replicas: 0
+  selector: {matchLabels: {app: insecure-web}}
+  template:
+    metadata: {labels: {app: insecure-web}}
+    spec:
+      hostPID: true
+      hostNetwork: true
+      containers:
+        - name: web
+          image: nginx:latest
+          ports: [{containerPort: 8080, hostPort: 8080}]
+          securityContext:
+            privileged: true
+            runAsUser: 0
+            allowPrivilegeEscalation: true
+            capabilities: {add: [SYS_ADMIN, NET_ADMIN]}
+          volumeMounts: [{name: docker, mountPath: /var/run/docker.sock}]
+      volumes:
+        - name: docker
+          hostPath: {path: /var/run/docker.sock}
