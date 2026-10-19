@@ -132,10 +132,16 @@ func TestVerifyRejects(t *testing.T) {
 func TestSETAloneSuffices(t *testing.T) {
 	sums, bundle := release(t)
 	d := sha256.Sum256(sums)
+	// A signed entry timestamp without an inclusion proof is accepted only
+	// in v0.1 bundles (as cosign's legacy format produces).
 	b := mutate(t, bundle, func(m map[string]any) {
 		delete(entry(m), "inclusionProof")
 		delete(vm(m), "timestampVerificationData")
 	})
+	if _, err := Verify(b, Options{Root: PublicGood(), Policy: releasePolicy, Digest: d[:]}); err == nil || !strings.Contains(err.Error(), "no inclusion proof") {
+		t.Errorf("v0.3 bundle without inclusion proof: %v", err)
+	}
+	b = mutate(t, b, func(m map[string]any) { m["mediaType"] = "application/vnd.dev.sigstore.bundle+json;version=0.1" })
 	if _, err := Verify(b, Options{Root: PublicGood(), Policy: releasePolicy, Digest: d[:]}); err != nil {
 		t.Fatal(err)
 	}

@@ -8,8 +8,9 @@
 //   - container escape (privileged, hostPID, sensitive hostPath, critical
 //     capabilities, HostProcess) → root on the nodes the pod can run on;
 //   - root on a node → the token of every pod that mounts one and could be
-//     scheduled on the same node (placement constraints that make two pods'
-//     node sets provably disjoint break this edge);
+//     scheduled on the same node (computed from Node labels and taints when
+//     available, else from placement constraints that make two pods' node
+//     sets provably disjoint);
 //   - creating workloads → any service account in scope, and root on any
 //     node where Pod Security admission does not enforce baseline or
 //     restricted;
@@ -84,6 +85,7 @@ type graph struct {
 }
 
 func build(inv *resource.Inventory) *graph {
+	nodes := inv.OfKind("Node")
 	g := &graph{idx: rbac.NewIndex(inv), tokensByNS: map[string][]string{}, saByNS: map[string][]string{},
 		escapeIn: map[string]workload{}, enforced: map[string]bool{}, cloud: map[string]string{},
 		placements: map[string]placement{anyNode: nil}, edges: map[string][]edge{}}
@@ -117,6 +119,9 @@ func build(inv *resource.Inventory) *graph {
 		}
 		w := workload{obj: o, ns: o.EffectiveNamespace(), sa: rbac.ServiceAccountOf(pod), token: g.idx.TokenMounted(o, pod),
 			placement: placementOf(pod)}
+		if len(nodes) > 0 {
+			w.placement = eligibleNodes(pod, nodes)
+		}
 		w.escape, w.canEsc = workloads.EscapeVector(pod)
 		nsSeen[w.ns] = true
 		addSA(w.ns, w.sa)
@@ -323,7 +328,7 @@ var escalationPaths = assessment.InventoryRule{
 		Rationale:      "Real attacks chain weaknesses: an exploited web pod that can escape to its node can steal the token of a privileged controller scheduled on the same node. Each step alone may look acceptable; the chain is a full compromise — of the cluster, or of the cloud account behind it.",
 		Remediation:    "Break the chain at its cheapest link, listed in the finding: remove the escape vector, keep powerful tokens off shared node pools (node selectors or dedicated pools), stop mounting tokens in pods that do not need them, narrow the RBAC grant or cloud role, or enforce Pod Security admission in the namespace.",
 		References:     []finding.Reference{baselines.NSA("Threat model"), baselines.K8s("RBAC good practices: privilege escalation risks", "https://kubernetes.io/docs/concepts/security/rbac-good-practices/#privilege-escalation-risks")},
-		Limitations:    "Pods may share a node unless their nodeSelector or a single required node-affinity term makes their node sets provably disjoint; taints and preferred affinity are not modelled. Namespaces without a Namespace object in the input are assumed not to enforce Pod Security. Cloud identities are recognised from ServiceAccount annotations (EKS IRSA, GKE Workload Identity, Azure Workload Identity); EKS Pod Identity associations live outside Kubernetes and are not visible. Workloads in kube-system are not reported as starting points unless --include-system is set, but their tokens are considered.",
+		Limitations:    "When Node objects are available (live scans collect them), pods are placed on exactly the nodes their nodeName, nodeSelector, required node affinity and tolerations allow; otherwise pods may share a node unless their nodeSelector or a single required node-affinity term makes their node sets provably disjoint. Preferred affinity, pod (anti-)affinity and topology spread are not modelled. Namespaces without a Namespace object in the input are assumed not to enforce Pod Security. Cloud identities are recognised from ServiceAccount annotations (EKS IRSA, GKE Workload Identity, Azure Workload Identity); EKS Pod Identity associations live outside Kubernetes and are not visible. Workloads in kube-system are not reported as starting points unless --include-system is set, but their tokens are considered.",
 		NeedsInventory: true,
 	},
 	Check: func(ctx *assessment.Context) {

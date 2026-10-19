@@ -34,6 +34,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"strings"
 	"time"
 )
 
@@ -98,6 +99,9 @@ type LogKey struct {
 	ID       []byte // SHA-256 of the DER public key
 	Key      crypto.PublicKey
 	ValidFor validity
+	// explicitID is set when the trusted root names the log ID, which for
+	// Rekor v2 logs is the checkpoint key hash rather than a key digest.
+	explicitID bool
 }
 
 // Authority is a certificate authority (Fulcio) or timestamp authority.
@@ -159,27 +163,41 @@ func ParseTrustedRoot(data []byte) (*TrustedRoot, error) {
 	}
 	sum := sha256.Sum256(data)
 	r := &TrustedRoot{digest: fmt.Sprintf("sha256:%x", sum)}
-	parseLog := func(url string, k rawKey) (LogKey, error) {
+	parseLog := func(url string, k rawKey, logID string) (LogKey, error) {
 		der, err := base64.StdEncoding.DecodeString(k.RawBytes)
 		if err != nil {
 			return LogKey{}, fmt.Errorf("log %s: %w", url, err)
 		}
 		pub, err := x509.ParsePKIXPublicKey(der)
+		if err != nil && strings.HasPrefix(k.KeyDetails, "PKCS1_") {
+			pub, err = x509.ParsePKCS1PublicKey(der)
+		}
 		if err != nil {
 			return LogKey{}, fmt.Errorf("log %s: %w", url, err)
 		}
-		id := sha256.Sum256(der)
-		return LogKey{URL: url, ID: id[:], Key: pub, ValidFor: k.ValidFor}, nil
+		if k.ValidFor.Start == nil {
+			return LogKey{}, fmt.Errorf("log %s: validity period has no start", url)
+		}
+		sum := sha256.Sum256(der)
+		lk := LogKey{URL: url, ID: sum[:], Key: pub, ValidFor: k.ValidFor}
+		if logID != "" {
+			id, err := base64.StdEncoding.DecodeString(logID)
+			if err != nil || len(id) < 4 {
+				return LogKey{}, fmt.Errorf("log %s: malformed log ID", url)
+			}
+			lk.ID, lk.explicitID = id, true
+		}
+		return lk, nil
 	}
 	for _, t := range raw.Tlogs {
-		k, err := parseLog(t.BaseURL, t.PublicKey)
+		k, err := parseLog(t.BaseURL, t.PublicKey, t.LogID.KeyID)
 		if err != nil {
 			return nil, err
 		}
 		r.Tlogs = append(r.Tlogs, k)
 	}
 	for _, t := range raw.Ctlogs {
-		k, err := parseLog(t.BaseURL, t.PublicKey)
+		k, err := parseLog(t.BaseURL, t.PublicKey, t.LogID.KeyID)
 		if err != nil {
 			return nil, err
 		}
@@ -187,6 +205,9 @@ func ParseTrustedRoot(data []byte) (*TrustedRoot, error) {
 	}
 	parseChain := func(uri string, c rawChain, v validity, tsa bool) (Authority, error) {
 		a := Authority{URI: uri, Roots: x509.NewCertPool(), Intermediates: x509.NewCertPool(), ValidFor: v}
+		if v.Start == nil {
+			return a, fmt.Errorf("authority %s: validity period has no start", uri)
+		}
 		var certs []*x509.Certificate
 		for _, raw := range c.Certificates {
 			der, err := base64.StdEncoding.DecodeString(raw.RawBytes)

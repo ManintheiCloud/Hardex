@@ -1,6 +1,6 @@
 # Threat model
 
-Version 0.6.0. This document has two parts: the threats Hardex helps defend **clusters** against (what the rules are for), and the threats to **Hardex itself** (how the tool must behave). Both are living documents; propose changes by pull request.
+Version 0.7.0. This document has two parts: the threats Hardex helps defend **clusters** against (what the rules are for), and the threats to **Hardex itself** (how the tool must behave). Both are living documents; propose changes by pull request.
 
 ---
 
@@ -56,7 +56,7 @@ These are tracked in [ROADMAP.md](../ROADMAP.md):
 - Runtime detection (behaviour after compromise) — out of scope; Hardex is a posture tool.
 - Image *contents* beyond the SBOM: vulnerabilities in packages the SBOM misses, and reachability of vulnerable code.
 - Permissions of the cloud roles that workload identities assume (Hardex sees the binding, not the cloud policy); EKS Pod Identity associations, which live outside Kubernetes.
-- Taints and preferred affinity in co-location analysis; service mesh mTLS; managed control planes whose flags are not visible.
+- Preferred and inter-pod affinity in co-location analysis (node labels, required affinity and taints are modelled when Node objects are available); service mesh mTLS; managed control planes whose flags are not visible.
 - Admission webhook namespace exclusions.
 
 ---
@@ -114,7 +114,7 @@ These are tracked in [ROADMAP.md](../ROADMAP.md):
 | H32 | Evidence report altered after the fact | Report embeds the SHA-256 of its source JSON report (implemented, tested) |
 | H33 | Registry or proxy substitutes image content | Manifests and blobs fetched by digest are re-hashed and compared (implemented, tested) |
 | H34 | A valid signature for one image is replayed onto another | A signature verifies an image only if its payload names that exact digest (implemented, tested) |
-| H35 | Unsupported signature types reported as verified | Keyless verification requires an identity policy; unsupported log entry types (Rekor v2) are reported as invalid with the reason, never as verified (implemented, tested) |
+| H35 | Unsupported signature types reported as verified | Keyless verification requires an identity policy; unsupported log entry types are reported as invalid with the reason, never as verified; the Sigstore conformance suite runs in CI (implemented, tested) |
 | H36 | A bug in the YAML library crashes Hardex on malformed input | Every YAML decode goes through `internal/yamlsafe`, which turns library panics into errors; continuous fuzzing in CI; the crashing input found by fuzzing is a permanent regression test (implemented, tested) |
 | H37 | A CNI policy is misread as isolating, hiding an open namespace | Only unambiguous default-deny forms count, following each project's reference docs; everything else is reported (implemented, tested) |
 | H38 | Forged keyless signature: a certificate from an untrusted CA, a signature never logged, a backdated or expired certificate, or a bundle replayed onto another artifact | Full offline verification against the trusted root: Fulcio chain at a *verified* signing time (signed entry timestamp or RFC 3161), SCT, Rekor body consistency with signature/certificate/digest, inclusion proof against a signed checkpoint, identity and issuer policy; tested against a real bundle and with mutations; bundle and timestamp parsers fuzzed (implemented, tested) |

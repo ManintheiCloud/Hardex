@@ -1,6 +1,6 @@
 # Roadmap
 
-Roadmap items are development objectives, not completed or guaranteed features. Status as of v0.6.0. Every Phase I–IV objective is complete; ongoing work is listed at the end.
+Roadmap items are development objectives, not completed or guaranteed features. Status as of v0.7.0. Every Phase I–IV objective is complete; ongoing work is listed at the end.
 
 ## Phase I — Foundation
 
@@ -63,4 +63,6 @@ These are continuing efforts rather than milestones:
 
 - Collect real-cluster performance reports and keep the scale targets honest.
 - Re-review framework mappings when CIS or NSA/CISA publish new versions; refresh the embedded Sigstore trusted root each release.
-- Rekor v2 (tile-based log) entries in keyless verification; taints and preferred affinity in co-location analysis; the permissions behind cloud roles.
+- Preferred and inter-pod affinity in co-location analysis; the permissions behind cloud roles (needs each provider's IAM API).
+
+Done since 0.6.0: Rekor v2 entries and the Sigstore conformance suite in keyless verification; node-aware co-location from Node labels and taints.

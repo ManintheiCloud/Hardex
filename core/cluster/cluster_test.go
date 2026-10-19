@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"encoding/pem"
+	"github.com/ManintheiCloud/Hardex/core/resource"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -61,6 +62,13 @@ func (f *fakeAPI) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				"spec": map[string]any{"containers": []any{map[string]any{"name": "c", "image": "x:1"}}},
 			}}
 		}
+	}
+	if plural == "nodes" {
+		resp["items"] = []any{map[string]any{
+			"metadata": map[string]any{"name": "n1", "labels": map[string]any{"pool": "a"}, "annotations": map[string]any{"x": "y"}},
+			"spec":     map[string]any{"taints": []any{map[string]any{"key": "dedicated", "effect": "NoSchedule"}}, "podCIDR": "10.0.0.0/24"},
+			"status":   map[string]any{"addresses": []any{map[string]any{"type": "InternalIP", "address": "10.1.2.3"}}},
+		}}
 	}
 	json.NewEncoder(w).Encode(resp)
 }
@@ -242,5 +250,35 @@ func TestTokenFileIsReadPerRequestAndExecPlugin(t *testing.T) {
 		if f.seenTokens[i] != w {
 			t.Errorf("request %d auth = %q, want %q", i, f.seenTokens[i], w)
 		}
+	}
+}
+
+func TestCollectNodesMinimallyAndOptionally(t *testing.T) {
+	_, cfg := newFake(t, &fakeAPI{})
+	c, _ := NewClient(cfg, ReadOnly)
+	col, err := Collect(context.Background(), c)
+	if err != nil {
+		t.Fatal(err)
+	}
+	nodes := col.Inventory.OfKind("Node")
+	if len(nodes) != 1 {
+		t.Fatalf("nodes = %v", nodes)
+	}
+	raw := nodes[0].Raw
+	if resource.Map(raw, "status") != nil || resource.Map(raw, "metadata", "annotations") != nil || resource.String(raw, "spec", "podCIDR") != "" {
+		t.Errorf("node not minimised: %v", raw)
+	}
+	if len(resource.Maps(raw, "spec", "taints")) != 1 || resource.String(raw, "metadata", "labels", "pool") != "a" {
+		t.Errorf("node labels/taints lost: %v", raw)
+	}
+
+	_, cfg = newFake(t, &fakeAPI{forbid: "nodes"})
+	c, _ = NewClient(cfg, ReadOnly)
+	col, err = Collect(context.Background(), c)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(col.Errors) != 0 || len(col.Warnings) != 1 || !strings.Contains(col.Warnings[0], "nodes") {
+		t.Errorf("forbidden nodes must warn, not fail: errors %v warnings %v", col.Errors, col.Warnings)
 	}
 }

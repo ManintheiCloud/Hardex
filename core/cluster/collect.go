@@ -81,6 +81,19 @@ var Collected = []Resource{
 	{"rbac.authorization.k8s.io", "v1", "clusterrolebindings", "ClusterRoleBinding", false},
 }
 
+// Enrichment resources sharpen the analysis but are not required: when they
+// cannot be read the assessment is still complete, with a warning naming
+// what is less precise. Nodes let attack-path analysis place pods on the
+// nodes they can actually be scheduled on (labels, affinity, taints).
+var Enrichment = []Resource{
+	{"", "v1", "nodes", "Node", true},
+}
+
+// enrichmentEffect explains what is lost without an enrichment resource.
+var enrichmentEffect = map[string]string{
+	"Node": "attack paths assume pods may share a node unless their node selectors exclude it",
+}
+
 // ResourceForKind returns the API resource for a collected kind.
 func ResourceForKind(kind string) (Resource, bool) {
 	for _, r := range Collected {
@@ -97,6 +110,8 @@ type Collection struct {
 	// Errors are resources that could not be read. An assessment built on
 	// an incomplete collection understates risk.
 	Errors []string
+	// Warnings describe enrichment resources that could not be read.
+	Warnings []string
 	// Skipped counts controller-owned objects omitted to avoid reporting
 	// the same weakness on a Deployment, its ReplicaSet and every Pod.
 	Skipped int
@@ -141,6 +156,26 @@ func Collect(ctx context.Context, c *Client) (*Collection, error) {
 			col.Inventory.Add(obj)
 		}
 	}
+	for _, r := range Enrichment {
+		if !reachable {
+			break
+		}
+		items, err := listAll(ctx, c, r)
+		if err != nil {
+			reason := "forbidden"
+			if !IsForbidden(err) {
+				reason = err.Error()
+			}
+			col.Warnings = append(col.Warnings, fmt.Sprintf("collection: cannot list %s (%s): %s", r.Plural, reason, enrichmentEffect[r.Kind]))
+			continue
+		}
+		for _, item := range items {
+			item = minimal(item, r)
+			if obj, err := resource.NewObject(item, source, 0); err == nil {
+				col.Inventory.Add(obj)
+			}
+		}
+	}
 	if !reachable {
 		return nil, fmt.Errorf("cannot reach the API server at %s: %s", c.Server(), strings.Join(col.Errors, "; "))
 	}
@@ -182,4 +217,21 @@ func ownedByCollectedController(item map[string]any) bool {
 		}
 	}
 	return false
+}
+
+// minimal keeps only the fields the analysis uses: node addresses, images
+// and status are not needed and stay out of reports and memory.
+func minimal(item map[string]any, r Resource) map[string]any {
+	meta := map[string]any{"name": resource.String(item, "metadata", "name")}
+	if labels := resource.Map(item, "metadata", "labels"); labels != nil {
+		meta["labels"] = labels
+	}
+	spec := map[string]any{}
+	if t, ok := resource.Lookup(item, "spec", "taints"); ok {
+		spec["taints"] = t
+	}
+	if u, ok := resource.Lookup(item, "spec", "unschedulable"); ok {
+		spec["unschedulable"] = u
+	}
+	return map[string]any{"apiVersion": r.APIVersion(), "kind": r.Kind, "metadata": meta, "spec": spec}
 }

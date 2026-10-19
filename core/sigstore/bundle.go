@@ -187,6 +187,21 @@ func Verify(bundle []byte, opts Options) (*Result, error) {
 		certDER = vm.Certificate.RawBytes
 	case vm.X509CertificateChain != nil && len(vm.X509CertificateChain.Certificates) > 0:
 		certDER = vm.X509CertificateChain.Certificates[0].RawBytes
+		// Trust comes from the trusted root, never from the bundle: a chain
+		// that carries its own root is malformed (or an attempt to supply one).
+		for _, c := range vm.X509CertificateChain.Certificates[1:] {
+			raw, err := base64.StdEncoding.DecodeString(c.RawBytes)
+			if err != nil {
+				return nil, fmt.Errorf("certificate chain: %w", err)
+			}
+			cc, err := x509.ParseCertificate(raw)
+			if err != nil {
+				return nil, fmt.Errorf("certificate chain: %w", err)
+			}
+			if bytes.Equal(cc.RawSubject, cc.RawIssuer) && cc.CheckSignatureFrom(cc) == nil {
+				return nil, errors.New("bundle certificate chain contains a root certificate")
+			}
+		}
 	case vm.PublicKey != nil:
 		return nil, errors.New("bundle is signed with a key, not keyless; verify with the key")
 	default:
@@ -205,6 +220,10 @@ func Verify(bundle []byte, opts Options) (*Result, error) {
 	var sig []byte
 	res := &Result{}
 	var rekorCheck func(body map[string]any, kind string) error
+	// Rekor v2 entries are verified by recomputing the entry from the
+	// bundle and proving that hash is in the log (v2Digest is the digest
+	// the log entry records).
+	var v2Digest []byte
 	switch {
 	case b.MessageSignature != nil:
 		ms := b.MessageSignature
@@ -220,6 +239,7 @@ func Verify(bundle []byte, opts Options) (*Result, error) {
 		if err := verifyDigest(cert.PublicKey, opts.Digest, sig); err != nil {
 			return nil, fmt.Errorf("signature does not verify over the artifact: %w", err)
 		}
+		v2Digest = opts.Digest
 		rekorCheck = func(body map[string]any, kind string) error {
 			if kind != "hashedrekord" {
 				return fmt.Errorf("log entry kind %s does not match a message signature", kind)
@@ -271,7 +291,24 @@ func Verify(bundle []byte, opts Options) (*Result, error) {
 		}
 		res.Statement = &st
 		payloadHash := sha256.Sum256(payload)
+		h := hashFor(cert.PublicKey).New()
+		h.Write(msg)
+		v2Digest = h.Sum(nil)
 		rekorCheck = func(body map[string]any, kind string) error {
+			if kind == "intoto" { // intoto 0.0.2: the envelope is stored, signatures double-encoded
+				if str(body, "spec", "content", "payloadHash", "value") != hex.EncodeToString(payloadHash[:]) {
+					return errors.New("log entry is for a different payload")
+				}
+				sigs, _ := lookup(body, "spec", "content", "envelope", "signatures").([]any)
+				for _, s := range sigs {
+					m, _ := s.(map[string]any)
+					inner, err := base64.StdEncoding.DecodeString(str(m, "sig"))
+					if err == nil && string(inner) == env.Signatures[0].Sig && samePEMCert(str(m, "publicKey"), der) == nil {
+						return nil
+					}
+				}
+				return errors.New("log entry is for a different signature or signer")
+			}
 			if kind != "dsse" {
 				return fmt.Errorf("log entry kind %s does not match a DSSE envelope", kind)
 			}
@@ -296,7 +333,13 @@ func Verify(bundle []byte, opts Options) (*Result, error) {
 	logged := false
 	var logErrs []string
 	for _, e := range vm.TlogEntries {
-		t, log, err := verifyTlogEntry(e, opts.Root, rekorCheck)
+		// From bundle v0.2 on, an inclusion proof is mandatory; a signed
+		// entry timestamp alone is accepted only in v0.1 bundles.
+		if e.InclusionProof == nil && b.MediaType != "application/vnd.dev.sigstore.bundle+json;version=0.1" {
+			logErrs = append(logErrs, "log entry has no inclusion proof")
+			continue
+		}
+		t, log, err := verifyTlogEntry(e, opts.Root, rekorCheck, func() ([]byte, error) { return v2LeafHash(cert, der, sig, v2Digest) })
 		if err != nil {
 			logErrs = append(logErrs, err.Error())
 			continue

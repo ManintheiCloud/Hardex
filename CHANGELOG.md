@@ -2,6 +2,17 @@
 
 All notable changes are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow [Semantic Versioning](https://semver.org/). Before 1.0, minor versions may contain breaking changes.
 
+## 0.7.0 — 2026-10-19
+
+### Added
+- Keyless verification supports Rekor v2 (tile-based) log entries: the entry is recomputed from the bundle and proven against the log's signed checkpoint, with the signing time from a timestamp authority. `intoto` 0.0.2 entries (older attestations) are supported too.
+- The Sigstore project's client conformance suite runs in Hardex's tests; every certificate-based case passes.
+- Attack paths use Node objects when present: pods are placed on exactly the nodes their `nodeName`, `nodeSelector`, required node affinity (all operators, ORed terms) and tolerations allow, so control-plane and dedicated-pool taints separate workloads. Live scans collect nodes (labels and taints only); if `nodes` cannot be listed the scan stays complete and warns.
+
+### Changed
+- Bundles v0.2 and later must carry an inclusion proof (a signed entry timestamp alone is accepted only in v0.1 bundles, as the Sigstore specification requires); bundles whose certificate chain includes a root certificate are rejected; trusted roots must give a start for every validity period.
+- `deploy/hardex-reader.yaml` grants `get`/`list` on `nodes` (not `nodes/proxy`).
+
 ## 0.6.0 — 2026-10-19
 
 ### Added

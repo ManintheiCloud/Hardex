@@ -11,7 +11,7 @@ metadata:
   labels: {app.kubernetes.io/name: hardex}
 rules:
   - apiGroups: [""]
-    resources: [namespaces, pods, services, serviceaccounts, limitranges, replicationcontrollers]
+    resources: [namespaces, pods, services, serviceaccounts, limitranges, replicationcontrollers, nodes]
     verbs: [get, list]
   - apiGroups: [apps]
     resources: [deployments, daemonsets, statefulsets, replicasets]

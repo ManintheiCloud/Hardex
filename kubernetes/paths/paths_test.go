@@ -186,3 +186,96 @@ func TestCloudIdentity(t *testing.T) {
 		}
 	})
 }
+
+const twoNodes = `---
+apiVersion: v1
+kind: Node
+metadata: {name: cp-1, labels: {node-role.kubernetes.io/control-plane: ""}}
+spec: {taints: [{key: node-role.kubernetes.io/control-plane, effect: NoSchedule}]}
+---
+apiVersion: v1
+kind: Node
+metadata: {name: worker-1, labels: {pool: apps}}
+spec: {taints: [{key: node.kubernetes.io/not-ready, effect: NoExecute}]}
+`
+
+// A cluster-admin controller pinned to the control plane.
+func cpController(tolerations string) string {
+	return `---
+apiVersion: v1
+kind: Pod
+metadata: {name: runner, namespace: ci}
+spec: {serviceAccountName: deployer, nodeSelector: {node-role.kubernetes.io/control-plane: ""}, tolerations: [{key: node-role.kubernetes.io/control-plane, operator: Exists, effect: NoSchedule}], containers: [{name: c, image: x}]}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata: {name: ci-admin}
+roleRef: {kind: ClusterRole, name: cluster-admin, apiGroup: rbac.authorization.k8s.io}
+subjects: [{kind: ServiceAccount, name: deployer, namespace: ci}]
+---
+apiVersion: v1
+kind: Pod
+metadata: {name: web, namespace: app}
+spec: {serviceAccountName: app, automountServiceAccountToken: false, hostPID: true` + tolerations + `, containers: [{name: c, image: x}]}
+`
+}
+
+func TestNodeAwarePlacement(t *testing.T) {
+	t.Run("without nodes, pods may share a node", func(t *testing.T) {
+		if got := run(t, cpController("")); !strings.HasPrefix(got["web"], "critical") {
+			t.Errorf("got %q", got["web"])
+		}
+	})
+	t.Run("control-plane taint keeps the escapable pod off the controller's node", func(t *testing.T) {
+		if got, ok := run(t, twoNodes+cpController(""))["web"]; ok {
+			t.Errorf("reported across a taint: %q", got)
+		}
+	})
+	t.Run("tolerating every taint lets it land there", func(t *testing.T) {
+		got := run(t, twoNodes+cpController(", tolerations: [{operator: Exists}]"))
+		if !strings.HasPrefix(got["web"], "critical") {
+			t.Errorf("got %q", got["web"])
+		}
+	})
+	t.Run("affinity NotIn the control plane keeps it apart even when tolerated", func(t *testing.T) {
+		aff := ", tolerations: [{operator: Exists}], affinity: {nodeAffinity: {requiredDuringSchedulingIgnoredDuringExecution: {nodeSelectorTerms: [{matchExpressions: [{key: node-role.kubernetes.io/control-plane, operator: DoesNotExist}]}]}}}"
+		if got, ok := run(t, twoNodes+cpController(aff))["web"]; ok {
+			t.Errorf("got %q", got)
+		}
+	})
+}
+
+func TestSchedulingPredicates(t *testing.T) {
+	nodeObj := func(y string) *resource.Object {
+		inv, err := resource.Load([]string{"-"}, strings.NewReader(y))
+		if err != nil {
+			t.Fatal(err)
+		}
+		return inv.Objects[0]
+	}
+	n := nodeObj("apiVersion: v1\nkind: Node\nmetadata: {name: n1, labels: {gen: '5', zone: a}}\nspec: {taints: [{key: gpu, value: 'true', effect: NoExecute}, {key: soft, effect: PreferNoSchedule}]}\n")
+	pod := func(y string) map[string]any {
+		var m map[string]any
+		inv, _ := resource.Load([]string{"-"}, strings.NewReader("apiVersion: v1\nkind: Pod\nmetadata: {name: p}\nspec: "+y+"\n"))
+		m, _ = resource.PodSpec(inv.Objects[0])
+		return m
+	}
+	cases := map[string]struct {
+		spec string
+		want bool
+	}{
+		"untolerated NoExecute": {"{containers: []}", false},
+		"Equal toleration":      {"{tolerations: [{key: gpu, value: 'true'}], containers: []}", true},
+		"wrong value":           {"{tolerations: [{key: gpu, value: 'no'}], containers: []}", false},
+		"wrong effect":          {"{tolerations: [{key: gpu, operator: Exists, effect: NoSchedule}], containers: []}", false},
+		"Gt":                    {"{tolerations: [{operator: Exists}], affinity: {nodeAffinity: {requiredDuringSchedulingIgnoredDuringExecution: {nodeSelectorTerms: [{matchExpressions: [{key: gen, operator: Gt, values: ['4']}]}]}}}, containers: []}", true},
+		"ORed terms":            {"{tolerations: [{operator: Exists}], affinity: {nodeAffinity: {requiredDuringSchedulingIgnoredDuringExecution: {nodeSelectorTerms: [{matchExpressions: [{key: zone, operator: In, values: [b]}]}, {matchFields: [{key: metadata.name, operator: In, values: [n1]}]}]}}}, containers: []}", true},
+		"selector mismatch":     {"{tolerations: [{operator: Exists}], nodeSelector: {zone: b}, containers: []}", false},
+		"nodeName elsewhere":    {"{tolerations: [{operator: Exists}], nodeName: n2, containers: []}", false},
+	}
+	for name, c := range cases {
+		if got := schedulable(pod(c.spec), n); got != c.want {
+			t.Errorf("%s: got %v", name, got)
+		}
+	}
+}
