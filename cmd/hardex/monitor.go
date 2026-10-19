@@ -40,6 +40,8 @@ func cmdMonitor(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 	configPath := fs.String("config", "", "policy configuration file")
 	var mods multiFlag
 	fs.Var(&mods, "module", "declarative rule module file (repeatable)")
+	var cloudIAM multiFlag
+	fs.Var(&cloudIAM, "cloud-iam", "cloud IAM export (aws iam get-account-authorization-details, gcloud projects get-iam-policy, az role assignment list; JSON; repeatable) to rate workload cloud identities")
 	failOn := fs.String("fail-on", "high", "with --once, exit 1 on new findings (or baseline drift) at or above this severity")
 	var cf clusterFlags
 	cf.register(fs)
@@ -115,7 +117,7 @@ func cmdMonitor(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 
 	// assess runs one assessment; it returns the exit status it implies.
 	assess := func(ctx context.Context) int {
-		opts := hardex.ScanOptions{Config: cfg, Profile: *profile, Modules: mods}
+		opts := hardex.ScanOptions{Config: cfg, Profile: *profile, Modules: mods, CloudIAM: cloudIAM}
 		if client != nil {
 			col, errs, warns, err := cf.collect(ctx, client)
 			if err != nil {

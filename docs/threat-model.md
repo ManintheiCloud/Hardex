@@ -1,6 +1,6 @@
 # Threat model
 
-Version 0.7.0. This document has two parts: the threats Hardex helps defend **clusters** against (what the rules are for), and the threats to **Hardex itself** (how the tool must behave). Both are living documents; propose changes by pull request.
+Version 0.8.0. This document has two parts: the threats Hardex helps defend **clusters** against (what the rules are for), and the threats to **Hardex itself** (how the tool must behave). Both are living documents; propose changes by pull request.
 
 ---
 
@@ -55,8 +55,8 @@ These are tracked in [ROADMAP.md](../ROADMAP.md):
 
 - Runtime detection (behaviour after compromise) — out of scope; Hardex is a posture tool.
 - Image *contents* beyond the SBOM: vulnerabilities in packages the SBOM misses, and reachability of vulnerable code.
-- Permissions of the cloud roles that workload identities assume (Hardex sees the binding, not the cloud policy); EKS Pod Identity associations, which live outside Kubernetes.
-- Preferred and inter-pod affinity in co-location analysis (node labels, required affinity and taints are modelled when Node objects are available); service mesh mTLS; managed control planes whose flags are not visible.
+- Conditional, boundary-limited or deny-overridden cloud permissions (`--cloud-iam` classifies unconditional grants only); EKS Pod Identity associations, which live outside Kubernetes.
+- Service mesh mTLS; managed control planes whose flags are not visible.
 - Admission webhook namespace exclusions.
 
 ---
@@ -120,6 +120,7 @@ These are tracked in [ROADMAP.md](../ROADMAP.md):
 | H38 | Forged keyless signature: a certificate from an untrusted CA, a signature never logged, a backdated or expired certificate, or a bundle replayed onto another artifact | Full offline verification against the trusted root: Fulcio chain at a *verified* signing time (signed entry timestamp or RFC 3161), SCT, Rekor body consistency with signature/certificate/digest, inclusion proof against a signed checkpoint, identity and issuer policy; tested against a real bundle and with mutations; bundle and timestamp parsers fuzzed (implemented, tested) |
 | H39 | Stale embedded Sigstore trust root after key rotation | `--trusted-root` accepts a current root; the embedded root is refreshed from sigstore/root-signing (checked against its TUF targets hash) at release time (implemented; refresh is a release step) |
 | H40 | Vulnerability lookup leaks inventory or reports "clean" without data | Only package URLs are sent to OSV; images without an SBOM are reported as unknown and fail `--fail-on-vulns` (implemented, tested) |
+| H42 | IAM data planted in scanned content downgrades a cloud identity | IAM exports are read only from `--cloud-iam` files; a planted `CloudIdentity` object can only raise severity, since unrated identities are already treated as unknown (implemented, tested) |
 | H41 | Node scanner becomes a root-equivalent credential | Node configuration is read from read-only file mounts with no API token and no network; `nodes/proxy` is never used (implemented) |
 
 ### Residual risks

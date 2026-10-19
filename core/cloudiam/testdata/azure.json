@@ -1,0 +1,6 @@
+[
+  {"principalId": "11111111-0000-0000-0000-000000000001", "principalName": "aaaaaaaa-0000-0000-0000-000000000001", "principalType": "ServicePrincipal", "roleDefinitionName": "Contributor", "scope": "/subscriptions/00000000-0000-0000-0000-00000000abcd"},
+  {"principalId": "11111111-0000-0000-0000-000000000002", "principalName": "aaaaaaaa-0000-0000-0000-000000000002", "principalType": "ServicePrincipal", "roleDefinitionName": "Owner", "scope": "/subscriptions/00000000-0000-0000-0000-00000000abcd/resourceGroups/app"},
+  {"principalId": "11111111-0000-0000-0000-000000000003", "principalName": "aaaaaaaa-0000-0000-0000-000000000003", "principalType": "ServicePrincipal", "roleDefinitionName": "User Access Administrator", "scope": "/providers/Microsoft.Management/managementGroups/root"},
+  {"principalId": "22222222-0000-0000-0000-000000000009", "principalName": "bob@example.com", "principalType": "User", "roleDefinitionName": "Owner", "scope": "/subscriptions/00000000-0000-0000-0000-00000000abcd"}
+]

@@ -458,7 +458,7 @@ Severity is the default; individual findings may be raised or lowered where the 
 
 **Privilege-escalation path from workload** — critical, attack-paths
 
-**Checks:** Searches for multi-step paths from each workload to cluster administrator (critical), to a cloud workload identity (high) or, failing those, to root on a node (high), combining container escape, token theft from pods that can share a node, workload creation, exec, token minting, RBAC escalation and cloud workload identities. Direct grants are reported by HX-RBAC-008 and HX-PATH-002, direct escapes by the HX-WL rules; this rule reports chains.
+**Checks:** Searches for multi-step paths from each workload to cluster administrator (critical), to control of the cloud account through an administrator workload identity (critical; needs --cloud-iam), to any cloud workload identity (high) or, failing those, to root on a node (high), combining container escape, token theft from pods that can share a node, workload creation, exec, token minting, RBAC escalation and cloud workload identities. Direct grants are reported by HX-RBAC-008 and HX-PATH-002, direct escapes by the HX-WL rules; this rule reports chains.
 
 **Why it matters:** Real attacks chain weaknesses: an exploited web pod that can escape to its node can steal the token of a privileged controller scheduled on the same node. Each step alone may look acceptable; the chain is a full compromise — of the cluster, or of the cloud account behind it.
 
@@ -477,13 +477,13 @@ Severity is the default; individual findings may be raised or lowered where the 
 
 **Workload token grants a cloud identity** — low, attack-paths
 
-**Checks:** Reports workloads whose mounted service-account token is federated to a cloud identity through EKS IRSA (eks.amazonaws.com/role-arn), GKE Workload Identity (iam.gke.io/gcp-service-account) or Azure Workload Identity (azure.workload.identity/client-id plus the azure.workload.identity/use pod label).
+**Checks:** Reports workloads whose mounted service-account token is federated to a cloud identity through EKS IRSA (eks.amazonaws.com/role-arn), GKE Workload Identity (iam.gke.io/gcp-service-account) or Azure Workload Identity (azure.workload.identity/client-id plus the azure.workload.identity/use pod label). With IAM exports (--cloud-iam), identities that administer the cloud account are critical and identities that can grant themselves administrator are high.
 
 **Why it matters:** Workload identity is the right way to give pods cloud access, but it extends the pod's blast radius into the cloud account. An inventory of which workloads hold which role is what reviewers need to keep those roles least-privilege; HX-PATH-001 reports chains through these identities from other workloads.
 
 **Remediation:** Confirm the workload needs the identity, scope the cloud role to the resources it uses, and keep tokens off pods that do not need cloud access (a separate service account, or automountServiceAccountToken: false).
 
-**Known limitations:** The cloud role's own permissions are not evaluated. EKS Pod Identity associations are configured in AWS, not Kubernetes, and are not visible.
+**Known limitations:** Without --cloud-iam exports the cloud role's permissions are not evaluated. With them, unconditional grants are classified (AWS policy statements on all resources, GCP project bindings, Azure assignments at subscription or management-group scope); conditions, permission boundaries, SCPs, deny policies and resource policies are not evaluated, so treat 'limited' as unverified rather than safe. EKS Pod Identity associations are configured in AWS, not Kubernetes, and are not visible.
 
 **References:**
 

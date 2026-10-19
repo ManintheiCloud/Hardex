@@ -1,0 +1,10 @@
+{
+  "bindings": [
+    {"role": "roles/editor", "members": ["serviceAccount:ci@proj.iam.gserviceaccount.com", "user:alice@example.com"]},
+    {"role": "roles/iam.serviceAccountTokenCreator", "members": ["serviceAccount:minter@proj.iam.gserviceaccount.com"]},
+    {"role": "roles/storage.objectViewer", "members": ["serviceAccount:reader@proj.iam.gserviceaccount.com"]},
+    {"role": "roles/owner", "members": ["serviceAccount:reader@proj.iam.gserviceaccount.com"], "condition": {"title": "expires", "expression": "request.time < timestamp('2020-01-01T00:00:00Z')"}}
+  ],
+  "etag": "BwXexample=",
+  "version": 3
+}

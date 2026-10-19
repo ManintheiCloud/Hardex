@@ -219,3 +219,39 @@ func TestImagesFlagValidation(t *testing.T) {
 		}
 	}
 }
+
+func TestScanCloudIAM(t *testing.T) {
+	export := filepath.Join(t.TempDir(), "aws.json")
+	os.WriteFile(export, []byte(`{"RoleDetailList":[{"Arn":"arn:aws:iam::111122223333:role/s3-writer","RolePolicyList":[],
+		"AttachedManagedPolicies":[{"PolicyName":"AdministratorAccess","PolicyArn":"arn:aws:iam::aws:policy/AdministratorAccess"}]}],"Policies":[]}`), 0o600)
+	code, out, errb := cli(t, "", "scan", "--profile", "baseline", "--fail-on", "none", "--format", "json", "--cloud-iam", export, fixtures+"insecure/cloud-identity.yaml")
+	if code != exitOK {
+		t.Fatalf("code %d: %s", code, errb)
+	}
+	var r struct {
+		Findings []struct {
+			RuleID   string `json:"ruleId"`
+			Severity string `json:"severity"`
+			Message  string `json:"message"`
+		} `json:"findings"`
+		Inputs []string `json:"inputs"`
+	}
+	if err := json.Unmarshal([]byte(out), &r); err != nil {
+		t.Fatal(err)
+	}
+	found := false
+	for _, f := range r.Findings {
+		if f.RuleID == "HX-PATH-002" {
+			found = f.Severity == "critical" && strings.Contains(f.Message, "AdministratorAccess")
+		}
+	}
+	if !found {
+		t.Errorf("HX-PATH-002 not raised to critical: %+v", r.Findings)
+	}
+	if !strings.Contains(strings.Join(r.Inputs, " "), "aws.json") {
+		t.Errorf("IAM export not listed in inputs: %v", r.Inputs)
+	}
+	if code, _, _ := cli(t, "", "scan", "--cloud-iam", fixtures+"insecure/rbac.yaml", fixtures+"insecure/cloud-identity.yaml"); code != exitUsage {
+		t.Errorf("unrecognised export: code %d", code)
+	}
+}

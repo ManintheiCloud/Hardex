@@ -1,0 +1,59 @@
+{
+  "UserDetailList": [],
+  "GroupDetailList": [],
+  "RoleDetailList": [
+    {
+      "Path": "/",
+      "RoleName": "s3-writer",
+      "RoleId": "AROAEXAMPLE1",
+      "Arn": "arn:aws:iam::111122223333:role/s3-writer",
+      "RolePolicyList": [
+        {
+          "PolicyName": "write-uploads",
+          "PolicyDocument": {"Version": "2012-10-17", "Statement": {"Effect": "Allow", "Action": ["s3:PutObject"], "Resource": "arn:aws:s3:::uploads/*"}}
+        }
+      ],
+      "AttachedManagedPolicies": []
+    },
+    {
+      "RoleName": "ops",
+      "Arn": "arn:aws:iam::111122223333:role/ops",
+      "RolePolicyList": [],
+      "AttachedManagedPolicies": [{"PolicyName": "AdministratorAccess", "PolicyArn": "arn:aws:iam::aws:policy/AdministratorAccess"}]
+    },
+    {
+      "RoleName": "deployer",
+      "Arn": "arn:aws:iam::111122223333:role/deployer",
+      "RolePolicyList": [
+        {
+          "PolicyName": "encoded",
+          "PolicyDocument": "%7B%22Version%22%3A%222012-10-17%22%2C%22Statement%22%3A%5B%7B%22Effect%22%3A%22Allow%22%2C%22Action%22%3A%22iam%3APassRole%22%2C%22Resource%22%3A%22*%22%7D%5D%7D"
+        }
+      ],
+      "AttachedManagedPolicies": [{"PolicyName": "custom-readonly", "PolicyArn": "arn:aws:iam::111122223333:policy/custom-readonly"}]
+    },
+    {
+      "RoleName": "conditional",
+      "Arn": "arn:aws:iam::111122223333:role/conditional",
+      "RolePolicyList": [
+        {"PolicyName": "mfa-admin", "PolicyDocument": {"Statement": [{"Effect": "Allow", "Action": "*", "Resource": "*", "Condition": {"Bool": {"aws:MultiFactorAuthPresent": "true"}}}]}}
+      ],
+      "AttachedManagedPolicies": [{"PolicyName": "custom-admin", "PolicyArn": "arn:aws:iam::111122223333:policy/custom-admin"}]
+    }
+  ],
+  "Policies": [
+    {
+      "PolicyName": "custom-readonly",
+      "Arn": "arn:aws:iam::111122223333:policy/custom-readonly",
+      "PolicyVersionList": [{"Document": {"Statement": [{"Effect": "Allow", "Action": ["ec2:Describe*"], "Resource": "*"}]}, "VersionId": "v1", "IsDefaultVersion": true}]
+    },
+    {
+      "PolicyName": "custom-admin",
+      "Arn": "arn:aws:iam::111122223333:policy/custom-admin",
+      "PolicyVersionList": [
+        {"Document": {"Statement": [{"Effect": "Allow", "Action": "s3:GetObject", "Resource": "*"}]}, "VersionId": "v1", "IsDefaultVersion": false},
+        {"Document": {"Statement": [{"Effect": "Allow", "NotAction": ["s3:*"], "Resource": "*"}]}, "VersionId": "v2", "IsDefaultVersion": true}
+      ]
+    }
+  ]
+}

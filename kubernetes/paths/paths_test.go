@@ -279,3 +279,40 @@ func TestSchedulingPredicates(t *testing.T) {
 		}
 	}
 }
+
+func iamIdentity(id, privilege string) string {
+	return `---
+apiVersion: hardex.dev/v1alpha1
+kind: CloudIdentity
+metadata: {name: "` + id + `"}
+spec: {provider: aws, id: "` + id + `", privilege: ` + privilege + `, reasons: ["managed policy AdministratorAccess"]}
+`
+}
+
+func TestCloudIAMPrivilege(t *testing.T) {
+	const arn = "arn:aws:iam::111122223333:role/s3-writer"
+	t.Run("admin identity makes the workload's own token critical", func(t *testing.T) {
+		got := run(t, irsa+iamIdentity(arn, "admin"))
+		if !strings.HasPrefix(got["uploader"], "critical") || !strings.Contains(got["uploader"], "account administrator: managed policy AdministratorAccess") {
+			t.Errorf("got %q", got["uploader"])
+		}
+	})
+	t.Run("escape into a node running it reaches control of the cloud account", func(t *testing.T) {
+		got := run(t, irsa+iamIdentity(arn, "admin")+escaper(""))
+		if !strings.HasPrefix(got["web"], "critical") || !strings.Contains(got["web"], "control of the cloud account") {
+			t.Errorf("got %q", got["web"])
+		}
+	})
+	t.Run("escalation identity is high", func(t *testing.T) {
+		got := run(t, irsa+iamIdentity(strings.ToUpper(arn[:7])+arn[7:], "escalation"))
+		if !strings.HasPrefix(got["uploader"], "high") || !strings.Contains(got["uploader"], "can grant itself administrator") {
+			t.Errorf("got %q", got["uploader"])
+		}
+	})
+	t.Run("limited identity stays low and paths stay high", func(t *testing.T) {
+		got := run(t, irsa+iamIdentity(arn, "limited")+escaper(""))
+		if !strings.HasPrefix(got["uploader"], "low") || !strings.HasPrefix(got["web"], "high") {
+			t.Errorf("got %q / %q", got["uploader"], got["web"])
+		}
+	})
+}

@@ -154,6 +154,8 @@ func cmdScan(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 	includeSystem := fs.Bool("include-system", false, "also assess Kubernetes-managed objects (system:* RBAC, kube-system networking, control-plane pods as workloads)")
 	var mods multiFlag
 	fs.Var(&mods, "module", "declarative rule module file (repeatable; never loaded implicitly)")
+	var cloudIAM multiFlag
+	fs.Var(&cloudIAM, "cloud-iam", "cloud IAM export (aws iam get-account-authorization-details, gcloud projects get-iam-policy, az role assignment list; JSON; repeatable) to rate workload cloud identities")
 	historyDir := fs.String("history", "", "also record the report in this history directory (see hardex history)")
 	keep := fs.Int("keep", 0, "with --history, keep only the newest N reports (0 = keep all)")
 	stats := fs.Bool("stats", false, "print load and per-rule evaluation timings to stderr")
@@ -200,7 +202,7 @@ func cmdScan(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 		return exitUsage
 	}
 
-	opts := hardex.ScanOptions{Paths: paths, Stdin: stdin, Config: cfg, Profile: *profile, Modules: mods}
+	opts := hardex.ScanOptions{Paths: paths, Stdin: stdin, Config: cfg, Profile: *profile, Modules: mods, CloudIAM: cloudIAM}
 	if *stats {
 		opts.Stats = &hardex.Stats{}
 	}

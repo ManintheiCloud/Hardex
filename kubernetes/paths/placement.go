@@ -7,6 +7,7 @@ import (
 
 	"github.com/ManintheiCloud/Hardex/baselines"
 	"github.com/ManintheiCloud/Hardex/core/assessment"
+	"github.com/ManintheiCloud/Hardex/core/cloudiam"
 	"github.com/ManintheiCloud/Hardex/core/finding"
 	"github.com/ManintheiCloud/Hardex/core/resource"
 )
@@ -113,6 +114,62 @@ func cloudIdentity(sa *resource.Object) (string, bool) {
 	return "", false
 }
 
+// cloudKey returns the provider and raw identifier of a ServiceAccount's
+// cloud identity, as cloudiam names them.
+func cloudKey(sa *resource.Object) (string, string) {
+	ann := resource.Map(sa.Raw, "metadata", "annotations")
+	get := func(k string) string { v, _ := ann[k].(string); return strings.TrimSpace(v) }
+	switch {
+	case get("eks.amazonaws.com/role-arn") != "":
+		return cloudiam.AWS, get("eks.amazonaws.com/role-arn")
+	case get("iam.gke.io/gcp-service-account") != "":
+		return cloudiam.GCP, get("iam.gke.io/gcp-service-account")
+	case get("azure.workload.identity/client-id") != "":
+		return cloudiam.Azure, get("azure.workload.identity/client-id")
+	}
+	return "", ""
+}
+
+// cloudPrivilege is what a --cloud-iam export says about an identity.
+type cloudPrivilege struct {
+	level   string
+	reasons []string
+}
+
+func (p cloudPrivilege) powerful() bool {
+	return p.level == cloudiam.Admin || p.level == cloudiam.Escalation
+}
+
+func (p cloudPrivilege) describe() string {
+	what := "account administrator"
+	if p.level == cloudiam.Escalation {
+		what = "can grant itself administrator"
+	}
+	if len(p.reasons) > 0 {
+		what += ": " + strings.Join(p.reasons, "; ")
+	}
+	return what
+}
+
+// cloudIndex maps "provider/identifier" (lower case, including aliases) to
+// the privilege recorded by CloudIdentity objects in the inventory.
+func cloudIndex(inv *resource.Inventory) map[string]cloudPrivilege {
+	out := map[string]cloudPrivilege{}
+	for _, o := range inv.OfKind(cloudiam.Kind) {
+		if o.APIVersion != cloudiam.APIVersion {
+			continue
+		}
+		p := cloudPrivilege{level: resource.String(o.Raw, "spec", "privilege"), reasons: resource.Strings(o.Raw, "spec", "reasons")}
+		provider := resource.String(o.Raw, "spec", "provider")
+		for _, id := range append([]string{resource.String(o.Raw, "spec", "id")}, resource.Strings(o.Raw, "spec", "aliases")...) {
+			if id != "" {
+				out[provider+"/"+strings.ToLower(id)] = p
+			}
+		}
+	}
+	return out
+}
+
 // podLabel returns a label of the pod (or pod template) of a workload.
 func podLabel(o *resource.Object, key string) string {
 	_, prefix := resource.PodSpec(o)
@@ -133,11 +190,11 @@ var cloudIdentities = assessment.InventoryRule{
 		Title:          "Workload token grants a cloud identity",
 		Severity:       finding.Low,
 		Category:       "attack-paths",
-		Description:    "Reports workloads whose mounted service-account token is federated to a cloud identity through EKS IRSA (eks.amazonaws.com/role-arn), GKE Workload Identity (iam.gke.io/gcp-service-account) or Azure Workload Identity (azure.workload.identity/client-id plus the azure.workload.identity/use pod label).",
+		Description:    "Reports workloads whose mounted service-account token is federated to a cloud identity through EKS IRSA (eks.amazonaws.com/role-arn), GKE Workload Identity (iam.gke.io/gcp-service-account) or Azure Workload Identity (azure.workload.identity/client-id plus the azure.workload.identity/use pod label). With IAM exports (--cloud-iam), identities that administer the cloud account are critical and identities that can grant themselves administrator are high.",
 		Rationale:      "Workload identity is the right way to give pods cloud access, but it extends the pod's blast radius into the cloud account. An inventory of which workloads hold which role is what reviewers need to keep those roles least-privilege; HX-PATH-001 reports chains through these identities from other workloads.",
 		Remediation:    "Confirm the workload needs the identity, scope the cloud role to the resources it uses, and keep tokens off pods that do not need cloud access (a separate service account, or automountServiceAccountToken: false).",
 		References:     []finding.Reference{baselines.NSA("Protecting sensitive cloud infrastructure")},
-		Limitations:    "The cloud role's own permissions are not evaluated. EKS Pod Identity associations are configured in AWS, not Kubernetes, and are not visible.",
+		Limitations:    "Without --cloud-iam exports the cloud role's permissions are not evaluated. With them, unconditional grants are classified (AWS policy statements on all resources, GCP project bindings, Azure assignments at subscription or management-group scope); conditions, permission boundaries, SCPs, deny policies and resource policies are not evaluated, so treat 'limited' as unverified rather than safe. EKS Pod Identity associations are configured in AWS, not Kubernetes, and are not visible.",
 		NeedsInventory: true,
 	},
 	Check: func(ctx *assessment.Context) {
@@ -156,8 +213,17 @@ var cloudIdentities = assessment.InventoryRule{
 					continue
 				}
 			}
-			ctx.Report(assessment.Hit{Object: w.obj, Path: "spec", Observed: id,
-				Message: fmt.Sprintf("the mounted token of service account %s/%s assumes %s", w.ns, w.sa, id)})
+			msg := fmt.Sprintf("the mounted token of service account %s/%s assumes %s", w.ns, w.sa, id)
+			var sev *finding.Severity
+			if p, ok := g.cloudPriv[key]; ok && p.powerful() {
+				s := finding.High
+				if p.level == cloudiam.Admin {
+					s = finding.Critical
+				}
+				sev = &s
+				msg += " — " + p.describe()
+			}
+			ctx.Report(assessment.Hit{Object: w.obj, Path: "spec", Observed: id, Severity: sev, Message: msg})
 		}
 	},
 }

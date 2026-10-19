@@ -44,8 +44,11 @@ func Rules() []assessment.Rule { return []assessment.Rule{escalationPaths, cloud
 const (
 	adminState = "goal:cluster-admin"
 	cloudGoal  = "goal:cloud"
-	nodeGoal   = "goal:node"
-	anyNode    = "node:*"
+	// cloudAdminGoal is reached through identities that --cloud-iam
+	// exports show to be account administrators or able to become one.
+	cloudAdminGoal = "goal:cloud-admin"
+	nodeGoal       = "goal:node"
+	anyNode        = "node:*"
 )
 
 type workload struct {
@@ -78,6 +81,9 @@ type graph struct {
 	escapeIn   map[string]workload // first escapable workload per namespace
 	enforced   map[string]bool
 	allNS      []string
+	// cloudPriv records, for service accounts whose cloud identity appears
+	// in a --cloud-iam export, how privileged that identity is.
+	cloudPriv map[string]cloudPrivilege
 	// cloud maps "sa:ns/name" to the cloud identity its token assumes.
 	cloud      map[string]string
 	placements map[string]placement // node state -> placement
@@ -88,7 +94,8 @@ func build(inv *resource.Inventory) *graph {
 	nodes := inv.OfKind("Node")
 	g := &graph{idx: rbac.NewIndex(inv), tokensByNS: map[string][]string{}, saByNS: map[string][]string{},
 		escapeIn: map[string]workload{}, enforced: map[string]bool{}, cloud: map[string]string{},
-		placements: map[string]placement{anyNode: nil}, edges: map[string][]edge{}}
+		placements: map[string]placement{anyNode: nil}, edges: map[string][]edge{}, cloudPriv: map[string]cloudPrivilege{}}
+	iam := cloudIndex(inv)
 	saSeen := map[string]bool{}
 	addSA := func(ns, sa string) {
 		if !saSeen[ns+"/"+sa] {
@@ -99,11 +106,17 @@ func build(inv *resource.Inventory) *graph {
 	nsSeen := map[string]bool{}
 	saCloud := map[string]string{}
 	azureSA := map[string]bool{}
+	saPriv := map[string]cloudPrivilege{}
 	for _, o := range inv.OfKind("ServiceAccount") {
 		addSA(o.EffectiveNamespace(), o.Name)
 		if id, azure := cloudIdentity(o); id != "" {
-			saCloud[o.EffectiveNamespace()+"/"+o.Name] = id
-			azureSA[o.EffectiveNamespace()+"/"+o.Name] = azure
+			key := o.EffectiveNamespace() + "/" + o.Name
+			saCloud[key], azureSA[key] = id, azure
+			if provider, raw := cloudKey(o); provider != "" {
+				if p, ok := iam[provider+"/"+strings.ToLower(raw)]; ok {
+					saPriv[key] = p
+				}
+			}
 		}
 	}
 	for _, o := range inv.OfKind("Namespace") {
@@ -130,6 +143,9 @@ func build(inv *resource.Inventory) *graph {
 			// Azure injects the federated token only into labelled pods.
 			if !azureSA[key] || podLabel(o, "azure.workload.identity/use") == "true" {
 				g.cloud["sa:"+key] = id
+				if p, ok := saPriv[key]; ok {
+					g.cloudPriv["sa:"+key] = p
+				}
 			}
 		}
 		if w.token {
@@ -182,7 +198,11 @@ func (g *graph) saEdges(state string) []edge {
 	ns, sa, _ := strings.Cut(strings.TrimPrefix(state, "sa:"), "/")
 	var out []edge
 	if id := g.cloud[state]; id != "" {
-		out = append(out, edge{to: cloudGoal, step: "assumes " + id + " through the token's workload identity"})
+		step := "assumes " + id + " through the token's workload identity"
+		if p, ok := g.cloudPriv[state]; ok && p.powerful() {
+			out = append(out, edge{to: cloudAdminGoal, step: step + " (" + p.describe() + ")"})
+		}
+		out = append(out, edge{to: cloudGoal, step: step})
 	}
 	inScope := func(p rbac.Permission) []string {
 		if p.Namespace != "" {
@@ -324,7 +344,7 @@ var escalationPaths = assessment.InventoryRule{
 		Title:          "Privilege-escalation path from workload",
 		Severity:       finding.Critical,
 		Category:       "attack-paths",
-		Description:    "Searches for multi-step paths from each workload to cluster administrator (critical), to a cloud workload identity (high) or, failing those, to root on a node (high), combining container escape, token theft from pods that can share a node, workload creation, exec, token minting, RBAC escalation and cloud workload identities. Direct grants are reported by HX-RBAC-008 and HX-PATH-002, direct escapes by the HX-WL rules; this rule reports chains.",
+		Description:    "Searches for multi-step paths from each workload to cluster administrator (critical), to control of the cloud account through an administrator workload identity (critical; needs --cloud-iam), to any cloud workload identity (high) or, failing those, to root on a node (high), combining container escape, token theft from pods that can share a node, workload creation, exec, token minting, RBAC escalation and cloud workload identities. Direct grants are reported by HX-RBAC-008 and HX-PATH-002, direct escapes by the HX-WL rules; this rule reports chains.",
 		Rationale:      "Real attacks chain weaknesses: an exploited web pod that can escape to its node can steal the token of a privileged controller scheduled on the same node. Each step alone may look acceptable; the chain is a full compromise — of the cluster, or of the cloud account behind it.",
 		Remediation:    "Break the chain at its cheapest link, listed in the finding: remove the escape vector, keep powerful tokens off shared node pools (node selectors or dedicated pools), stop mounting tokens in pods that do not need them, narrow the RBAC grant or cloud role, or enforce Pod Security admission in the namespace.",
 		References:     []finding.Reference{baselines.NSA("Threat model"), baselines.K8s("RBAC good practices: privilege escalation risks", "https://kubernetes.io/docs/concepts/security/rbac-good-practices/#privilege-escalation-risks")},
@@ -333,7 +353,7 @@ var escalationPaths = assessment.InventoryRule{
 	},
 	Check: func(ctx *assessment.Context) {
 		g := build(ctx.Inventory)
-		toAdmin, toCloud, toNode := g.distances(adminState), g.distances(cloudGoal), g.distances(nodeGoal)
+		toAdmin, toCloudAdmin, toCloud, toNode := g.distances(adminState), g.distances(cloudAdminGoal), g.distances(cloudGoal), g.distances(nodeGoal)
 		for _, w := range g.workloads {
 			if w.ns == "kube-system" && !ctx.Options.IncludeSystem {
 				continue
@@ -359,6 +379,11 @@ var escalationPaths = assessment.InventoryRule{
 				continue
 			}
 			// A workload's own cloud identity is HX-PATH-002's finding.
+			ownCloud := w.token && g.cloud[own] != ""
+			if steps := shortest(start, cloudAdminGoal, toCloudAdmin); len(steps) >= 2 && !(ownCloud && len(steps) == 2) {
+				report(finding.Critical, "control of the cloud account", steps)
+				continue
+			}
 			if steps := shortest(start, cloudGoal, toCloud); len(steps) >= 2 && !(w.token && g.cloud[own] != "" && len(steps) == 2) {
 				report(finding.High, "a cloud identity", steps)
 				continue

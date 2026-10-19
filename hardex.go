@@ -10,6 +10,7 @@ import (
 
 	"github.com/ManintheiCloud/Hardex/baselines"
 	"github.com/ManintheiCloud/Hardex/core/assessment"
+	"github.com/ManintheiCloud/Hardex/core/cloudiam"
 	"github.com/ManintheiCloud/Hardex/core/finding"
 	"github.com/ManintheiCloud/Hardex/core/modules"
 	"github.com/ManintheiCloud/Hardex/core/policy"
@@ -18,7 +19,7 @@ import (
 )
 
 // Version is set at build time with -ldflags "-X github.com/ManintheiCloud/Hardex.Version=...".
-var Version = "0.7.0-dev"
+var Version = "0.8.0-dev"
 
 // ScanOptions configures a scan.
 type ScanOptions struct {
@@ -42,6 +43,9 @@ type ScanOptions struct {
 	// Modules are declarative rule module files. Their rules run in
 	// addition to the profile unless disabled in configuration.
 	Modules []string
+	// CloudIAM are cloud IAM export files (see core/cloudiam); their
+	// identities let attack-path analysis rate workload cloud identities.
+	CloudIAM []string
 	// Stats, when non-nil, receives timings of the scan.
 	Stats *Stats
 }
@@ -105,6 +109,17 @@ func Scan(opts ScanOptions) (*finding.Report, []assessment.Metadata, error) {
 		if opts.Stats != nil {
 			opts.Stats.Load = time.Since(loadStart)
 		}
+	}
+
+	if len(opts.CloudIAM) > 0 {
+		ids, err := cloudiam.Load(opts.CloudIAM)
+		if err != nil {
+			return nil, nil, fmt.Errorf("cloud IAM: %w", err)
+		}
+		for _, o := range ids {
+			inv.Add(o)
+		}
+		inv.Sources = append(inv.Sources, opts.CloudIAM...)
 	}
 
 	evalStart := time.Now()

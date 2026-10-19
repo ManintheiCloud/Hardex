@@ -2,6 +2,15 @@
 
 All notable changes are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow [Semantic Versioning](https://semver.org/). Before 1.0, minor versions may contain breaking changes.
 
+## 0.8.0 — 2026-10-19
+
+### Added
+- `--cloud-iam` on `scan` and `monitor`: reads `aws iam get-account-authorization-details`, `gcloud projects get-iam-policy` and `az role assignment list` exports (no cloud API calls, no cloud credentials) and classifies each workload identity as admin, escalation or limited from its unconditional grants. HX-PATH-002 becomes critical for admin identities and high for escalation; HX-PATH-001 reports chains into them as critical (control of the cloud account). See docs/cloud-iam.md.
+- Fuzzing of IAM export parsing in CI.
+
+### Changed
+- The roadmap has no open items; preferred and inter-pod affinity are documented as deliberately not modelled.
+
 ## 0.7.0 — 2026-10-19
 
 ### Added
