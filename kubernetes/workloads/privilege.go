@@ -114,7 +114,7 @@ func hostPathCritical(pod map[string]any, vol map[string]any) (bool, string) {
 		return true, "sensitive node path"
 	}
 	if isReadSensitive(path) {
-		return true, "sensitive node path: contains credentials"
+		return true, "sensitive node path: readable contents expose credentials or data"
 	}
 	name := resource.String(vol, "name")
 	for _, c := range resource.Containers(pod) {

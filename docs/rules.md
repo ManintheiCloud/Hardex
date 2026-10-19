@@ -494,7 +494,7 @@ Severity is the default; individual findings may be raised or lowered where the 
 
 **Wildcard RBAC permission** — high, rbac
 
-**Checks:** Detects Roles and ClusterRoles that use "*" in verbs, resources or apiGroups. High for ClusterRoles, medium for Roles.
+**Checks:** Detects Roles and ClusterRoles that use "*" in verbs, resources or apiGroups. High for ClusterRoles, medium for Roles; low when the only wildcard is resources within extension API groups (an operator's own CRDs), which cannot reach built-in objects.
 
 **Why it matters:** Wildcards grant every current and future permission in scope, including secrets, escalation verbs and resources introduced later by CRDs. They make least privilege impossible to verify.
 
@@ -559,9 +559,11 @@ Severity is the default; individual findings may be raised or lowered where the 
 
 **Checks:** Detects roles that grant pods/exec, pods/attach, pods/portforward, pods/ephemeralcontainers, serviceaccounts/token or nodes/proxy.
 
-**Why it matters:** Exec and attach give a shell in other workloads (and their credentials). Ephemeral containers can inject a debug container into any pod. serviceaccounts/token mints tokens for other identities. nodes/proxy reaches the kubelet API directly, bypassing audit and admission.
+**Why it matters:** Exec and attach give a shell in other workloads (and their credentials). Ephemeral containers can inject a debug container into any pod. serviceaccounts/token mints tokens for other identities. nodes/proxy reaches the kubelet API directly, bypassing audit and admission; even get on it allows exec into every pod on the node, because the kubelet authorizes WebSocket exec as get nodes/proxy.
 
 **Remediation:** Remove the grant; provide debugging access through a separate, audited break-glass role.
+
+**Known limitations:** On Kubernetes 1.34 and earlier (or with the AuthorizePodWebsocketUpgradeCreatePermission feature gate disabled), get on pods/exec, pods/attach or pods/portforward also allowed them over WebSockets; such grants are not reported.
 
 **References:**
 

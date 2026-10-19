@@ -113,7 +113,7 @@ var wildcards = assessment.InventoryRule{
 		Title:       "Wildcard RBAC permission",
 		Severity:    finding.High,
 		Category:    assessment.CategoryRBAC,
-		Description: "Detects Roles and ClusterRoles that use \"*\" in verbs, resources or apiGroups. High for ClusterRoles, medium for Roles.",
+		Description: "Detects Roles and ClusterRoles that use \"*\" in verbs, resources or apiGroups. High for ClusterRoles, medium for Roles; low when the only wildcard is resources within extension API groups (an operator's own CRDs), which cannot reach built-in objects.",
 		Rationale:   "Wildcards grant every current and future permission in scope, including secrets, escalation verbs and resources introduced later by CRDs. They make least privilege impossible to verify.",
 		Remediation: "Replace wildcards with the explicit verbs, resources and API groups the subject needs.",
 		References:  []finding.Reference{refCISRBAC, refNSAAuth},
@@ -131,12 +131,35 @@ var wildcards = assessment.InventoryRule{
 				if len(fields) == 0 {
 					continue
 				}
+				sev := scopeSeverity(o, sevHigh, sevMedium)
+				msg := fmt.Sprintf("rule %d uses a wildcard in %s", i, strings.Join(fields, ", "))
+				if groups := resource.Strings(rule, "apiGroups"); len(fields) == 1 && fields[0] == "resources" && thirdPartyGroups(groups) {
+					// Every resource of a project's own API group (typically
+					// an operator managing its CRDs): still a wildcard, but it
+					// cannot reach Secrets, workloads or RBAC.
+					sev = sevLow
+					msg += " (limited to the API group " + strings.Join(groups, ", ") + ")"
+				}
 				ctx.Report(assessment.Hit{Object: o, Path: fmt.Sprintf("rules[%d]", i), Observed: strings.Join(fields, ","),
-					Severity: scopeSeverity(o, sevHigh, sevMedium),
-					Message:  fmt.Sprintf("rule %d uses a wildcard in %s", i, strings.Join(fields, ", "))})
+					Severity: sev, Message: msg})
 			}
 		}
 	},
+}
+
+// thirdPartyGroups reports whether every API group is an extension group
+// (a domain name outside Kubernetes' own *.k8s.io groups), whose resources
+// are CRDs rather than built-in objects such as Secrets or Pods.
+func thirdPartyGroups(groups []string) bool {
+	if len(groups) == 0 {
+		return false
+	}
+	for _, g := range groups {
+		if g == "" || g == "*" || !strings.Contains(g, ".") || strings.HasSuffix(g, ".k8s.io") || g == "k8s.io" {
+			return false
+		}
+	}
+	return true
 }
 
 var clusterAdminBinding = assessment.InventoryRule{
@@ -201,7 +224,7 @@ var secretsAccess = assessment.InventoryRule{
 				if _, v, ok := explicitMatch(rule, g); ok {
 					ctx.Report(assessment.Hit{Object: o, Path: fmt.Sprintf("rules[%d]", i), Observed: v + " secrets",
 						Severity: scopeSeverity(o, sevHigh, sevMedium),
-						Message:  fmt.Sprintf("grants %s on all secrets in scope", v)})
+						Message:  fmt.Sprintf("rule %d grants %s on all secrets in scope", i, v)})
 				}
 			}
 		}
@@ -245,13 +268,16 @@ var sensitiveSubresources = assessment.InventoryRule{
 		Severity:    finding.High,
 		Category:    assessment.CategoryRBAC,
 		Description: "Detects roles that grant pods/exec, pods/attach, pods/portforward, pods/ephemeralcontainers, serviceaccounts/token or nodes/proxy.",
-		Rationale:   "Exec and attach give a shell in other workloads (and their credentials). Ephemeral containers can inject a debug container into any pod. serviceaccounts/token mints tokens for other identities. nodes/proxy reaches the kubelet API directly, bypassing audit and admission.",
+		Rationale:   "Exec and attach give a shell in other workloads (and their credentials). Ephemeral containers can inject a debug container into any pod. serviceaccounts/token mints tokens for other identities. nodes/proxy reaches the kubelet API directly, bypassing audit and admission; even get on it allows exec into every pod on the node, because the kubelet authorizes WebSocket exec as get nodes/proxy.",
 		Remediation: "Remove the grant; provide debugging access through a separate, audited break-glass role.",
 		References:  []finding.Reference{refCISRBAC, refNSAAuth},
+		Limitations: "On Kubernetes 1.34 and earlier (or with the AuthorizePodWebsocketUpgradeCreatePermission feature gate disabled), get on pods/exec, pods/attach or pods/portforward also allowed them over WebSockets; such grants are not reported.",
 	},
 	Check: func(ctx *assessment.Context) {
 		grants := []grant{
-			{groups: []string{""}, resources: []string{"pods/exec", "pods/attach", "pods/portforward"}, verbs: []string{"create", "get"}},
+			// "get" no longer reaches exec, attach or port-forward over
+			// WebSockets since Kubernetes 1.35 (create is required).
+			{groups: []string{""}, resources: []string{"pods/exec", "pods/attach", "pods/portforward"}, verbs: []string{"create"}},
 			{groups: []string{""}, resources: []string{"pods/ephemeralcontainers"}, verbs: []string{"patch", "update"}},
 			{groups: []string{""}, resources: []string{"serviceaccounts/token"}, verbs: []string{"create"}},
 			{groups: []string{""}, resources: []string{"nodes/proxy"}, verbs: []string{"get", "create"}},

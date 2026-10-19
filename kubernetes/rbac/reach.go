@@ -29,9 +29,14 @@ var capabilities = []capability{
 	{"grant itself any permission (escalate/bind)", finding.Critical, []grant{{groups: []string{"rbac.authorization.k8s.io"}, resources: []string{"roles", "clusterroles"}, verbs: []string{"escalate", "bind"}}}},
 	{"impersonate other identities", finding.Critical, []grant{{groups: []string{"", "authentication.k8s.io"}, resources: []string{"users", "groups", "serviceaccounts"}, verbs: []string{"impersonate"}}}},
 	{"read secrets", finding.High, []grant{{groups: []string{""}, resources: []string{"secrets"}, verbs: []string{"get", "list", "watch"}}}},
-	{"execute commands in other pods", finding.High, []grant{{groups: []string{""}, resources: []string{"pods/exec", "pods/attach"}, verbs: []string{"create", "get"}}}},
+	// Since Kubernetes 1.35 the API server authorizes exec and attach over
+	// WebSockets as "create" (AuthorizePodWebsocketUpgradeCreatePermission),
+	// so "get" alone no longer grants them.
+	{"execute commands in other pods", finding.High, []grant{{groups: []string{""}, resources: []string{"pods/exec", "pods/attach"}, verbs: []string{"create"}}}},
 	{"mint service account tokens", finding.High, []grant{{groups: []string{""}, resources: []string{"serviceaccounts/token"}, verbs: []string{"create"}}}},
-	{"reach kubelets directly (nodes/proxy)", finding.High, []grant{{groups: []string{""}, resources: []string{"nodes/proxy"}, verbs: []string{"get", "create"}}}},
+	// The kubelet authorizes a WebSocket exec (GET /exec/...) as "get
+	// nodes/proxy", with no create check, so read access is enough.
+	{"reach kubelets directly (nodes/proxy; get is enough to exec in any pod)", finding.High, []grant{{groups: []string{""}, resources: []string{"nodes/proxy"}, verbs: []string{"get", "create"}}}},
 	{"create workloads", finding.Medium, []grant{
 		{groups: []string{""}, resources: []string{"pods"}, verbs: []string{"create"}},
 		{groups: []string{"apps"}, resources: []string{"deployments", "daemonsets", "statefulsets"}, verbs: []string{"create"}},

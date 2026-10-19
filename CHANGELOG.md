@@ -2,6 +2,18 @@
 
 All notable changes are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow [Semantic Versioning](https://semver.org/). Before 1.0, minor versions may contain breaking changes.
 
+## 0.8.2 — 2026-10-19
+
+Accuracy fixes from reviewing findings on widely used components (docs/accuracy.md).
+
+### Fixed
+- `get` on `pods/exec`, `pods/attach` or `pods/portforward` no longer counts as exec (HX-RBAC-005, HX-RBAC-008, attack paths): since Kubernetes 1.35 the API server requires `create` for them over WebSockets.
+- HX-RBAC-001 is low, not high, when the only wildcard is resources within extension API groups (an operator's own CRDs, e.g. Calico's controllers).
+- HX-RBAC-003 names the rule index, so two grants in one role are distinguishable.
+
+### Changed
+- `get` on `nodes/proxy` is described as what it is: exec in every pod on the node (the kubelet authorizes WebSocket exec as `get nodes/proxy`).
+
 ## 0.8.1 — 2026-10-19
 
 Accuracy fixes found by reviewing an end-to-end run on a real cluster.
