@@ -202,9 +202,13 @@ The test suite encodes the README's validation priorities:
 - **Detection accuracy** — `tests/fixtures/insecure` must trigger every rule at the expected resource and severity; a test fails if any rule lacks an expectation.
 - **False-positive control** — `tests/fixtures/hardened` must produce zero findings under every profile, including inherited pod-level settings, LimitRange defaults and resourceName-scoped RBAC.
 - **Regression resistance** — determinism, secret-redaction, fingerprint stability and doc-freshness are all tested.
+- **Real clusters** — every push runs `tests/e2e/kind.sh` on a kind cluster (Kubernetes 1.37): a live scan with only the shipped reader role must be complete and must not be able to read Secrets, exec, use `nodes/proxy`, mint tokens or write; `fix --apply` and `rollback` change and restore a real Deployment; the node DaemonSet reads a real kubelet and control-plane manifests; the admission webhook warns through the real API server.
+- **Supply chain** — keyless verification passes the Sigstore client conformance suite; CI verifies the latest published release and image with the code under test; a weekly job checks the embedded Sigstore trust root against sigstore/root-signing.
+- **Fuzzing** — every parser that sees untrusted or operator input.
 
 ```sh
 make check   # fmt, vet, race-enabled tests, govulncheck
+make e2e     # end-to-end on a throwaway kind cluster (needs docker, kind, kubectl, jq)
 ```
 
 ## Contributing

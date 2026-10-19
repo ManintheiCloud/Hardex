@@ -2,6 +2,15 @@
 
 All notable changes are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow [Semantic Versioning](https://semver.org/). Before 1.0, minor versions may contain breaking changes.
 
+## Unreleased
+
+### Added
+- End-to-end tests on a real cluster (kind, Kubernetes 1.37) on every push: least-privilege live scan, remediation apply and rollback, the node scanner DaemonSet and the admission webhook. `make e2e`.
+- `tools/update-trusted-root.sh` and a weekly workflow keep the embedded Sigstore trusted root current; releases fail if it is stale.
+
+### Notes
+- The detection fixture `tests/fixtures/insecure/workloads.yaml` combines settings that a current API server rejects (it represents manifests as committed, not as admitted); the end-to-end test uses its own API-valid workload.
+
 ## 0.8.0 — 2026-10-19
 
 ### Added

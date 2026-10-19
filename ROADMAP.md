@@ -61,7 +61,7 @@ Roadmap items are development objectives, not completed or guaranteed features. 
 
 These are continuing efforts rather than milestones:
 
-- Collect real-cluster performance reports and keep the scale targets honest.
-- Re-review framework mappings when CIS or NSA/CISA publish new versions; refresh the embedded Sigstore trusted root each release.
+- Collect real-cluster performance reports and keep the scale targets honest. (Functional behaviour on a real cluster is tested on every push; see README, Security validation.)
+- Re-review framework mappings when CIS or NSA/CISA publish new versions; refresh the embedded Sigstore trusted root (checked weekly and before every release).
 
 Done since 0.6.0: Rekor v2 entries and the Sigstore conformance suite in keyless verification; node-aware co-location from Node labels and taints; cloud role permissions from IAM exports (`--cloud-iam`). Preferred and inter-pod affinity are deliberately not modelled: they do not prevent two pods from sharing a node, so they cannot break an attack path.
