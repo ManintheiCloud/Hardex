@@ -1,0 +1,26 @@
+# Hardex profile: minimal
+#
+# Only weaknesses that, on their own, commonly lead to node or cluster
+# compromise. Intended as a first gate for clusters adopting Hardex: every
+# finding here should be treated as an incident-grade problem.
+name: minimal
+description: Direct paths to node or cluster compromise only.
+rules:
+  # Workloads: Pod Security Standards (Baseline) host-escape controls
+  - HX-WL-001 # privileged container
+  - HX-WL-002 # host namespaces
+  - HX-WL-003 # hostPath volumes
+  - HX-WL-006 # dangerous capabilities
+  - HX-WL-015 # AppArmor unconfined
+  - HX-WL-016 # custom SELinux context
+  - HX-WL-017 # unmasked /proc
+  - HX-WL-020 # Windows HostProcess
+  # RBAC
+  - HX-RBAC-002 # cluster-admin bindings
+  - HX-RBAC-004 # escalate / bind / impersonate
+  - HX-RBAC-007 # anonymous or all-user grants
+  # Control plane and nodes
+  - HX-CP-002 # authorization disabled
+  - HX-CP-006 # etcd without mutual TLS
+  - HX-NODE-001 # kubelet anonymous auth
+  - HX-NODE-002 # kubelet authorization disabled

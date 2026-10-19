@@ -1,0 +1,55 @@
+# Hardex profile: restricted
+#
+# Every built-in rule. Aligns workloads with the Pod Security Standards
+# Restricted level and adds defence-in-depth controls. Expect application
+# changes (non-root images, read-only filesystems, explicit resource limits).
+name: restricted
+description: All built-in rules; defence in depth for high-security environments.
+rules:
+  # --- baseline ---
+  - HX-WL-001
+  - HX-WL-002
+  - HX-WL-003
+  - HX-WL-006
+  - HX-WL-015
+  - HX-WL-016
+  - HX-WL-017
+  - HX-WL-020
+  - HX-RBAC-002
+  - HX-RBAC-004
+  - HX-RBAC-007
+  - HX-CP-002
+  - HX-CP-006
+  - HX-NODE-001
+  - HX-NODE-002
+  - HX-WL-008
+  - HX-WL-011
+  - HX-WL-014
+  - HX-WL-018
+  - HX-SEC-001
+  - HX-SEC-002
+  - HX-RBAC-001
+  - HX-RBAC-003
+  - HX-RBAC-005
+  - HX-NET-001
+  - HX-NET-003
+  - HX-NET-004
+  - HX-CP-001
+  - HX-CP-003
+  - HX-CP-005
+  - HX-CP-007
+  - HX-CP-008
+  - HX-NODE-003
+  # --- restricted additions ---
+  - HX-WL-004 # privilege escalation
+  - HX-WL-005 # non-root
+  - HX-WL-007 # minimal capabilities
+  - HX-WL-009 # read-only root filesystem
+  - HX-WL-010 # resource limits
+  - HX-WL-012 # image digest pinning
+  - HX-WL-013 # service account token automount
+  - HX-WL-019 # volume types
+  - HX-RBAC-006 # workload creation
+  - HX-NET-002 # default-deny egress
+  - HX-CP-004 # profiling
+  - HX-NODE-004 # protect kernel defaults

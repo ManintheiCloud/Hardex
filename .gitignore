@@ -1,0 +1,4 @@
+/bin/
+*.sarif
+/report*.json
+.DS_Store

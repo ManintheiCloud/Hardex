@@ -1,0 +1,153 @@
+# A workload set that satisfies every rule in the "restricted" profile.
+# tests/detection_test.go asserts that scanning this directory produces no
+# findings: any finding here is a false positive (or a fixture to update,
+# with justification, in the same change).
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: shop
+  labels:
+    pod-security.kubernetes.io/enforce: restricted
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: web
+  namespace: shop
+automountServiceAccountToken: false
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: web
+  namespace: shop
+spec:
+  replicas: 2
+  selector:
+    matchLabels: {app: web}
+  template:
+    metadata:
+      labels: {app: web}
+    spec:
+      serviceAccountName: web
+      # Pod-level settings are inherited by every container.
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        seccompProfile:
+          type: RuntimeDefault
+      initContainers:
+        - name: migrate
+          image: registry.example.com/shop/migrate:2.3.0@sha256:0b5a2a7a8f1e3c4d5e6f708192a3b4c5d6e7f8091a2b3c4d5e6f708192a3b4c5
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: {drop: ["ALL"]}
+          resources:
+            limits: {cpu: 200m, memory: 128Mi}
+      containers:
+        - name: web
+          image: registry.example.com/shop/web:2.3.0@sha256:9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08
+          ports:
+            - containerPort: 8080
+          env:
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef: {name: db, key: password}
+            - name: TOKEN_URL
+              value: https://auth.example.com/token
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+              add: ["NET_BIND_SERVICE"]
+          resources:
+            requests: {cpu: 100m, memory: 128Mi}
+            limits: {cpu: 500m, memory: 256Mi}
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir: {}
+---
+# Limits supplied by the namespace LimitRange rather than the pod spec.
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: defaults
+  namespace: shop
+spec:
+  limits:
+    - type: Container
+      default: {cpu: 250m, memory: 128Mi}
+      defaultRequest: {cpu: 50m, memory: 64Mi}
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: report
+  namespace: shop
+spec:
+  schedule: "0 3 * * *"
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          restartPolicy: OnFailure
+          automountServiceAccountToken: false
+          securityContext:
+            runAsNonRoot: true
+            seccompProfile: {type: RuntimeDefault}
+          containers:
+            - name: report
+              image: registry.example.com/shop/report:1.0.1@sha256:2c26b46b68ffc68ff99b453c1d30413413422d706483bfa0f98a5e886266e7ae
+              securityContext:
+                allowPrivilegeEscalation: false
+                readOnlyRootFilesystem: true
+                capabilities: {drop: ["ALL"]}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny
+  namespace: shop
+spec:
+  podSelector: {}
+  policyTypes: [Ingress, Egress]
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-dns
+  namespace: shop
+spec:
+  podSelector: {}
+  policyTypes: [Egress]
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels: {kubernetes.io/metadata.name: kube-system}
+      ports:
+        - {protocol: UDP, port: 53}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: web
+  namespace: shop
+spec:
+  selector: {app: web}
+  ports: [{port: 80, targetPort: 8080}]
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: web-public
+  namespace: shop
+spec:
+  type: LoadBalancer
+  loadBalancerSourceRanges: ["203.0.113.0/24"]
+  selector: {app: web}
+  ports: [{port: 443, targetPort: 8080}]

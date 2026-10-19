@@ -1,0 +1,32 @@
+name: Rule proposal
+description: Propose a new check.
+labels: [rule-proposal]
+body:
+  - type: textarea
+    id: weakness
+    attributes:
+      label: Weakness
+      description: What configuration is insecure?
+    validations: {required: true}
+  - type: textarea
+    id: attacker
+    attributes:
+      label: Attacker benefit
+      description: What does an attacker gain? Which adversary and attack path in docs/threat-model.md does it relate to?
+    validations: {required: true}
+  - type: textarea
+    id: detection
+    attributes:
+      label: Detection
+      description: Which fields are inspected? What can static analysis not see?
+    validations: {required: true}
+  - type: textarea
+    id: remediation
+    attributes:
+      label: Remediation
+    validations: {required: true}
+  - type: textarea
+    id: references
+    attributes:
+      label: References
+      description: PSS / NSA-CISA / CIS (with version) / upstream docs

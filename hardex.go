@@ -8,15 +8,15 @@ import (
 	"io"
 	"time"
 
-	"github.com/hardex-project/hardex/baselines"
-	"github.com/hardex-project/hardex/core/assessment"
-	"github.com/hardex-project/hardex/core/finding"
-	"github.com/hardex-project/hardex/core/policy"
-	"github.com/hardex-project/hardex/core/resource"
-	"github.com/hardex-project/hardex/kubernetes"
+	"github.com/ManintheiCloud/Hardex/baselines"
+	"github.com/ManintheiCloud/Hardex/core/assessment"
+	"github.com/ManintheiCloud/Hardex/core/finding"
+	"github.com/ManintheiCloud/Hardex/core/policy"
+	"github.com/ManintheiCloud/Hardex/core/resource"
+	"github.com/ManintheiCloud/Hardex/kubernetes"
 )
 
-// Version is set at build time with -ldflags "-X github.com/hardex-project/hardex.Version=...".
+// Version is set at build time with -ldflags "-X github.com/ManintheiCloud/Hardex.Version=...".
 var Version = "0.1.0-dev"
 
 // ScanOptions configures a scan.

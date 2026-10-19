@@ -1,0 +1,44 @@
+# Hardex profile: baseline (default)
+#
+# Everything in "minimal", plus controls broadly recommended by the Pod
+# Security Standards (Baseline), the NSA/CISA Kubernetes Hardening Guidance
+# and the CIS Kubernetes Benchmark that most workloads can meet without
+# application changes.
+name: baseline
+description: Broadly applicable hardening; the recommended starting point.
+rules:
+  # --- minimal ---
+  - HX-WL-001
+  - HX-WL-002
+  - HX-WL-003
+  - HX-WL-006
+  - HX-WL-015
+  - HX-WL-016
+  - HX-WL-017
+  - HX-WL-020
+  - HX-RBAC-002
+  - HX-RBAC-004
+  - HX-RBAC-007
+  - HX-CP-002
+  - HX-CP-006
+  - HX-NODE-001
+  - HX-NODE-002
+  # --- baseline additions ---
+  - HX-WL-008 # seccomp
+  - HX-WL-011 # mutable image tag
+  - HX-WL-014 # hostPort
+  - HX-WL-018 # unsafe sysctls
+  - HX-SEC-001 # secret values in manifests
+  - HX-SEC-002 # credentials in env literals
+  - HX-RBAC-001 # wildcards
+  - HX-RBAC-003 # secrets read access
+  - HX-RBAC-005 # sensitive subresources
+  - HX-NET-001 # default-deny ingress
+  - HX-NET-003 # external service exposure
+  - HX-NET-004 # externalIPs
+  - HX-CP-001 # anonymous API access
+  - HX-CP-003 # audit logging
+  - HX-CP-005 # admission control
+  - HX-CP-007 # encryption at rest
+  - HX-CP-008 # kubelet certificate verification
+  - HX-NODE-003 # kubelet read-only port

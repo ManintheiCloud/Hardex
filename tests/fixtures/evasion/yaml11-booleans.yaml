@@ -1,0 +1,19 @@
+# kubectl and the API server resolve these YAML 1.1 spellings to true.
+apiVersion: v1
+kind: Pod
+metadata:
+  name: yes-privileged
+  namespace: evasion
+spec:
+  hostNetwork: on
+  containers:
+    - name: c
+      image: registry.example.com/app:1.0
+      securityContext:
+        privileged: yes
+---
+apiVersion: kubelet.config.k8s.io/v1beta1
+kind: KubeletConfiguration
+authentication:
+  anonymous:
+    enabled: Y

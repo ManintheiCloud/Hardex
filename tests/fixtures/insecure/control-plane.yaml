@@ -1,0 +1,50 @@
+# Static pod manifests as kubeadm would write them, with insecure flags.
+apiVersion: v1
+kind: Pod
+metadata:
+  name: kube-apiserver-cp1
+  namespace: kube-system
+  labels: {component: kube-apiserver, tier: control-plane}
+spec:
+  hostNetwork: true
+  containers:
+    - name: kube-apiserver
+      image: registry.k8s.io/kube-apiserver:v1.34.1
+      command:
+        - kube-apiserver
+        - --advertise-address=10.0.0.10
+        - --authorization-mode=AlwaysAllow
+        - --anonymous-auth=true
+        - --enable-admission-plugins=AlwaysAdmit
+        - --disable-admission-plugins=PodSecurity
+        - --etcd-servers=http://127.0.0.1:2379
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: etcd-cp1
+  namespace: kube-system
+  labels: {component: etcd, tier: control-plane}
+spec:
+  hostNetwork: true
+  containers:
+    - name: etcd
+      image: registry.k8s.io/etcd:3.5.21-0
+      command:
+        - etcd
+        - --listen-client-urls=http://0.0.0.0:2379
+        - --client-cert-auth=false
+        - --auto-tls=true
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: kube-scheduler-cp1
+  namespace: kube-system
+  labels: {component: kube-scheduler, tier: control-plane}
+spec:
+  hostNetwork: true
+  containers:
+    - name: kube-scheduler
+      image: registry.k8s.io/kube-scheduler:v1.34.1
+      command: ["kube-scheduler", "--kubeconfig=/etc/kubernetes/scheduler.conf"]

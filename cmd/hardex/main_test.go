@@ -1,0 +1,79 @@
+package main
+
+import (
+	"bytes"
+	"os"
+	"path/filepath"
+	"strings"
+	"testing"
+)
+
+func cli(t *testing.T, stdin string, args ...string) (int, string, string) {
+	t.Helper()
+	var out, errb bytes.Buffer
+	code := run(args, strings.NewReader(stdin), &out, &errb)
+	return code, out.String(), errb.String()
+}
+
+const fixtures = "../../tests/fixtures/"
+
+func TestExitCodes(t *testing.T) {
+	cases := []struct {
+		name string
+		args []string
+		want int
+	}{
+		{"clean", []string{"scan", "--profile", "restricted", fixtures + "hardened"}, exitOK},
+		{"findings above threshold", []string{"scan", fixtures + "insecure"}, exitFindings},
+		{"flags after path", []string{"scan", fixtures + "insecure", "--fail-on", "none", "--format", "json"}, exitOK},
+		{"threshold none", []string{"scan", "--fail-on", "none", fixtures + "insecure"}, exitOK},
+		{"no input", []string{"scan"}, exitUsage},
+		{"bad severity", []string{"scan", "--fail-on", "urgent", fixtures + "insecure"}, exitUsage},
+		{"bad profile", []string{"scan", "--profile", "nope", fixtures + "insecure"}, exitUsage},
+		{"missing path", []string{"scan", "does-not-exist"}, exitUsage},
+		{"unknown command", []string{"frobnicate"}, exitUsage},
+		{"rule detail", []string{"rules", "hx-wl-001"}, exitOK},
+		{"rule list", []string{"rules"}, exitOK},
+		{"profiles", []string{"profiles"}, exitOK},
+		{"example config", []string{"scan", "--config", "../../examples/hardex.yaml", fixtures + "hardened"}, exitOK},
+		{"missing config", []string{"scan", "--config", "nope.yaml", fixtures + "hardened"}, exitUsage},
+		{"custom profile file", []string{"scan", "--profile", "../../baselines/profiles/minimal.yaml", fixtures + "hardened"}, exitOK},
+		{"unknown rule", []string{"rules", "HX-NOPE-001"}, exitUsage},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			if code, _, stderr := cli(t, "", c.args...); code != c.want {
+				t.Errorf("exit %d, want %d (stderr: %s)", code, c.want, stderr)
+			}
+		})
+	}
+}
+
+func TestStdinAndFormats(t *testing.T) {
+	pod := "apiVersion: v1\nkind: Pod\nmetadata: {name: p}\nspec:\n  containers: [{name: c, image: x:1, securityContext: {privileged: true}}]\n"
+	for _, format := range []string{"text", "json", "sarif"} {
+		code, out, _ := cli(t, pod, "scan", "--format", format, "-")
+		if code != exitFindings || !strings.Contains(out, "HX-WL-001") {
+			t.Errorf("%s: exit %d, output missing HX-WL-001", format, code)
+		}
+	}
+}
+
+func TestDiffWorkflow(t *testing.T) {
+	dir := t.TempDir()
+	before, after := filepath.Join(dir, "before.json"), filepath.Join(dir, "after.json")
+	cli(t, "", "scan", "--format", "json", "-o", before, "--fail-on", "none", fixtures+"insecure")
+	cli(t, "", "scan", "--format", "json", "-o", after, "--fail-on", "none", fixtures+"hardened")
+	for _, p := range []string{before, after} {
+		if _, err := os.Stat(p); err != nil {
+			t.Fatal(err)
+		}
+	}
+	code, out, _ := cli(t, "", "diff", before, after)
+	if code != exitOK || !strings.Contains(out, "Resolved (") {
+		t.Errorf("improvement: exit %d\n%s", code, out)
+	}
+	if code, _, _ := cli(t, "", "diff", after, before); code != exitFindings {
+		t.Errorf("regression: exit %d, want %d", code, exitFindings)
+	}
+}

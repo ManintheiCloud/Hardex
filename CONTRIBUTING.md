@@ -15,7 +15,7 @@ Thank you for helping make Kubernetes harder to compromise. Contributions of cod
 ## Development
 
 ```sh
-git clone https://github.com/hardex-project/hardex && cd hardex
+git clone https://github.com/ManintheiCloud/Hardex && cd hardex
 make check            # gofmt, go vet, race-enabled tests, govulncheck
 make build            # ./bin/hardex
 go run ./tools/gendocs  # regenerate docs/rules.md after changing rule metadata

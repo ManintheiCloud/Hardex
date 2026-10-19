@@ -38,7 +38,7 @@ Summary: 65 findings (critical 10, high 23, medium 18, low 12, info 2), 0 waived
 Requires Go 1.24+.
 
 ```sh
-go install github.com/hardex-project/hardex/cmd/hardex@latest
+go install github.com/ManintheiCloud/Hardex/cmd/hardex@latest
 
 hardex scan ./k8s/                          # baseline profile, text output
 hardex scan --profile restricted ./k8s/     # every rule

@@ -1,0 +1,76 @@
+# Deliberately insecure workloads. Every field here is a known weakness;
+# tests/detection_test.go asserts that each is reported.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: insecure-web
+  namespace: shop
+spec:
+  replicas: 1
+  selector:
+    matchLabels: {app: insecure-web}
+  template:
+    metadata:
+      labels: {app: insecure-web}
+    spec:
+      hostNetwork: true
+      hostPID: true
+      securityContext:
+        sysctls:
+          - name: kernel.msgmax
+            value: "65536"
+      containers:
+        - name: web
+          image: nginx:latest
+          ports:
+            - containerPort: 80
+              hostPort: 8080
+          env:
+            - name: DB_PASSWORD
+              value: hunter2
+            - name: DB_PASSWORD_FILE
+              value: /run/secrets/db
+          securityContext:
+            privileged: true
+            allowPrivilegeEscalation: true
+            runAsUser: 0
+            procMount: Unmasked
+            seccompProfile:
+              type: Unconfined
+            appArmorProfile:
+              type: Unconfined
+            seLinuxOptions:
+              type: spc_t
+            capabilities:
+              add: ["SYS_ADMIN", "CHOWN"]
+          volumeMounts:
+            - name: docker
+              mountPath: /var/run/docker.sock
+            - name: shared
+              mountPath: /shared
+      volumes:
+        - name: docker
+          hostPath:
+            path: /var/run/docker.sock
+        - name: shared
+          nfs:
+            server: nfs.internal
+            path: /exports
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: windows-host
+  namespace: shop
+spec:
+  os:
+    name: windows
+  securityContext:
+    windowsOptions:
+      hostProcess: true
+  hostNetwork: true
+  containers:
+    - name: agent
+      image: registry.example.com/agent:1.4.2
+      resources:
+        limits: {cpu: 100m, memory: 64Mi}

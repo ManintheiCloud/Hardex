@@ -1,0 +1,67 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: kube-apiserver-cp1
+  namespace: kube-system
+  labels: {component: kube-apiserver, tier: control-plane}
+spec:
+  hostNetwork: true
+  containers:
+    - name: kube-apiserver
+      image: registry.k8s.io/kube-apiserver:v1.34.1
+      command:
+        - kube-apiserver
+        - --advertise-address=10.0.0.10
+        - --anonymous-auth=false
+        - --authorization-mode=Node,RBAC
+        - --enable-admission-plugins=NodeRestriction
+        - --audit-policy-file=/etc/kubernetes/audit/policy.yaml
+        - --audit-log-path=/var/log/kubernetes/audit.log
+        - --audit-log-maxage=30
+        - --profiling=false
+        - --encryption-provider-config=/etc/kubernetes/enc/config.yaml
+        - --etcd-servers=https://127.0.0.1:2379
+        - --etcd-cafile=/etc/kubernetes/pki/etcd/ca.crt
+        - --etcd-certfile=/etc/kubernetes/pki/apiserver-etcd-client.crt
+        - --etcd-keyfile=/etc/kubernetes/pki/apiserver-etcd-client.key
+        - --kubelet-certificate-authority=/etc/kubernetes/pki/ca.crt
+      volumeMounts:
+        - {name: k8s-certs, mountPath: /etc/kubernetes/pki, readOnly: true}
+  volumes:
+    - name: k8s-certs
+      hostPath: {path: /etc/kubernetes/pki, type: DirectoryOrCreate}
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: etcd-cp1
+  namespace: kube-system
+  labels: {component: etcd, tier: control-plane}
+spec:
+  hostNetwork: true
+  containers:
+    - name: etcd
+      image: registry.k8s.io/etcd:3.5.21-0
+      command:
+        - etcd
+        - --client-cert-auth=true
+        - --peer-client-cert-auth=true
+        - --cert-file=/etc/kubernetes/pki/etcd/server.crt
+        - --key-file=/etc/kubernetes/pki/etcd/server.key
+        - --trusted-ca-file=/etc/kubernetes/pki/etcd/ca.crt
+        - --peer-cert-file=/etc/kubernetes/pki/etcd/peer.crt
+        - --peer-key-file=/etc/kubernetes/pki/etcd/peer.key
+        - --peer-trusted-ca-file=/etc/kubernetes/pki/etcd/ca.crt
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: kube-scheduler-cp1
+  namespace: kube-system
+  labels: {component: kube-scheduler, tier: control-plane}
+spec:
+  hostNetwork: true
+  containers:
+    - name: kube-scheduler
+      image: registry.k8s.io/kube-scheduler:v1.34.1
+      command: ["kube-scheduler", "--profiling=false", "--kubeconfig=/etc/kubernetes/scheduler.conf"]

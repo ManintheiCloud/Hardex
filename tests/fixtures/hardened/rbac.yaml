@@ -1,0 +1,53 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: config-reader
+  namespace: shop
+rules:
+  - apiGroups: [""]
+    resources: ["configmaps"]
+    verbs: ["get", "list", "watch"]
+  # Narrowed to one named secret: not a broad secrets grant.
+  - apiGroups: [""]
+    resources: ["secrets"]
+    resourceNames: ["web-tls"]
+    verbs: ["get"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: web-config-reader
+  namespace: shop
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: config-reader
+subjects:
+  - kind: ServiceAccount
+    name: web
+    namespace: shop
+---
+# Kubernetes-managed defaults are excluded unless --include-system is set.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: cluster-admin
+  labels: {kubernetes.io/bootstrapping: rbac-defaults}
+rules:
+  - apiGroups: ["*"]
+    resources: ["*"]
+    verbs: ["*"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: cluster-admin
+  labels: {kubernetes.io/bootstrapping: rbac-defaults}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: cluster-admin
+subjects:
+  - kind: Group
+    name: system:masters
+    apiGroup: rbac.authorization.k8s.io

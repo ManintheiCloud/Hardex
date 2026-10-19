@@ -1,0 +1,301 @@
+// Command hardex assesses Kubernetes manifests and cluster exports against
+// security baselines.
+package main
+
+import (
+	"errors"
+	"flag"
+	"fmt"
+	"io"
+	"os"
+	"strings"
+	"text/tabwriter"
+
+	"github.com/ManintheiCloud/Hardex"
+	"github.com/ManintheiCloud/Hardex/baselines"
+	"github.com/ManintheiCloud/Hardex/core/finding"
+	"github.com/ManintheiCloud/Hardex/core/policy"
+	"github.com/ManintheiCloud/Hardex/core/verification"
+	"github.com/ManintheiCloud/Hardex/integrations/reporting"
+	"github.com/ManintheiCloud/Hardex/kubernetes"
+)
+
+// Exit codes. They are part of the CLI contract and documented in README.
+const (
+	exitOK         = 0
+	exitFindings   = 1 // findings at or above --fail-on, or a regression in diff
+	exitUsage      = 2 // invalid arguments, configuration or input
+	exitIncomplete = 3 // one or more rules failed; results understate risk
+)
+
+const usage = `Hardex — Kubernetes security assessment
+
+Usage:
+  hardex scan [flags] PATH...      Assess manifests, directories or "-" (stdin)
+  hardex rules [RULE-ID]           List rules, or explain one
+  hardex profiles                  List built-in profiles
+  hardex diff BEFORE AFTER         Compare two JSON reports (verify remediation)
+  hardex version                   Print version
+
+Run "hardex <command> -h" for command flags.
+`
+
+func main() {
+	os.Exit(run(os.Args[1:], os.Stdin, os.Stdout, os.Stderr))
+}
+
+func run(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
+	if len(args) == 0 {
+		fmt.Fprint(stderr, usage)
+		return exitUsage
+	}
+	switch args[0] {
+	case "scan":
+		return cmdScan(args[1:], stdin, stdout, stderr)
+	case "rules":
+		return cmdRules(args[1:], stdout, stderr)
+	case "profiles":
+		return cmdProfiles(stdout, stderr)
+	case "diff":
+		return cmdDiff(args[1:], stdout, stderr)
+	case "version", "--version":
+		fmt.Fprintf(stdout, "hardex %s\n", hardex.Version)
+		return exitOK
+	case "help", "-h", "--help":
+		fmt.Fprint(stdout, usage)
+		return exitOK
+	}
+	fmt.Fprintf(stderr, "unknown command %q\n\n%s", args[0], usage)
+	return exitUsage
+}
+
+// parseInterleaved parses flags that may appear before or after positional
+// arguments ("hardex scan ./k8s --format json"), which the standard flag
+// package alone does not allow. "--" ends flag parsing; "-" is positional.
+func parseInterleaved(fs *flag.FlagSet, args []string) ([]string, error) {
+	var positional []string
+	for {
+		if err := fs.Parse(args); err != nil {
+			return nil, err
+		}
+		rest := fs.Args()
+		if len(rest) == 0 {
+			return positional, nil
+		}
+		if len(args) > len(rest) && args[len(args)-len(rest)-1] == "--" {
+			return append(positional, rest...), nil
+		}
+		positional = append(positional, rest[0])
+		args = rest[1:]
+	}
+}
+
+type multiFlag []string
+
+func (m *multiFlag) String() string     { return strings.Join(*m, ",") }
+func (m *multiFlag) Set(v string) error { *m = append(*m, v); return nil }
+
+func cmdScan(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
+	fs := flag.NewFlagSet("scan", flag.ContinueOnError)
+	fs.SetOutput(stderr)
+	var files multiFlag
+	fs.Var(&files, "f", "file, directory or - (repeatable; positional arguments also accepted)")
+	profile := fs.String("profile", "", "profile: "+strings.Join(baselines.ProfileNames(), ", ")+", or a path to a profile YAML (default from config, else baseline)")
+	configPath := fs.String("config", "", "policy configuration file (never loaded implicitly)")
+	format := fs.String("format", "text", "output format: "+strings.Join(reporting.Formats, ", "))
+	output := fs.String("o", "", "write report to this file instead of stdout")
+	failOn := fs.String("fail-on", "high", "exit 1 if any active finding is at or above this severity (info..critical, or none)")
+	includeSystem := fs.Bool("include-system", false, "also assess Kubernetes-managed objects (system:* RBAC, kube-system networking, control-plane pods as workloads)")
+	positional, err := parseInterleaved(fs, args)
+	if err != nil {
+		return exitUsage
+	}
+	paths := append([]string(files), positional...)
+	if len(paths) == 0 {
+		fmt.Fprintln(stderr, "scan: no input; pass files, directories, or - for stdin")
+		return exitUsage
+	}
+	threshold, err := finding.ParseSeverity(*failOn)
+	if err != nil {
+		fmt.Fprintln(stderr, "scan:", err)
+		return exitUsage
+	}
+
+	var cfg *policy.Config
+	if *configPath != "" {
+		if cfg, err = policy.LoadConfig(*configPath); err != nil {
+			fmt.Fprintln(stderr, "scan:", err)
+			return exitUsage
+		}
+	} else {
+		cfg = policy.DefaultConfig()
+		_ = cfg.Validate()
+	}
+	if *includeSystem {
+		cfg.IncludeSystem = true
+	}
+
+	report, rules, err := hardex.Scan(hardex.ScanOptions{Paths: paths, Stdin: stdin, Config: cfg, Profile: *profile})
+	if err != nil {
+		fmt.Fprintln(stderr, "scan:", err)
+		return exitUsage
+	}
+
+	out := stdout
+	if *output != "" {
+		f, err := os.Create(*output)
+		if err != nil {
+			fmt.Fprintln(stderr, "scan:", err)
+			return exitUsage
+		}
+		defer f.Close()
+		out = f
+	}
+	if err := reporting.Write(out, *format, report, rules); err != nil {
+		fmt.Fprintln(stderr, "scan:", err)
+		return exitUsage
+	}
+	if *output != "" {
+		fmt.Fprintf(stderr, "report written to %s: %d findings (%d critical, %d high)\n",
+			*output, report.Summary.Total, report.Summary.Critical, report.Summary.High)
+	}
+
+	switch {
+	case !report.Complete():
+		fmt.Fprintf(stderr, "scan: assessment incomplete: %s\n", strings.Join(report.Errors, "; "))
+		return exitIncomplete
+	case report.HighestSeverity() >= threshold:
+		return exitFindings
+	}
+	return exitOK
+}
+
+func cmdRules(args []string, stdout, stderr io.Writer) int {
+	reg, err := kubernetes.Registry()
+	if err != nil {
+		fmt.Fprintln(stderr, err)
+		return exitUsage
+	}
+	if len(args) > 0 {
+		rule, ok := reg.Get(args[0])
+		if !ok {
+			fmt.Fprintf(stderr, "unknown rule %q\n", args[0])
+			return exitUsage
+		}
+		m := rule.Metadata()
+		var profiles []string
+		for _, name := range baselines.ProfileNames() {
+			p, _ := baselines.Profile(name)
+			for _, id := range p.Rules {
+				if id == m.ID {
+					profiles = append(profiles, name)
+				}
+			}
+		}
+		fmt.Fprintf(stdout, "%s  %s\n\nSeverity:  %s\nCategory:  %s\nProfiles:  %s\n\nWhat:  %s\n\nWhy:   %s\n\nFix:   %s\n",
+			m.ID, m.Title, m.Severity, m.Category, strings.Join(profiles, ", "), m.Description, m.Rationale, m.Remediation)
+		if m.Limitations != "" {
+			fmt.Fprintf(stdout, "\nLimitations: %s\n", m.Limitations)
+		}
+		if len(m.References) > 0 {
+			fmt.Fprintln(stdout, "\nReferences:")
+			for _, r := range m.References {
+				line := "  - " + r.Framework + ": " + r.Control
+				if r.URL != "" {
+					line += " <" + r.URL + ">"
+				}
+				fmt.Fprintln(stdout, line)
+			}
+		}
+		return exitOK
+	}
+	tw := tabwriter.NewWriter(stdout, 0, 0, 2, ' ', 0)
+	fmt.Fprintln(tw, "ID\tSEVERITY\tCATEGORY\tTITLE")
+	for _, r := range reg.All() {
+		m := r.Metadata()
+		fmt.Fprintf(tw, "%s\t%s\t%s\t%s\n", m.ID, m.Severity, m.Category, m.Title)
+	}
+	tw.Flush()
+	return exitOK
+}
+
+func cmdProfiles(stdout, stderr io.Writer) int {
+	for _, name := range baselines.ProfileNames() {
+		p, err := baselines.Profile(name)
+		if err != nil {
+			fmt.Fprintln(stderr, err)
+			return exitUsage
+		}
+		fmt.Fprintf(stdout, "%-11s %2d rules  %s\n", p.Name, len(p.Rules), p.Description)
+	}
+	return exitOK
+}
+
+func cmdDiff(args []string, stdout, stderr io.Writer) int {
+	fs := flag.NewFlagSet("diff", flag.ContinueOnError)
+	fs.SetOutput(stderr)
+	format := fs.String("format", "text", "output format: text or json")
+	failOn := fs.String("fail-on", "high", "exit 1 if a finding at or above this severity was introduced")
+	reports, err := parseInterleaved(fs, args)
+	if err != nil {
+		return exitUsage
+	}
+	if len(reports) != 2 {
+		fmt.Fprintln(stderr, "diff: want BEFORE.json AFTER.json")
+		return exitUsage
+	}
+	threshold, err := finding.ParseSeverity(*failOn)
+	if err != nil {
+		fmt.Fprintln(stderr, "diff:", err)
+		return exitUsage
+	}
+	before, err1 := readReport(reports[0])
+	after, err2 := readReport(reports[1])
+	if err := errors.Join(err1, err2); err != nil {
+		fmt.Fprintln(stderr, "diff:", err)
+		return exitUsage
+	}
+	c := verification.Compare(before, after)
+	if *format == "json" {
+		if err := reporting.JSONValue(stdout, c); err != nil {
+			fmt.Fprintln(stderr, "diff:", err)
+			return exitUsage
+		}
+	} else {
+		section := func(title string, fs []finding.Finding) {
+			fmt.Fprintf(stdout, "%s (%d)\n", title, len(fs))
+			for _, f := range fs {
+				fmt.Fprintf(stdout, "  [%s] %s %s\n", f.Severity, f.RuleID, reporting.Sanitize(f.Resource.String()))
+			}
+		}
+		section("Resolved", c.Resolved)
+		section("Introduced", c.Introduced)
+		section("Persisting", c.Persisting)
+		if len(c.Unverified) > 0 {
+			section("Unverified (rule did not run after)", c.Unverified)
+		}
+		for _, cv := range c.Caveats {
+			fmt.Fprintln(stdout, "caveat:", cv)
+		}
+	}
+	if !after.Complete() {
+		return exitIncomplete
+	}
+	if c.Regressed(threshold) {
+		return exitFindings
+	}
+	return exitOK
+}
+
+func readReport(path string) (*finding.Report, error) {
+	f, err := os.Open(path)
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+	r, err := finding.ReadReport(f)
+	if err != nil {
+		return nil, fmt.Errorf("%s: %w", path, err)
+	}
+	return r, nil
+}

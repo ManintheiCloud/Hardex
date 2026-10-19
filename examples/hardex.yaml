@@ -1,0 +1,20 @@
+# Example Hardex policy. Pass with: hardex scan --config examples/hardex.yaml ...
+apiVersion: hardex.dev/v1alpha1
+kind: HardexConfig
+profile: baseline
+
+disabledRules:
+  - id: HX-SEC-001
+    justification: Scanning a live-cluster export, where Secrets necessarily contain data.
+
+severityOverrides:
+  HX-WL-011: high   # mutable tags are a release-blocker in this organisation
+
+waivers:
+  - rule: HX-WL-003
+    kind: DaemonSet
+    namespace: monitoring
+    name: node-exporter
+    justification: Reads /proc and /sys read-only to export node metrics; isolated namespace with default-deny egress.
+    owner: platform-observability
+    expires: "2027-03-31"
