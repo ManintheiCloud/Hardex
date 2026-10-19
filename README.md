@@ -1,422 +1,169 @@
-# Hardex #Edited with ChatGPT 
-Specialized Kubernetes Security Hardening
-HARDEX
+# HARDEX
 
-Kubernetes Hardening. Engineered for Hostile Environments.
+**Kubernetes Hardening. Engineered for Hostile Environments.**
 
 Harden the cluster. Reduce the attack surface. Establish trust.
 
-⸻
+---
 
-Overview
+Hardex is an open-source Kubernetes security hardening framework. It brings systematic, measurable and reproducible security controls to containerized infrastructure: assess, harden, verify, defend.
 
-Hardex is an open-source Kubernetes security hardening framework designed to bring systematic, measurable, and reproducible security controls to modern containerized infrastructure.
+> **Status: Phase I (Foundation) — v0.1.0-dev.** The assessment engine, 45 rules, three profiles, policy/waiver handling, JSON/SARIF reporting and before/after verification are implemented and tested. Automated remediation, live-cluster connectivity and continuous monitoring are **not** implemented yet; see [ROADMAP.md](ROADMAP.md). No production-readiness or security certification is claimed.
 
-Kubernetes is extraordinarily powerful. It is also extraordinarily complex. Every node, workload, API endpoint, service account, network policy, and configuration decision introduces potential security implications.
+## What Hardex does today
 
-Hardex aims to address this complexity through a unified security architecture that combines configuration analysis, policy enforcement, vulnerability assessment, operational safeguards, and continuous security validation.
+```
+$ hardex scan --profile restricted ./manifests
 
-The objective is straightforward:
+[CRITICAL] HX-WL-001 Privileged container
+  resource: Deployment shop/insecure-web [web]
+  location: manifests/web.yaml:3
+  field:    spec.template.spec.containers[0].securityContext.privileged = true
+  detail:   container "web" runs privileged
+  fix:      Remove securityContext.privileged. If specific kernel access is needed, grant the single required capability instead and document why.
+...
+Summary: 65 findings (critical 10, high 23, medium 18, low 12, info 2), 0 waived
+```
 
-Make Kubernetes environments significantly harder to compromise without making them unnecessarily difficult to operate.
+- **Assessment** of workloads, RBAC, network segmentation, Secrets handling, control-plane static pods, and kubelet configuration — [45 rules](docs/rules.md), each with rationale, remediation, known limitations and references.
+- **Complete Pod Security Standards coverage**: every Baseline and Restricted control, plus NSA/CISA recommendations PSS does not include.
+- **Profiles** (`minimal` ⊂ `baseline` ⊂ `restricted`) defined as reviewable YAML, not code.
+- **Policy with accountability**: disabling a rule needs a justification; waivers need a justification and an expiry date, and expired waivers resurface automatically.
+- **Verification**: `hardex diff` compares two reports by stable fingerprints and refuses to call a finding "resolved" when the rule that found it did not run.
+- **Machine-readable output**: versioned JSON and SARIF 2.1.0 (for GitHub code scanning and similar).
+- **Fail-safe behaviour**: a crashing rule marks the assessment incomplete (exit 3) instead of silently passing; malformed configuration is an error, never a fallback.
 
-Hardex is being developed around the principle that security should be engineered into infrastructure rather than added as an afterthought.
+## Quick start
 
-As an open-source project, Hardex will emphasize transparency, community-driven improvement, independent security validation, and accessible security tooling.
+Requires Go 1.24+.
 
-The Problem
+```sh
+go install github.com/hardex-project/hardex/cmd/hardex@latest
 
-Kubernetes security is not a single configuration problem.
+hardex scan ./k8s/                          # baseline profile, text output
+hardex scan --profile restricted ./k8s/     # every rule
+hardex scan --format sarif -o hardex.sarif ./k8s/
+hardex rules                                # list rules
+hardex rules HX-RBAC-004                    # explain one
+```
 
-It is an interconnected collection of risks involving:
+Assess a running cluster by exporting it (read-only credentials are sufficient):
 
-* Misconfigured workloads and excessive privileges.
-* Weak role-based access control (RBAC).
-* Unrestricted communication between workloads.
-* Insecure container runtime configurations.
-* Exposed Kubernetes API components.
-* Inadequate secrets management.
-* Unverified container images and supply-chain dependencies.
-* Insufficient audit logging and security visibility.
-* Configuration drift after initial deployment.
-* Inconsistent security practices across clusters.
+```sh
+kubectl get pods,deployments,daemonsets,statefulsets,jobs,cronjobs,services,networkpolicies,\
+serviceaccounts,limitranges,roles,rolebindings,clusterroles,clusterrolebindings \
+  -A -o yaml | hardex scan -
+```
 
-Although existing security tools address many of these issues individually, combining them into a coherent and maintainable security posture can be challenging.
+Control-plane checks read static pod manifests (`/etc/kubernetes/manifests/*.yaml` on kubeadm nodes) and node checks read kubelet configuration files (commonly `/var/lib/kubelet/config.yaml`).
 
-Hardex is intended to bridge that gap.
+Verify a remediation:
 
-Security tooling should be powerful enough for experienced infrastructure engineers while remaining understandable and accessible to organizations without dedicated security teams.
+```sh
+hardex scan --format json -o before.json --fail-on none ./k8s/
+# ...apply fixes...
+hardex scan --format json -o after.json  --fail-on none ./k8s/
+hardex diff before.json after.json          # exit 1 if anything >= high was introduced
+```
 
-Mission
+### Exit codes
 
-To make secure Kubernetes deployment, operation, and maintenance systematic, verifiable, repeatable, and accessible.
+| Code | Meaning |
+|---|---|
+| 0 | No active findings at or above `--fail-on` (default `high`) |
+| 1 | Findings at or above `--fail-on`; for `diff`, a regression was introduced |
+| 2 | Invalid arguments, configuration or input |
+| 3 | Assessment incomplete — a rule failed; results understate risk |
 
-The project will pursue four fundamental objectives:
+### Configuration
 
-1. Prevention: Reduce the likelihood of successful exploitation through proactive configuration hardening.
-2. Detection: Identify insecure configurations, policy violations, and security-relevant changes.
-3. Enforcement: Apply well-defined security controls while preserving operational stability.
-4. Verification: Demonstrate that security controls are functioning as intended through repeatable assessments and measurable evidence.
+Configuration is **never loaded implicitly** — a `hardex.yaml` planted in a scanned repository cannot suppress findings. Pass it with `--config`. See [docs/configuration.md](docs/configuration.md) and [examples/hardex.yaml](examples/hardex.yaml).
 
-Security should not depend solely on administrator vigilance.
+## The problem
 
-It should be an engineered property of the environment.
+Kubernetes security is not a single configuration problem. It is an interconnected collection of risks: misconfigured workloads and excessive privileges, weak RBAC, unrestricted east-west traffic, insecure runtime settings, exposed API components, inadequate secrets management, unverified images, insufficient audit logging, configuration drift, and inconsistent practices across clusters.
 
-Planned Capabilities
+Existing tools address many of these individually. Combining them into a coherent, maintainable, *verifiable* posture is the gap Hardex exists to close — with tooling powerful enough for experienced infrastructure engineers and understandable by organizations without dedicated security teams.
 
-1. Kubernetes Security Assessment
+## Mission
 
-Hardex aims to provide systematic inspection of Kubernetes clusters to identify security weaknesses before they become operational threats.
+Make secure Kubernetes deployment, operation and maintenance systematic, verifiable, repeatable and accessible, through four objectives:
 
-Planned assessment areas include:
+1. **Prevention** — reduce the likelihood of exploitation through proactive hardening.
+2. **Detection** — identify insecure configurations, policy violations and security-relevant changes.
+3. **Enforcement** — apply well-defined controls while preserving operational stability.
+4. **Verification** — demonstrate that controls work, with repeatable assessments and measurable evidence.
 
-* Control-plane configuration
-* API server exposure and security settings
-* Kubelet configuration
-* etcd security
-* RBAC permissions and privilege escalation paths
-* Pod security configurations
-* Service account permissions
-* Network segmentation
-* Admission policies
-* Secrets handling
-* Audit logging and monitoring configurations
+Security should not depend solely on administrator vigilance. It should be an engineered property of the environment.
 
-Findings should be actionable, prioritized, and supported by clear technical explanations.
+## Design principles
 
-2. Automated Security Hardening
-
-Identifying vulnerabilities is only part of the problem.
-
-Hardex is intended to support controlled remediation of insecure Kubernetes configurations.
-
-Proposed functionality includes:
-
-* Configurable security baselines
-* Policy-driven remediation recommendations
-* Optional automated remediation
-* Pre-change validation
-* Dry-run execution
-* Configuration backups
-* Rollback support
-* Post-remediation verification
-
-No potentially disruptive security change should be applied without an explicit authorization mechanism.
-
-Automation should enhance administrator control, not replace it.
-
-3. Workload and Container Isolation
-
-A compromised container should not automatically become a compromised cluster.
-
-Hardex will explore safeguards involving:
-
-* Container privilege restrictions
-* Linux capabilities
-* Seccomp profiles
-* AppArmor and SELinux integrations
-* Read-only root filesystems
-* Non-root execution
-* Resource restrictions
-* Host namespace protection
-* HostPath and privileged workload controls
-
-The objective is to limit the authority and reach of individual workloads.
-
-4. Network Security and Segmentation
-
-Network security is a critical part of cluster defense.
-
-Planned functionality will examine and improve:
-
-* Kubernetes NetworkPolicies
-* Namespace isolation
-* East-west traffic restrictions
-* Ingress and egress controls
-* Service exposure
-* Administrative endpoint accessibility
-* Zero-trust network design principles
-
-Hardex will prioritize least-privilege communications and explicit authorization between workloads.
-
-5. Identity, Access, and Privilege Management
-
-Compromised credentials and unnecessarily broad permissions can undermine an otherwise secure environment.
-
-Hardex intends to analyze:
-
-* RBAC privilege assignments
-* ClusterRole and RoleBindings
-* Service account permissions
-* Token exposure
-* Unnecessary cluster-admin privileges
-* Access to sensitive Kubernetes resources
-* Potential privilege escalation pathways
-
-The long-term objective is to make excessive privilege easier to discover and harder to overlook.
-
-6. Security Baselines and Compliance
-
-Hardex is intended to support security assessments informed by established industry guidance, including:
-
-* CIS Kubernetes Benchmark
-* NSA/CISA Kubernetes Hardening Guidance
-* NIST security recommendations
-* Kubernetes Pod Security Standards
-* Relevant container and cloud-native security guidance
-
-Where implemented, controls should include traceable mappings to applicable recommendations.
-
-Compliance is not equivalent to security. Passing a benchmark does not guarantee that a cluster is secure.
-
-Hardex will treat compliance as one source of evidence rather than a substitute for security engineering.
-
-7. Continuous Security Monitoring
-
-Security is not a one-time installation procedure.
-
-Clusters change. Workloads change. Permissions change. Dependencies change.
-
-Hardex will aim to support continuous posture evaluation through:
-
-* Periodic security assessments
-* Configuration drift detection
-* Policy violation reporting
-* Security posture comparisons
-* Remediation verification
-* Historical assessment records
-* Machine-readable findings
-
-The objective is to make meaningful security degradation visible before it becomes an incident.
-
-Architectural Philosophy
-
-Hardex development will be guided by the following principles.
-
-Security by default
-
-Where practical, secure configurations should be preferred over permissive defaults.
-
-Least privilege
-
-No component, workload, or identity should receive more authority than is required.
-
-Defense in depth
-
-No individual security mechanism should be assumed sufficient to protect an entire environment.
-
-Operational predictability
-
-Security improvements should be evaluated for compatibility, reliability, and operational consequences.
-
-Verification over assumption
-
-Successful command execution is not proof that a system has been secured. Security changes must be independently validated.
-
-Transparency and auditability
-
-Assessment results and security-relevant actions should be explainable, reproducible, and reviewable.
-
-Fail safely
-
-Unexpected conditions should not silently weaken security controls or trigger uncontrolled remediation.
-
-Open development
-
-Security benefits from independent review, collaboration, and shared technical knowledge. Hardex will encourage community participation and public examination of its security mechanisms.
-
-Modularity and extensibility
-
-Security requirements vary between environments. Hardex should support independently maintained security modules and configurable policies rather than enforcing one rigid architecture.
-
-Proposed Project Architecture
-
-Hardex may eventually be organized around several independently testable components.
-
-HARDEX
-│
+| Principle | How it shows up in the code today |
+|---|---|
+| Security by default | Default profile is `baseline`, default `--fail-on` is `high`, system objects are only excluded where Kubernetes manages them. |
+| Least privilege | Hardex needs no cluster credentials; it reads files or a `kubectl` export. |
+| Defense in depth | Overlapping controls are kept (e.g. seccomp *and* AppArmor *and* capabilities), each reported on its own. |
+| Operational predictability | Rules are pure functions of their input; output is deterministic and sorted. |
+| Verification over assumption | `diff` distinguishes *resolved* from *unverified*; waived findings are never counted as fixed. |
+| Transparency and auditability | Every finding cites field path, observed value, rule rationale and references; waivers record owner and justification. |
+| Fail safely | Rule panics → exit 3; unknown config fields, missing justifications or undated waivers → error; YAML alias bombs and oversized inputs are rejected; YAML 1.1 spellings like `privileged: yes` are read the way Kubernetes reads them; terminal escape sequences in manifests are neutralised. |
+| Open development | Apache-2.0, public threat model, documented limitations per rule. |
+| Modularity | Rules live in independent packages behind one small interface; profiles are data. |
+
+Read more: [architecture](docs/architecture.md) · [threat model](docs/threat-model.md) · [baseline mappings](docs/baselines.md) · [writing rules](docs/writing-rules.md) · [decision records](docs/adr/).
+
+## Repository layout
+
+```
+hardex/
+├── cmd/hardex/            CLI
+├── hardex.go              Library entry point (hardex.Scan)
 ├── core/
-│   ├── assessment/
-│   ├── policy/
-│   ├── remediation/
-│   └── verification/
-│
+│   ├── assessment/        Rule contract, registry, fail-safe evaluator
+│   ├── finding/           Finding and report model (JSON schema v1alpha1)
+│   ├── policy/            Profiles selection, config, waivers, overrides
+│   ├── resource/          Hardened YAML loader, object model
+│   └── verification/      Before/after comparison
 ├── kubernetes/
-│   ├── control-plane/
-│   ├── nodes/
-│   ├── workloads/
-│   ├── networking/
-│   └── rbac/
-│
-├── baselines/
-│   ├── cis/
-│   ├── nsa-cisa/
-│   └── custom/
-│
-├── integrations/
-│   ├── admission-control/
-│   ├── monitoring/
-│   └── reporting/
-│
-├── tests/
-│
-├── docs/
-│
-├── CONTRIBUTING.md
-├── SECURITY.md
-├── LICENSE
-└── README.md
+│   ├── workloads/         HX-WL-*   pod specs (full PSS coverage)
+│   ├── secrets/           HX-SEC-*  secret handling
+│   ├── rbac/              HX-RBAC-* permissions and escalation paths
+│   ├── networking/        HX-NET-*  segmentation and exposure
+│   ├── controlplane/      HX-CP-*   API server, etcd, scheduler, controller manager
+│   └── nodes/             HX-NODE-* kubelet configuration
+├── baselines/             Profiles (YAML) and guidance citations
+├── integrations/reporting Text, JSON, SARIF
+├── tests/                 End-to-end detection / false-positive suites and fixtures
+├── tools/gendocs          Generates docs/rules.md from rule metadata
+└── docs/
+```
 
-This structure is conceptual and does not represent an existing implementation.
+`core/remediation/` and `integrations/admission-control/`, `integrations/monitoring/` from the original design are deliberately absent until Phase II/III; see [ROADMAP.md](ROADMAP.md).
 
-The architecture should remain modular, allowing individual security controls to evolve independently without introducing unnecessary dependencies.
+## Security validation
 
-Development Roadmap
+The test suite encodes the README's validation priorities:
 
-Phase I — Foundation
+- **Detection accuracy** — `tests/fixtures/insecure` must trigger every rule at the expected resource and severity; a test fails if any rule lacks an expectation.
+- **False-positive control** — `tests/fixtures/hardened` must produce zero findings under every profile, including inherited pod-level settings, LimitRange defaults and resourceName-scoped RBAC.
+- **Regression resistance** — determinism, secret-redaction, fingerprint stability and doc-freshness are all tested.
 
-* [ ]	Define project architecture and technical requirements.
-* [ ]	Establish the initial threat model.
-* [ ]	Define supported Kubernetes versions and environments.
-* [ ]	Build the initial cluster assessment framework.
-* [ ]	Develop configuration inspection capabilities.
-* [ ]	Create the first security baseline.
-* [ ]	Establish contribution guidelines and development workflows.
+```sh
+make check   # fmt, vet, race-enabled tests, govulncheck
+```
 
-Phase II — Hardening Engine
+## Contributing
 
-* [ ]	Implement prioritized security findings.
-* [ ]	Develop policy evaluation mechanisms.
-* [ ]	Introduce dry-run remediation.
-* [ ]	Build configuration backup and rollback mechanisms.
-* [ ]	Implement post-remediation verification.
-* [ ]	Establish automated security testing.
+Contributions of code, rules, fixtures, documentation and security research are welcome — see [CONTRIBUTING.md](CONTRIBUTING.md). Report vulnerabilities in Hardex privately as described in [SECURITY.md](SECURITY.md).
 
-Phase III — Continuous Protection
+## Security considerations
 
-* [ ]	Implement configuration drift detection.
-* [ ]	Introduce recurring posture assessments.
-* [ ]	Develop historical assessment comparisons.
-* [ ]	Integrate security event reporting.
-* [ ]	Expand workload and network security analysis.
-* [ ]	Develop extensible community-contributed security modules.
+No hardening framework can eliminate all vulnerabilities, guarantee compromise prevention, or replace a broader security program. Compliance is not security: Hardex treats benchmark alignment as one source of evidence, not a verdict. Test changes to permissions, admission behaviour, network policy and control-plane configuration before applying them to production — security without reliability is an incomplete solution.
 
-Phase IV — Advanced Security Engineering
+## License
 
-* [ ]	Develop extensible policy modules.
-* [ ]	Introduce cross-cluster security analysis.
-* [ ]	Expand supply-chain security evaluation.
-* [ ]	Improve privilege escalation detection.
-* [ ]	Develop security posture scoring and evidence reporting.
-* [ ]	Validate operational performance across diverse environments.
+[Apache License 2.0](LICENSE).
 
-Roadmap items represent development objectives, not completed or guaranteed features.
+---
 
-Security Validation
-
-Hardex should be evaluated against reproducible, realistic security scenarios.
-
-Testing will prioritize:
-
-1. Detection accuracy: Does Hardex identify actual security weaknesses?
-2. False-positive control: Does it avoid reporting acceptable configurations as vulnerabilities?
-3. Remediation safety: Can suggested or automated changes be applied without unnecessary service disruption?
-4. Effectiveness: Does remediation measurably reduce the identified risk?
-5. Compatibility: Do controls behave consistently across supported Kubernetes environments?
-6. Regression resistance: Do future changes preserve previously validated security behavior?
-
-Security claims should be supported by test evidence wherever possible.
-
-Community members will be encouraged to contribute reproducible test cases, independent validation, and improvements to the project’s security assessment methodology.
-
-Intended Use Cases
-
-Hardex is being designed with several potential environments in mind:
-
-* Self-hosted Kubernetes installations
-* Enterprise Kubernetes infrastructure
-* Development and staging environments
-* High-security computational workloads
-* Research and scientific computing infrastructure
-* Private AI and machine-learning deployments
-* Organizations seeking repeatable Kubernetes security controls
-* Educational and open-source infrastructure projects
-
-Different environments have different operational requirements. Hardex should support configurable hardening profiles rather than assuming a single configuration is appropriate everywhere.
-
-Open Source & Community
-
-Hardex is built on the belief that meaningful infrastructure security should not be restricted to organizations with substantial financial resources.
-
-Security weaknesses are not exclusive to large enterprises, and effective defensive tools should not be either.
-
-By maintaining an open development model, Hardex aims to encourage:
-
-* Independent review and security research
-* Community-developed hardening modules
-* Transparent vulnerability remediation
-* Collaborative engineering and testing
-* Shared knowledge and reproducible security assessments
-* Accessibility for individual developers, researchers, and organizations
-
-Contributions involving code, documentation, testing, security research, compatibility improvements, and technical feedback are welcome.
-
-As the project matures, contribution guidelines will be maintained in CONTRIBUTING.md.
-
-Responsible Vulnerability Disclosure
-
-Security vulnerabilities affecting Hardex itself should be reported through a private disclosure mechanism rather than immediately published in public issues.
-
-A dedicated SECURITY.md document will establish the reporting procedure and coordinated disclosure expectations.
-
-The objective is to provide maintainers with an opportunity to investigate and address vulnerabilities while supporting transparent communication with the community.
-
-Project Status
-
-Status: Initial development / architectural planning
-
-Hardex is an emerging open-source project. The capabilities described in this document represent intended functionality and design objectives.
-
-No production-readiness, security certification, or complete protection against Kubernetes exploitation is currently claimed.
-
-Initial development will prioritize a sound technical foundation, reliable security assessment, independently verifiable results, and a sustainable community development process.
-
-Security Considerations
-
-Hardex is intended to improve Kubernetes security, but no hardening framework can eliminate all vulnerabilities, guarantee compromise prevention, or replace an organization’s broader security program.
-
-Security mechanisms must be tested carefully before deployment to production infrastructure.
-
-Particular caution should be exercised when modifying cluster permissions, admission behavior, network restrictions, control-plane configurations, or other components that can affect availability.
-
-Security without reliability is an incomplete solution.
-
-License
-
-Hardex is released under the Apache License 2.0.
-
-See LICENSE for details.
-
-Long-Term Vision
-
-The ultimate vision for Hardex is to move Kubernetes security away from fragmented checklists and reactive configuration changes toward a unified, evidence-driven hardening system.
-
-A system that understands what must be protected.
-
-A system that identifies where security assumptions have failed.
-
-A system that recommends or safely executes corrective measures.
-
-A system whose defenses can be independently inspected, tested, and improved by a global community of developers and security researchers.
-
-And, most importantly, a system that verifies whether those measures actually worked.
-
-Hardex is not intended to make Kubernetes invulnerable. It is intended to make Kubernetes security more deliberate, measurable, accessible, and difficult to undermine.
-
-⸻
-
-HARDEX
-
-Open-Source Kubernetes Security Hardening
-
-Assess. Harden. Verify. Defend.
+**HARDEX** — Open-Source Kubernetes Security Hardening. *Assess. Harden. Verify. Defend.*
