@@ -136,3 +136,16 @@ func TestReportDigestMatchesFile(t *testing.T) {
 		t.Fatalf("score: exit %d\n%s", code, out)
 	}
 }
+
+func TestImagesOffline(t *testing.T) {
+	code, out, _ := cli(t, "", "images", "--offline", fixtures+"insecure")
+	if code != exitOK || !strings.Contains(out, "nginx:latest") || !strings.Contains(out, "tag (mutable)") {
+		t.Fatalf("exit %d\n%s", code, out)
+	}
+	if code, _, _ := cli(t, "", "images", "--offline", "--require-digest", fixtures+"insecure"); code != exitFindings {
+		t.Errorf("--require-digest: exit %d, want %d", code, exitFindings)
+	}
+	if code, _, _ := cli(t, "", "images", "--require-signature", fixtures+"insecure"); code != exitUsage {
+		t.Error("--require-signature without --key accepted")
+	}
+}

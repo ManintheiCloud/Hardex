@@ -12,7 +12,7 @@ Roadmap items are development objectives, not completed or guaranteed features. 
 - [x] Create the first security baseline — `minimal`, `baseline`, `restricted` profiles; full PSS coverage
 - [x] Establish contribution guidelines and development workflows — CONTRIBUTING, CI, templates
 - [ ] Item-level mappings for CIS and NSA/CISA, reviewed against named versions
-- [ ] Signed releases (checksums, cosign signatures, SLSA provenance, SBOM)
+- [x] Signed releases (checksums, cosign signatures, SLSA provenance, SBOM)
 - [ ] Fuzzing of the loader and flag parser (`go test -fuzz`) in CI
 
 ## Phase II — Hardening Engine
@@ -42,7 +42,8 @@ Roadmap items are development objectives, not completed or guaranteed features. 
 
 - [x] Admission-control integration running the same rules at admission time — `hardex admission` ([ADR 0008](docs/adr/0008-admission-webhook.md))
 - [x] Cross-cluster security analysis — `hardex fleet`, `hardex compare`
-- [ ] Supply-chain evaluation: image signature and provenance verification (Sigstore), vulnerability data. Registry allow-lists are possible today with rule modules.
+- [x] Supply-chain evaluation: digest resolution and cosign key-based signature verification (`hardex images`); registry allow-lists via rule modules
+- [ ] Keyless (Fulcio/Rekor) and Sigstore-bundle verification inside Hardex (today: delegated to cosign / policy controllers); vulnerability data
 - [x] Privilege-escalation path analysis across RBAC, workloads and nodes — HX-PATH-001
 - [x] Posture scoring and evidence reporting — `hardex report` ([ADR 0009](docs/adr/0009-posture-scoring.md))
 - [x] Performance validation — synthetic 16k-object scale gate in CI, benchmarks ([docs/performance.md](docs/performance.md))
@@ -50,8 +51,8 @@ Roadmap items are development objectives, not completed or guaranteed features. 
 
 ## Beyond Phase IV
 
-- [ ] Signed releases (checksums, cosign signatures, SLSA provenance, SBOM) and a published container image
-- [ ] Image signature/provenance verification and vulnerability data
+- [x] Signed releases (checksums, keyless cosign signatures, SLSA provenance, SBOM) and a published multi-arch container image
+- [ ] Keyless signature verification and vulnerability data in `hardex images`
 - [ ] CNI-specific network policy support (Cilium, Calico)
 - [ ] Kustomize/Helm-aware remediation output
 - [ ] Item-level CIS and NSA/CISA mappings reviewed against named versions

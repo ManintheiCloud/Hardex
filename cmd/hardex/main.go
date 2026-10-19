@@ -39,6 +39,8 @@ Usage:
   hardex scan --cluster [flags]    Assess the live cluster (read-only)
   hardex monitor [flags] PATH...|--cluster
                                    Assess repeatedly; record history; alert on drift
+  hardex images [--key K] PATH...|--cluster
+                                   Resolve image digests; verify cosign signatures
   hardex fleet --contexts a,b,c    Assess several clusters and compare them
   hardex compare REPORT...         Compare saved reports across clusters
   hardex report REPORT.json        Evidence report (HTML/Markdown) and posture score
@@ -74,6 +76,8 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 		return cmdProfiles(stdout, stderr)
 	case "diff":
 		return cmdDiff(args[1:], stdout, stderr)
+	case "images":
+		return cmdImages(args[1:], stdin, stdout, stderr)
 	case "compare":
 		return cmdCompare(args[1:], stdout, stderr)
 	case "fleet":

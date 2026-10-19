@@ -1,6 +1,6 @@
 # Threat model
 
-Version 0.4 — Phase IV. This document has two parts: the threats Hardex helps defend **clusters** against (what the rules are for), and the threats to **Hardex itself** (how the tool must behave). Both are living documents; propose changes by pull request.
+Version 0.4.0. This document has two parts: the threats Hardex helps defend **clusters** against (what the rules are for), and the threats to **Hardex itself** (how the tool must behave). Both are living documents; propose changes by pull request.
 
 ---
 
@@ -88,7 +88,7 @@ These are tracked in [ROADMAP.md](../ROADMAP.md):
 | H8 | Typo in configuration silently disables a check | Unknown fields rejected; disabled rules require justification and are listed in every report (implemented) |
 | H9 | Accepted risk lingers forever | Waivers require an expiry date; expired waivers stop applying and warn; unused waivers warn (implemented) |
 | H10 | "Resolved" claimed because a rule did not run | `diff` reports such findings as unverified, with caveats (implemented) |
-| H11 | Compromised dependency | One direct dependency; `go.sum` pinned; govulncheck in CI (implemented). Signed releases with provenance (planned, Phase I) |
+| H11 | Compromised dependency or tampered release | One direct dependency; `go.sum` pinned; govulncheck in CI; releases signed keylessly with Sigstore and attested with SLSA build provenance; SBOM published (implemented) |
 | H12 | Compromised CI action | Actions pinned by commit SHA; least-privilege workflow permissions (implemented) |
 | H13 | Remediation causes an outage | Risk rating per fix, `--max-risk` default medium; dry-run default; `--apply` needs explicit `--rules` and confirmation; all-or-nothing apply with automatic rollback; post-change re-assessment; `hardex rollback` (implemented, tested) |
 | H14 | Scanner credentials become a high-value target | Collector never reads Secrets; shipped `hardex-reader` role is get/list on collected kinds only; clients are read-only unless the apply path requests write (implemented, tested) |
@@ -110,6 +110,9 @@ These are tracked in [ROADMAP.md](../ROADMAP.md):
 | H30 | Certificate rotation breaks the webhook | Certificates reloaded on change; a broken rotation keeps the last good pair (implemented, tested) |
 | H31 | Manifest content injects markup into evidence reports | `html/template` escaping; Markdown neutralisation (implemented, tested) |
 | H32 | Evidence report altered after the fact | Report embeds the SHA-256 of its source JSON report (implemented, tested) |
+| H33 | Registry or proxy substitutes image content | Manifests and blobs fetched by digest are re-hashed and compared (implemented, tested) |
+| H34 | A valid signature for one image is replayed onto another | A signature verifies an image only if its payload names that exact digest (implemented, tested) |
+| H35 | Unsupported signature types reported as verified | Keyless/bundle signatures are reported as unsigned, never as verified (implemented, tested) |
 
 ### Residual risks
 

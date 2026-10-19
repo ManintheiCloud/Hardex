@@ -8,7 +8,7 @@ Harden the cluster. Reduce the attack surface. Establish trust.
 
 Hardex is an open-source Kubernetes security hardening framework. It brings systematic, measurable and reproducible security controls to containerized infrastructure: assess, harden, verify, defend.
 
-> **Status: Phase IV (Advanced Security Engineering) — v0.4.0-dev.** Assessment (49 rules, three profiles, policy and waivers), read-only live-cluster scanning, RBAC reachability and multi-step attack-path analysis, guarded remediation with backup and rollback, history and drift monitoring with signed notifications, rule modules, an admission webhook, posture scoring with evidence reports, and multi-cluster comparison are implemented and tested. Image signature and provenance verification is **not** implemented yet; see [ROADMAP.md](ROADMAP.md). No production-readiness or security certification is claimed.
+> **Status: Phase IV (Advanced Security Engineering) — v0.4.0-dev.** Assessment (49 rules, three profiles, policy and waivers), read-only live-cluster scanning, RBAC reachability and multi-step attack-path analysis, guarded remediation with backup and rollback, history and drift monitoring with signed notifications, rule modules, an admission webhook, posture scoring with evidence reports, and multi-cluster comparison are implemented and tested. Keyless (Sigstore/Fulcio) signature verification is delegated to cosign; see [ROADMAP.md](ROADMAP.md). No production-readiness or security certification is claimed.
 
 ## What Hardex does today
 
@@ -35,6 +35,8 @@ Summary: 74 findings (critical 13, high 23, medium 22, low 14, info 2), 0 waived
 - **Admission control** (`hardex admission`): the same rules enforced by the API server as a validating webhook, in warn, enforce (fail-closed) or audit mode. See [docs/admission.md](docs/admission.md).
 - **Posture score and evidence** (`hardex report`): a transparent, recomputable score and grade, framework-by-framework control evidence, and HTML/Markdown reports tied to the JSON report by SHA-256. See [docs/scoring.md](docs/scoring.md).
 - **Fleet view** (`hardex fleet`, `hardex compare`): assess many clusters and list controls that are inconsistent across them.
+- **Image supply chain** (`hardex images`): resolve every running image to its digest (with copy-paste pins) and verify cosign key-based signatures, with registry content checked against digests. See [docs/image-verification.md](docs/image-verification.md).
+- **Signed releases**: binaries, SBOM and a multi-arch container image, signed keylessly with Sigstore and carrying SLSA build provenance. See [docs/verifying-releases.md](docs/verifying-releases.md).
 - **Scales linearly**: ~16,000 objects with every rule in about a second ([docs/performance.md](docs/performance.md)).
 - **Complete Pod Security Standards coverage**: every Baseline and Restricted control, plus NSA/CISA recommendations PSS does not include.
 - **Profiles** (`minimal` ⊂ `baseline` ⊂ `restricted`) defined as reviewable YAML, not code.
@@ -45,7 +47,7 @@ Summary: 74 findings (critical 13, high 23, medium 22, low 14, info 2), 0 waived
 
 ## Quick start
 
-Requires Go 1.24+.
+Download a signed release from [Releases](https://github.com/ManintheiCloud/Hardex/releases) ([how to verify](docs/verifying-releases.md)), run the container image `ghcr.io/manintheicloud/hardex`, or build with Go 1.24+:
 
 ```sh
 go install github.com/ManintheiCloud/Hardex/cmd/hardex@latest
@@ -157,6 +159,8 @@ hardex/
 │   ├── cluster/           Minimal read-only Kubernetes API client and collector
 │   ├── fleet/             Cross-cluster comparison
 │   ├── history/           Recorded assessments and trends
+│   ├── imagesig/          cosign key-based signature verification
+│   ├── registry/          Minimal read-only OCI registry client
 │   ├── modules/           Declarative (YAML) rule modules
 │   ├── finding/           Finding and report model (JSON schema v1alpha1)
 │   ├── policy/            Profiles selection, config, waivers, overrides
