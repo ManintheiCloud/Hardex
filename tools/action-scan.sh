@@ -8,7 +8,8 @@ args=(scan --profile "$PROFILE" --fail-on "$FAIL_ON" --format "$FORMAT" -o "$OUT
 extra=(${ARGS:-})
 # shellcheck disable=SC2206
 paths=(${PATHS:-.})
-"$HARDEX" "${args[@]}" "${extra[@]}" "${paths[@]}"
+# ${a[@]+"${a[@]}"}: empty arrays are "unbound" under set -u in bash 3.2 (macOS).
+"$HARDEX" "${args[@]}" ${extra[@]+"${extra[@]}"} ${paths[@]+"${paths[@]}"}
 code=$?
 { echo "report=$OUTPUT"; echo "exit-code=$code"; } >> "${GITHUB_OUTPUT:-/dev/null}"
 if [ "$FORMAT" = sarif ] || [ "$FORMAT" = json ]; then
