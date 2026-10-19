@@ -4,10 +4,9 @@ name: image-smoke
 # runs, reports the expected version, and carries a valid keyless signature
 # from this repository's release workflow.
 
+# Runs only after a release has finished (and weekly), so it never races a
+# release that is still publishing the image.
 on:
-  push:
-    branches: [main]
-    paths: [.github/workflows/image-smoke.yml]
   workflow_run:
     workflows: [release]
     types: [completed]
