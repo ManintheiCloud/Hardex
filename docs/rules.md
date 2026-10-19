@@ -14,7 +14,8 @@ Severity is the default; individual findings may be raised or lowered where the 
 | [HX-CP-006](#hx-cp-006) | high | control-plane | etcd not protected by mutual TLS | baseline, minimal, restricted |
 | [HX-CP-007](#hx-cp-007) | medium | control-plane | Secrets not encrypted at rest | baseline, restricted |
 | [HX-CP-008](#hx-cp-008) | medium | control-plane | API server does not verify kubelet certificates | baseline, restricted |
-| [HX-CP-009](#hx-cp-009) | medium | control-plane | Validating webhook fails open | baseline, restricted |
+| [HX-CP-009](#hx-cp-009) | medium | control-plane | Admission webhook fails open | baseline, restricted |
+| [HX-CP-010](#hx-cp-010) | medium | control-plane | Admission webhook served from outside the cluster | baseline, restricted |
 | [HX-NET-001](#hx-net-001) | medium | networking | Namespace without default-deny ingress | baseline, restricted |
 | [HX-NET-002](#hx-net-002) | low | networking | Namespace without default-deny egress | restricted |
 | [HX-NET-003](#hx-net-003) | medium | networking | Service exposed outside the cluster | baseline, restricted |
@@ -22,6 +23,8 @@ Severity is the default; individual findings may be raised or lowered where the 
 | [HX-NET-005](#hx-net-005) | medium | networking | Ingress without TLS | baseline, restricted |
 | [HX-NET-006](#hx-net-006) | high | networking | Ingress injects NGINX configuration snippets | baseline, restricted |
 | [HX-NET-007](#hx-net-007) | medium | supply-chain | Retired ingress-nginx controller | baseline, restricted |
+| [HX-NET-008](#hx-net-008) | medium | networking | Gateway listener without TLS | baseline, restricted |
+| [HX-NET-009](#hx-net-009) | medium | networking | Gateway accepts routes from every namespace | baseline, restricted |
 | [HX-NODE-001](#hx-node-001) | high | nodes | Kubelet allows anonymous requests | baseline, minimal, restricted |
 | [HX-NODE-002](#hx-node-002) | critical | nodes | Kubelet authorization disabled | baseline, minimal, restricted |
 | [HX-NODE-003](#hx-node-003) | medium | nodes | Kubelet read-only port enabled | baseline, restricted |
@@ -198,9 +201,9 @@ Severity is the default; individual findings may be raised or lowered where the 
 
 ## HX-CP-009
 
-**Validating webhook fails open** — medium, control-plane
+**Admission webhook fails open** — medium, control-plane
 
-**Checks:** Detects ValidatingWebhookConfigurations whose webhooks guard workload, RBAC or networking resources with failurePolicy: Ignore.
+**Checks:** Detects ValidatingWebhookConfigurations and MutatingWebhookConfigurations whose webhooks guard workload, RBAC or networking resources with failurePolicy: Ignore.
 
 **Why it matters:** A policy webhook that fails open is bypassed whenever it is unavailable. An attacker who can slow down, crash or partition the webhook service can then create workloads the policy would have rejected.
 
@@ -213,6 +216,24 @@ Severity is the default; individual findings may be raised or lowered where the 
 - NSA-CISA: [NSA/CISA Kubernetes Hardening Guidance v1.2 (August 2022) — Kubernetes Pod security › Pod security enforcement](https://media.defense.gov/2022/Aug/29/2003066362/1/1/0/CTR_KUBERNETES_HARDENING_GUIDANCE_1.2_20220829.PDF)
 - NSA-CISA: [NSA/CISA Kubernetes Hardening Guidance v1.2 (August 2022) — Network separation and hardening › Control plane hardening](https://media.defense.gov/2022/Aug/29/2003066362/1/1/0/CTR_KUBERNETES_HARDENING_GUIDANCE_1.2_20220829.PDF)
 - Kubernetes: [Dynamic admission control: failure policy](https://kubernetes.io/docs/reference/access-authn-authz/extensible-admission-controllers/#failure-policy)
+
+## HX-CP-010
+
+**Admission webhook served from outside the cluster** — medium, control-plane
+
+**Checks:** Detects admission webhooks that guard workload, RBAC or networking resources and are called by URL (clientConfig.url) rather than through an in-cluster Service. Mutating webhooks are reported as high: they can rewrite every pod they see.
+
+**Why it matters:** The API server sends every matching object to the webhook and trusts its answer. A webhook reached by URL puts that trust in whatever answers at that DNS name and in the network between — outside the cluster's RBAC, NetworkPolicy and audit. A compromised or spoofed mutating webhook can inject privileged containers into every pod in the cluster.
+
+**Remediation:** Serve the webhook from a Service in the cluster (clientConfig.service). If an external endpoint is unavoidable, pin its CA with caBundle, scope rules and namespaceSelector narrowly, and monitor the endpoint as part of the control plane.
+
+**Known limitations:** URLs that resolve to the control-plane host (localhost, 127.0.0.1, ::1) are treated as local. Whether the endpoint is actually trustworthy cannot be judged from the manifest.
+
+**References:**
+
+- NSA-CISA: [NSA/CISA Kubernetes Hardening Guidance v1.2 (August 2022) — Network separation and hardening › Control plane hardening](https://media.defense.gov/2022/Aug/29/2003066362/1/1/0/CTR_KUBERNETES_HARDENING_GUIDANCE_1.2_20220829.PDF)
+- NSA-CISA: [NSA/CISA Kubernetes Hardening Guidance v1.2 (August 2022) — Threat model](https://media.defense.gov/2022/Aug/29/2003066362/1/1/0/CTR_KUBERNETES_HARDENING_GUIDANCE_1.2_20220829.PDF)
+- Kubernetes: [Dynamic admission control: contacting the webhook](https://kubernetes.io/docs/reference/access-authn-authz/extensible-admission-controllers/#contact-the-webhook)
 
 ## HX-NET-001
 
@@ -330,6 +351,41 @@ Severity is the default; individual findings may be raised or lowered where the 
 
 - NSA-CISA: [NSA/CISA Kubernetes Hardening Guidance v1.2 (August 2022) — Upgrading and application security practices](https://media.defense.gov/2022/Aug/29/2003066362/1/1/0/CTR_KUBERNETES_HARDENING_GUIDANCE_1.2_20220829.PDF)
 - Kubernetes: [Ingress NGINX retirement](https://kubernetes.io/blog/2025/11/11/ingress-nginx-retirement/)
+
+## HX-NET-008
+
+**Gateway listener without TLS** — medium, networking
+
+**Checks:** Detects Gateway API listeners with protocol HTTP whose hostname is not also served by an HTTPS or TLS listener on the same Gateway.
+
+**Why it matters:** Traffic to an HTTP-only listener crosses the network in clear text: credentials, session cookies and API tokens can be read or modified in transit.
+
+**Remediation:** Add an HTTPS listener with certificateRefs for the hostname (for example issued by cert-manager), and keep the HTTP listener only to redirect to HTTPS with an HTTPRoute RequestRedirect filter.
+
+**Known limitations:** An HTTP listener alongside an HTTPS listener for the same hostname is assumed to redirect; the HTTPRoutes are not inspected. TLS terminated in front of the Gateway (e.g. at a cloud load balancer) is not visible.
+
+**References:**
+
+- NSA-CISA: [NSA/CISA Kubernetes Hardening Guidance v1.2 (August 2022) — Network separation and hardening](https://media.defense.gov/2022/Aug/29/2003066362/1/1/0/CTR_KUBERNETES_HARDENING_GUIDANCE_1.2_20220829.PDF)
+- Kubernetes: [Gateway API: TLS configuration](https://gateway-api.sigs.k8s.io/guides/tls/)
+
+## HX-NET-009
+
+**Gateway accepts routes from every namespace** — medium, networking
+
+**Checks:** Detects Gateway API listeners whose allowedRoutes.namespaces.from is All, or Selector with an empty selector.
+
+**Why it matters:** Any namespace that can create an HTTPRoute can then attach it to the listener and claim its hostnames and paths: a tenant, or an attacker with a foothold in any namespace, can intercept traffic meant for another application, including credentials posted to it.
+
+**Remediation:** Set allowedRoutes.namespaces.from to Same, or to Selector with a label selector matching only the namespaces that own the listener's hostnames. Pin hostnames on the listener so routes cannot widen them.
+
+**Known limitations:** Selectors are not evaluated against namespace labels; only the empty selector is reported.
+
+**References:**
+
+- NSA-CISA: [NSA/CISA Kubernetes Hardening Guidance v1.2 (August 2022) — Network separation and hardening](https://media.defense.gov/2022/Aug/29/2003066362/1/1/0/CTR_KUBERNETES_HARDENING_GUIDANCE_1.2_20220829.PDF)
+- NSA-CISA: [NSA/CISA Kubernetes Hardening Guidance v1.2 (August 2022) — Network separation and hardening › Network policies](https://media.defense.gov/2022/Aug/29/2003066362/1/1/0/CTR_KUBERNETES_HARDENING_GUIDANCE_1.2_20220829.PDF)
+- Kubernetes: [Gateway API: cross-namespace routing](https://gateway-api.sigs.k8s.io/guides/multiple-ns/)
 
 ## HX-NODE-001
 

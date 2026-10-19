@@ -1,0 +1,45 @@
+# Gateway API listener in clear text that accepts routes from every namespace.
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+  name: public
+  namespace: edge
+spec:
+  gatewayClassName: example
+  listeners:
+    - name: http
+      protocol: HTTP
+      port: 80
+      hostname: shop.example.com
+      allowedRoutes:
+        namespaces:
+          from: All
+---
+# Istio's Gateway kind shares the name; it must not be assessed as Gateway API.
+apiVersion: networking.istio.io/v1
+kind: Gateway
+metadata:
+  name: istio-gw
+  namespace: edge
+spec:
+  servers:
+    - port: {number: 80, name: http, protocol: HTTP}
+      hosts: ["*"]
+---
+# Mutating webhook on pods served from an external URL.
+apiVersion: admissionregistration.k8s.io/v1
+kind: MutatingWebhookConfiguration
+metadata:
+  name: sidecar-injector
+webhooks:
+  - name: inject.example.com
+    admissionReviewVersions: [v1]
+    sideEffects: None
+    failurePolicy: Ignore
+    clientConfig:
+      url: https://injector.example.com/mutate
+    rules:
+      - apiGroups: [""]
+        apiVersions: [v1]
+        operations: [CREATE]
+        resources: [pods]

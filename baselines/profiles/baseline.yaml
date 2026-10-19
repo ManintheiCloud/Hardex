@@ -42,10 +42,13 @@ rules:
   - HX-NET-005 # ingress TLS
   - HX-NET-006 # ingress-nginx snippets
   - HX-NET-007 # retired ingress-nginx
+  - HX-NET-008 # Gateway listener without TLS
+  - HX-NET-009 # Gateway accepts routes from every namespace
   - HX-CP-001 # anonymous API access
   - HX-CP-003 # audit logging
   - HX-CP-005 # admission control
   - HX-CP-007 # encryption at rest
   - HX-CP-008 # kubelet certificate verification
-  - HX-CP-009 # fail-open validating webhooks
+  - HX-CP-009 # fail-open admission webhooks
+  - HX-CP-010 # admission webhooks served from outside the cluster
   - HX-NODE-003 # kubelet read-only port

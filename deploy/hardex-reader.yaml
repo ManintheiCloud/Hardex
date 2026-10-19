@@ -23,7 +23,7 @@ rules:
     resources: [networkpolicies, ingresses, ingressclasses]
     verbs: [get, list]
   - apiGroups: [admissionregistration.k8s.io]
-    resources: [validatingwebhookconfigurations]
+    resources: [validatingwebhookconfigurations, mutatingwebhookconfigurations]
     verbs: [get, list]
   # CNI-specific network policies (ignored if the CRDs are not installed)
   - apiGroups: [cilium.io]
@@ -31,6 +31,10 @@ rules:
     verbs: [get, list]
   - apiGroups: [crd.projectcalico.org]
     resources: [networkpolicies, globalnetworkpolicies]
+    verbs: [get, list]
+  # Gateway API (ignored if the CRDs are not installed)
+  - apiGroups: [gateway.networking.k8s.io]
+    resources: [gateways]
     verbs: [get, list]
   - apiGroups: [rbac.authorization.k8s.io]
     resources: [roles, rolebindings, clusterroles, clusterrolebindings]

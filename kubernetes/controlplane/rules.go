@@ -11,7 +11,7 @@ import (
 
 // Rules returns every control-plane rule.
 func Rules() []assessment.Rule {
-	return []assessment.Rule{anonymousAuth, authorizationMode, auditLogging, profiling, admissionPlugins, etcdTLS, encryptionAtRest, kubeletCA, failOpenWebhooks}
+	return []assessment.Rule{anonymousAuth, authorizationMode, auditLogging, profiling, admissionPlugins, etcdTLS, encryptionAtRest, kubeletCA, failOpenWebhooks, externalWebhooks}
 }
 
 var (

@@ -1,0 +1,23 @@
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+  name: public
+  namespace: edge
+spec:
+  gatewayClassName: example
+  listeners:
+    - name: http-redirect
+      protocol: HTTP
+      port: 80
+      hostname: shop.example.com
+    - name: https
+      protocol: HTTPS
+      port: 443
+      hostname: shop.example.com
+      tls:
+        certificateRefs: [{name: shop-tls}]
+      allowedRoutes:
+        namespaces:
+          from: Selector
+          selector:
+            matchLabels: {shared-gateway-access: "true"}

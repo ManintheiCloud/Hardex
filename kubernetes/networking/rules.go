@@ -13,7 +13,7 @@ import (
 
 // Rules returns every networking rule.
 func Rules() []assessment.Rule {
-	return []assessment.Rule{ingressIsolation, egressIsolation, serviceExposure, externalIPs, ingressTLS, nginxSnippets, retiredIngressNginx}
+	return []assessment.Rule{ingressIsolation, egressIsolation, serviceExposure, externalIPs, ingressTLS, nginxSnippets, retiredIngressNginx, gatewayTLS, gatewayRouteNamespaces}
 }
 
 var (

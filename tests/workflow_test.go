@@ -24,6 +24,7 @@ func TestVerifyRemediation(t *testing.T) {
 	before := scan(t, "restricted", "fixtures/insecure")
 	after := scan(t, "restricted", "fixtures/insecure/rbac.yaml", "fixtures/insecure/control-plane.yaml",
 		"fixtures/insecure/kubelet.yaml", "fixtures/insecure/services.yaml", "fixtures/insecure/secrets.yaml",
+		"fixtures/insecure/gateway-webhooks.yaml",
 		"fixtures/hardened/workloads.yaml")
 	c := verification.Compare(before, after)
 	if len(c.Resolved) == 0 {
