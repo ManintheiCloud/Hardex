@@ -75,6 +75,16 @@ if jq -e '.warnings // [] | map(select(test("forbidden|cannot list"))) | length 
   fail "reader role is missing permissions: $(jq -c '.warnings' "$WORK/live.json")"
 fi
 pass "live scan complete; $(jq '.objectsEvaluated' "$WORK/live.json") objects, $(jq '.summary.total' "$WORK/live.json") findings"
+# Findings on everything except the deliberately insecure fixtures, for
+# false-positive review: stock components and Hardex's own deployments.
+jq -r '.findings[] | select((.resource.namespace // "") as $n | $n != "shop" and $n != "ci")
+  | "\(.ruleId) \(.severity) \(.resource.kind) \(.resource.namespace // "-")/\(.resource.name)\(if .resource.container then "["+.resource.container+"]" else "" end)"' \
+  "$WORK/live.json" | sort | uniq > "$WORK/other.txt"
+echo "Findings outside the fixtures ($(wc -l < "$WORK/other.txt")):"; cat "$WORK/other.txt"
+if [ -n "${GITHUB_ACTIONS:-}" ]; then
+  split -l 12 "$WORK/other.txt" "$WORK/other."
+  for f in "$WORK"/other.??; do annotate notice "REVIEW: $(paste -sd ';' "$f")"; done
+fi
 
 # The reader must not be able to read Secrets or exec.
 # (Subresources need --subresource: "nodes/proxy" alone means a node named proxy.)
