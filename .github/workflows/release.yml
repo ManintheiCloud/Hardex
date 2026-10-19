@@ -68,6 +68,8 @@ jobs:
           go-version: stable
           check-latest: true
       - run: make fmt vet test selfcheck vuln
+      - name: Embedded Sigstore trusted root is current
+        run: tools/update-trusted-root.sh
 
   binaries:
     needs: [meta, test]

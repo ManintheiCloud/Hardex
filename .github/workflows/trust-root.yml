@@ -1,0 +1,26 @@
+name: trust-root
+
+# Weekly: is the Sigstore trusted root embedded in Hardex still current?
+# Fails (with the fix in the log) when sigstore/root-signing has rotated keys,
+# so a release never ships a stale root unnoticed.
+on:
+  schedule:
+    - cron: "17 4 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Compare with sigstore/root-signing
+        run: |
+          if ! tools/update-trusted-root.sh; then
+            echo "::error::The embedded Sigstore trusted root is out of date. Run tools/update-trusted-root.sh --write, test, commit and release."
+            exit 1
+          fi
