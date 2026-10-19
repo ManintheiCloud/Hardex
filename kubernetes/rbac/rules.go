@@ -18,7 +18,7 @@ import (
 
 // Rules returns every RBAC rule.
 func Rules() []assessment.Rule {
-	return []assessment.Rule{wildcards, clusterAdminBinding, secretsAccess, escalationVerbs, sensitiveSubresources, workloadCreation, broadSubjects}
+	return []assessment.Rule{wildcards, clusterAdminBinding, secretsAccess, escalationVerbs, sensitiveSubresources, workloadCreation, broadSubjects, reachableWorkloads}
 }
 
 var (

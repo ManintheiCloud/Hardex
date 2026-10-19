@@ -3,6 +3,7 @@
 package main
 
 import (
+	"context"
 	"errors"
 	"flag"
 	"fmt"
@@ -13,8 +14,8 @@ import (
 
 	"github.com/ManintheiCloud/Hardex"
 	"github.com/ManintheiCloud/Hardex/baselines"
+	"github.com/ManintheiCloud/Hardex/core/cluster"
 	"github.com/ManintheiCloud/Hardex/core/finding"
-	"github.com/ManintheiCloud/Hardex/core/policy"
 	"github.com/ManintheiCloud/Hardex/core/verification"
 	"github.com/ManintheiCloud/Hardex/integrations/reporting"
 	"github.com/ManintheiCloud/Hardex/kubernetes"
@@ -32,9 +33,14 @@ const usage = `Hardex — Kubernetes security assessment
 
 Usage:
   hardex scan [flags] PATH...      Assess manifests, directories or "-" (stdin)
+  hardex scan --cluster [flags]    Assess the live cluster (read-only)
   hardex rules [RULE-ID]           List rules, or explain one
   hardex profiles                  List built-in profiles
   hardex diff BEFORE AFTER         Compare two JSON reports (verify remediation)
+  hardex fix [flags] PATH...       Plan fixes (dry run); --out writes patched manifests
+  hardex fix --cluster --rules ... --apply
+                                   Apply selected fixes with backup and verification
+  hardex rollback BACKUP --cluster Undo an applied fix from its backup file
   hardex version                   Print version
 
 Run "hardex <command> -h" for command flags.
@@ -58,6 +64,10 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 		return cmdProfiles(stdout, stderr)
 	case "diff":
 		return cmdDiff(args[1:], stdout, stderr)
+	case "fix":
+		return cmdFix(args[1:], stdin, stdout, stderr)
+	case "rollback":
+		return cmdRollback(args[1:], stdin, stdout, stderr)
 	case "version", "--version":
 		fmt.Fprintf(stdout, "hardex %s\n", hardex.Version)
 		return exitOK
@@ -106,13 +116,19 @@ func cmdScan(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 	output := fs.String("o", "", "write report to this file instead of stdout")
 	failOn := fs.String("fail-on", "high", "exit 1 if any active finding is at or above this severity (info..critical, or none)")
 	includeSystem := fs.Bool("include-system", false, "also assess Kubernetes-managed objects (system:* RBAC, kube-system networking, control-plane pods as workloads)")
+	var cf clusterFlags
+	cf.register(fs)
 	positional, err := parseInterleaved(fs, args)
 	if err != nil {
 		return exitUsage
 	}
 	paths := append([]string(files), positional...)
-	if len(paths) == 0 {
-		fmt.Fprintln(stderr, "scan: no input; pass files, directories, or - for stdin")
+	switch {
+	case len(paths) == 0 && !cf.active():
+		fmt.Fprintln(stderr, "scan: no input; pass files, directories, - for stdin, or --cluster")
+		return exitUsage
+	case len(paths) > 0 && cf.active():
+		fmt.Fprintln(stderr, "scan: pass either paths or --cluster, not both")
 		return exitUsage
 	}
 	threshold, err := finding.ParseSeverity(*failOn)
@@ -121,21 +137,27 @@ func cmdScan(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 		return exitUsage
 	}
 
-	var cfg *policy.Config
-	if *configPath != "" {
-		if cfg, err = policy.LoadConfig(*configPath); err != nil {
+	cfg, err := loadConfig(*configPath, *includeSystem)
+	if err != nil {
+		fmt.Fprintln(stderr, "scan:", err)
+		return exitUsage
+	}
+
+	opts := hardex.ScanOptions{Paths: paths, Stdin: stdin, Config: cfg, Profile: *profile}
+	if cf.active() {
+		client, err := cf.connect(cluster.ReadOnly)
+		if err != nil {
 			fmt.Fprintln(stderr, "scan:", err)
 			return exitUsage
 		}
-	} else {
-		cfg = policy.DefaultConfig()
-		_ = cfg.Validate()
+		col, errs, warns, err := cf.collect(context.Background(), client)
+		if err != nil {
+			fmt.Fprintln(stderr, "scan:", err)
+			return exitUsage
+		}
+		opts.Inventory, opts.CollectionErrors, opts.CollectionWarnings = col.Inventory, errs, warns
 	}
-	if *includeSystem {
-		cfg.IncludeSystem = true
-	}
-
-	report, rules, err := hardex.Scan(hardex.ScanOptions{Paths: paths, Stdin: stdin, Config: cfg, Profile: *profile})
+	report, rules, err := hardex.Scan(opts)
 	if err != nil {
 		fmt.Fprintln(stderr, "scan:", err)
 		return exitUsage

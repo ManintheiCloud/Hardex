@@ -1,0 +1,36 @@
+# Example: a nightly in-cluster assessment. Apply hardex-reader.yaml first.
+# The job prints a JSON report to its log; ship it to your log pipeline, or
+# adapt the command to upload it. Replace the image with your published one,
+# pinned by digest.
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: hardex-scan
+  namespace: hardex
+spec:
+  schedule: "17 2 * * *"
+  concurrencyPolicy: Forbid
+  jobTemplate:
+    spec:
+      backoffLimit: 0
+      template:
+        spec:
+          serviceAccountName: hardex
+          # The scanner needs its own token to read the API; nothing else does.
+          automountServiceAccountToken: true
+          restartPolicy: Never
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 65532
+            seccompProfile: {type: RuntimeDefault}
+          containers:
+            - name: hardex
+              image: ghcr.io/manintheicloud/hardex:0.2.0 # pin by digest in production
+              args: ["scan", "--in-cluster", "--format", "json", "--fail-on", "none"]
+              securityContext:
+                allowPrivilegeEscalation: false
+                readOnlyRootFilesystem: true
+                capabilities: {drop: ["ALL"]}
+              resources:
+                requests: {cpu: 100m, memory: 128Mi}
+                limits: {cpu: "1", memory: 512Mi}

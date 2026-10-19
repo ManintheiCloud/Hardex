@@ -18,6 +18,7 @@ rules:
   - HX-RBAC-002
   - HX-RBAC-004
   - HX-RBAC-007
+  - HX-RBAC-008
   - HX-CP-002
   - HX-CP-006
   - HX-NODE-001

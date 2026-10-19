@@ -1,6 +1,6 @@
 # Threat model
 
-Version 0.1 — Phase I. This document has two parts: the threats Hardex helps defend **clusters** against (what the rules are for), and the threats to **Hardex itself** (how the tool must behave). Both are living documents; propose changes by pull request.
+Version 0.2 — Phase II. This document has two parts: the threats Hardex helps defend **clusters** against (what the rules are for), and the threats to **Hardex itself** (how the tool must behave). Both are living documents; propose changes by pull request.
 
 ---
 
@@ -90,7 +90,13 @@ These are tracked in [ROADMAP.md](../ROADMAP.md):
 | H10 | "Resolved" claimed because a rule did not run | `diff` reports such findings as unverified, with caveats (implemented) |
 | H11 | Compromised dependency | One direct dependency; `go.sum` pinned; govulncheck in CI (implemented). Signed releases with provenance (planned, Phase I) |
 | H12 | Compromised CI action | Actions pinned by commit SHA; least-privilege workflow permissions (implemented) |
-| H13 | Remediation causes outage or weakens security | Not applicable until Phase II; design constraints recorded in [ADR 0003](adr/0003-assessment-before-remediation.md) |
+| H13 | Remediation causes an outage | Risk rating per fix, `--max-risk` default medium; dry-run default; `--apply` needs explicit `--rules` and confirmation; all-or-nothing apply with automatic rollback; post-change re-assessment; `hardex rollback` (implemented, tested) |
+| H14 | Scanner credentials become a high-value target | Collector never reads Secrets; shipped `hardex-reader` role is get/list on collected kinds only; clients are read-only unless the apply path requests write (implemented, tested) |
+| H15 | Credentials sent to an impostor or in clear text | `http://` servers and `insecure-skip-tls-verify` refused with no override; TLS ≥ 1.2; redirects never followed (implemented, tested) |
+| H16 | Patch computed from a stale read overwrites newer state (TOCTOU) | Patches test `metadata.resourceVersion` and every value they replace (implemented, tested) |
+| H17 | Rollback overwrites someone else's later change | Inverse patches test the values Hardex set; rollback refuses a different API server than the backup's (implemented, tested) |
+| H18 | Hostile object names write files outside `--out` | Output file names are sanitised to a safe character set (implemented, tested) |
+| H19 | Partial collection reported as a clean cluster | Unreadable resources make the assessment incomplete (exit 3) unless `--allow-partial` (implemented, tested) |
 
 ### Residual risks
 

@@ -17,7 +17,7 @@ import (
 )
 
 // Version is set at build time with -ldflags "-X github.com/ManintheiCloud/Hardex.Version=...".
-var Version = "0.1.0-dev"
+var Version = "0.2.0-dev"
 
 // ScanOptions configures a scan.
 type ScanOptions struct {
@@ -30,6 +30,14 @@ type ScanOptions struct {
 	Profile string
 	// Now is the reference time for waiver expiry; zero means time.Now().
 	Now time.Time
+	// Inventory, when set, is assessed instead of loading Paths (e.g. a
+	// live-cluster collection).
+	Inventory *resource.Inventory
+	// CollectionErrors are reported as assessment errors: an incomplete
+	// collection must not produce a clean-looking report.
+	CollectionErrors []string
+	// CollectionWarnings are reported as warnings.
+	CollectionWarnings []string
 }
 
 // Scan runs a complete assessment.
@@ -62,9 +70,11 @@ func Scan(opts ScanOptions) (*finding.Report, []assessment.Metadata, error) {
 	if err != nil {
 		return nil, nil, err
 	}
-	inv, err := resource.Load(opts.Paths, opts.Stdin)
-	if err != nil {
-		return nil, nil, err
+	inv := opts.Inventory
+	if inv == nil {
+		if inv, err = resource.Load(opts.Paths, opts.Stdin); err != nil {
+			return nil, nil, err
+		}
 	}
 
 	res := assessment.Evaluate(inv, rules, assessment.Options{IncludeSystem: cfg.IncludeSystem})
@@ -80,8 +90,8 @@ func Scan(opts ScanOptions) (*finding.Report, []assessment.Metadata, error) {
 		RulesEvaluated:   res.Ran,
 		Findings:         nonNil(active),
 		Waived:           waived,
-		Warnings:         append(append(warnings, inv.Skipped...), policyWarnings...),
-		Errors:           res.Errors,
+		Warnings:         append(append(append(warnings, inv.Skipped...), opts.CollectionWarnings...), policyWarnings...),
+		Errors:           append(append([]string(nil), opts.CollectionErrors...), res.Errors...),
 	}
 	if len(inv.Objects) == 0 {
 		report.Warnings = append(report.Warnings, "no Kubernetes objects were found in the input; nothing was assessed")

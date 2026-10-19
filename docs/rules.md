@@ -29,6 +29,7 @@ Severity is the default; individual findings may be raised or lowered where the 
 | [HX-RBAC-005](#hx-rbac-005) | high | rbac | Access to sensitive subresource | baseline, restricted |
 | [HX-RBAC-006](#hx-rbac-006) | medium | rbac | Workload creation permission | restricted |
 | [HX-RBAC-007](#hx-rbac-007) | high | rbac | Permissions granted to anonymous or all users | baseline, minimal, restricted |
+| [HX-RBAC-008](#hx-rbac-008) | high | rbac | Workload holds dangerous API permissions | baseline, minimal, restricted |
 | [HX-SEC-001](#hx-sec-001) | medium | secrets | Secret values in manifest | baseline, restricted |
 | [HX-SEC-002](#hx-sec-002) | medium | secrets | Credential in environment variable literal | baseline, restricted |
 | [HX-WL-001](#hx-wl-001) | critical | workloads | Privileged container | baseline, minimal, restricted |
@@ -418,6 +419,24 @@ Severity is the default; individual findings may be raised or lowered where the 
 
 - CIS: [§5.1 RBAC and Service Accounts](https://www.cisecurity.org/benchmark/kubernetes)
 - NSA-CISA: Kubernetes Hardening Guidance v1.2 — Authentication and authorization
+
+## HX-RBAC-008
+
+**Workload holds dangerous API permissions** — high, rbac
+
+**Checks:** Follows each workload's service account through RoleBindings and ClusterRoleBindings to the permissions its mounted token carries, and reports workloads that can read secrets, exec into pods, mint tokens, reach kubelets, create workloads (medium), escalate or impersonate, or control everything (critical).
+
+**Why it matters:** Container compromise is common; what matters is what the stolen token can do next. A web server whose service account can read every secret turns one application bug into a cluster-wide breach.
+
+**Remediation:** Give the workload a dedicated service account bound only to what it needs, or set automountServiceAccountToken: false if it never calls the API. Remove broad grants found through the listed binding.
+
+**Known limitations:** Only bindings and roles present in the input are followed (plus the default cluster-admin, admin, edit and view ClusterRoles). Aggregated ClusterRoles, cloud IAM mappings and webhook authorizers are not evaluated. Workloads in kube-system are skipped unless --include-system is set.
+
+**References:**
+
+- CIS: [§5.1 RBAC and Service Accounts](https://www.cisecurity.org/benchmark/kubernetes)
+- NSA-CISA: Kubernetes Hardening Guidance v1.2 — Authentication and authorization
+- Kubernetes: [RBAC good practices](https://kubernetes.io/docs/concepts/security/rbac-good-practices/)
 
 ## HX-SEC-001
 

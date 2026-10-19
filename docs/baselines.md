@@ -4,9 +4,9 @@
 
 | Profile | Rules | Intent |
 |---|---|---|
-| `minimal` | 15 | Direct paths to node or cluster compromise. Every finding is incident-grade. Use as a first CI gate. |
-| `baseline` (default) | 33 | Broadly applicable hardening most workloads meet without application changes. |
-| `restricted` | 45 (all) | Defence in depth; PSS Restricted for workloads. Expect application changes. |
+| `minimal` | 16 | Direct paths to node or cluster compromise. Every finding is incident-grade. Use as a first CI gate. |
+| `baseline` (default) | 34 | Broadly applicable hardening most workloads meet without application changes. |
+| `restricted` | 46 (all) | Defence in depth; PSS Restricted for workloads. Expect application changes. |
 
 Profiles are nested (`minimal ⊂ baseline ⊂ restricted`); a test enforces this, and that `restricted` contains every rule. The files live in [`baselines/profiles/`](../baselines/profiles/) and are embedded into the binary. A custom profile is any YAML file of the same shape, passed as `--profile ./my-profile.yaml`.
 

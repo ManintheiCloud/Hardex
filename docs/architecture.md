@@ -1,6 +1,6 @@
 # Architecture
 
-This document describes how Hardex is built today (Phase I) and where the later phases attach. Decisions with lasting consequences are recorded in [adr/](adr/).
+This document describes how Hardex is built today (Phase II) and where the later phases attach. Decisions with lasting consequences are recorded in [adr/](adr/).
 
 ## Pipeline
 
@@ -29,6 +29,9 @@ This document describes how Hardex is built today (Phase I) and where the later 
 | `kubernetes/*` | Rule implementations, one package per domain | assessment, resource, baselines |
 | `baselines` | Profiles as embedded YAML; constructors for guidance citations | policy, finding |
 | `integrations/reporting` | Text (sanitised), JSON, SARIF 2.1.0 | assessment, finding |
+| `core/cluster` | kubeconfig/in-cluster auth; read-only-by-default API client; paginated collection into an `Inventory` | resource |
+| `core/remediation` | Guarded JSON patches, inverse patches, risk-rated plans, backups, all-or-nothing apply, rollback | finding, resource |
+| `kubernetes/fixes.go` | Which findings have automatic fixes, and their risk | remediation |
 
 Dependency direction is strictly inward: `core/*` never imports `kubernetes/*`, `baselines` or `integrations/*`. A rule package never imports another rule package.
 
@@ -82,8 +85,8 @@ A finding's fingerprint is a hash of rule ID, resource kind/namespace/name, cont
 
 | Phase | Attaches at | Notes |
 |---|---|---|
-| II – remediation | New `core/remediation` consuming findings; rules gain an optional `Fix` method returning a JSON patch | Dry-run by default, explicit authorization required, backup before change, mandatory post-change re-assessment via `verification` |
-| II – live cluster | New `core/resource` source backed by the Kubernetes API (read-only) | Rules are unchanged; they only see an `Inventory` |
+| II – remediation (done) | `core/remediation` + `kubernetes/fixes.go` | See [ADR 0005](adr/0005-remediation-engine.md) |
+| II – live cluster (done) | `core/cluster` produces an `Inventory` | Rules are unchanged; see [ADR 0004](adr/0004-live-cluster-client.md) |
 | III – continuous | Scheduled scans persisting JSON reports; `verification.Compare` for drift | Report schema is versioned for this reason |
 | III/IV – admission | `integrations/admission-control` running the same rules in a validating webhook | Same rule code in CI and at admission avoids drift between "what we check" and "what we block" |
 | IV – policy modules | Out-of-tree rule packages registering through `assessment.NewRegistry` | Requires a stable rule API (post-1.0) |

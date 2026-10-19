@@ -75,3 +75,31 @@ subjects:
   - kind: Group
     name: system:unauthenticated
     apiGroup: rbac.authorization.k8s.io
+---
+# Otherwise well-configured, but its service account is bound to
+# cluster-admin by ci-admin above: HX-RBAC-008 must connect the two.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: runner
+  namespace: ci
+spec:
+  selector:
+    matchLabels: {app: runner}
+  template:
+    metadata:
+      labels: {app: runner}
+    spec:
+      serviceAccountName: deployer
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile: {type: RuntimeDefault}
+      containers:
+        - name: runner
+          image: registry.example.com/ci/runner:3.1.0@sha256:2c26b46b68ffc68ff99b453c1d30413413422d706483bfa0f98a5e886266e7ae
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: {drop: ["ALL"]}
+          resources:
+            limits: {cpu: 500m, memory: 256Mi}

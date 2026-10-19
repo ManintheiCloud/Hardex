@@ -89,3 +89,6 @@ var clusterScoped = map[string]bool{
 	// namespace either.
 	"KubeletConfiguration": true,
 }
+
+// IsClusterScopedKind reports whether Hardex treats the kind as cluster-scoped.
+func IsClusterScopedKind(kind string) bool { return clusterScoped[kind] }

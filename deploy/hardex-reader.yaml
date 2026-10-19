@@ -1,0 +1,70 @@
+# Least-privilege, read-only access for `hardex scan --cluster`.
+#
+# Grants get/list on exactly the resources Hardex collects. It deliberately
+# does NOT grant access to Secrets, pods/exec, nodes/proxy or anything
+# writable: compromise of the scanner's credentials must not compromise the
+# cluster. Bind it to a person (Group/User) or to the hardex ServiceAccount.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: hardex-reader
+  labels: {app.kubernetes.io/name: hardex}
+rules:
+  - apiGroups: [""]
+    resources: [namespaces, pods, services, serviceaccounts, limitranges, replicationcontrollers]
+    verbs: [get, list]
+  - apiGroups: [apps]
+    resources: [deployments, daemonsets, statefulsets, replicasets]
+    verbs: [get, list]
+  - apiGroups: [batch]
+    resources: [jobs, cronjobs]
+    verbs: [get, list]
+  - apiGroups: [networking.k8s.io]
+    resources: [networkpolicies]
+    verbs: [get, list]
+  - apiGroups: [rbac.authorization.k8s.io]
+    resources: [roles, rolebindings, clusterroles, clusterrolebindings]
+    verbs: [get, list]
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: hardex
+  labels:
+    pod-security.kubernetes.io/enforce: restricted
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: hardex
+  namespace: hardex
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: hardex-reader
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: hardex-reader
+subjects:
+  - kind: ServiceAccount
+    name: hardex
+    namespace: hardex
+---
+# The scanner accepts no connections and only talks to the API server.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: hardex-scanner
+  namespace: hardex
+spec:
+  podSelector: {}
+  policyTypes: [Ingress, Egress]
+  egress:
+    - ports:
+        - {protocol: TCP, port: 443}
+        - {protocol: TCP, port: 6443}
+    - ports:
+        - {protocol: UDP, port: 53}
+        - {protocol: TCP, port: 53}
