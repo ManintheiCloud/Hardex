@@ -58,8 +58,10 @@ jobs:
           go build -o hardex ./cmd/hardex
           identity='^https://github.com/ManintheiCloud/Hardex/\.github/workflows/release\.yml@refs/(tags/v|heads/main)'
           issuer=https://token.actions.githubusercontent.com
-          ./hardex images --image ghcr.io/manintheicloud/hardex:latest --require-signature --vulns \
-            --certificate-identity-regexp "$identity" --certificate-oidc-issuer "$issuer"
+          ./hardex images --image ghcr.io/manintheicloud/hardex:latest --require-signature --vulns --format json \
+            --certificate-identity-regexp "$identity" --certificate-oidc-issuer "$issuer" > images.json
+          # Surface the result as annotations, readable without the job log.
+          jq -r '.[] | "::notice title=\(.image)::signature \(.signature.status) \(.signature.key // "") \(.signature.detail // ""); SBOM \(.vulnerabilities.sbom // false), \(.vulnerabilities.packages // 0) packages, findings \((.vulnerabilities.findings // []) | map(.purl + " " + (.vulnerabilities | join(","))) | join("; "))"' images.json
           tag="$(gh release view --repo "$GITHUB_REPOSITORY" --json tagName --jq .tagName)"
           gh release download "$tag" --repo "$GITHUB_REPOSITORY" --pattern 'SHA256SUMS*' --dir rel
           ./hardex verify-blob rel/SHA256SUMS --bundle rel/SHA256SUMS.sigstore.json \

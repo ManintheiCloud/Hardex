@@ -2,6 +2,26 @@
 
 All notable changes are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow [Semantic Versioning](https://semver.org/). Before 1.0, minor versions may contain breaking changes.
 
+## 0.6.0 — 2026-10-19
+
+### Added
+- Keyless Sigstore verification inside Hardex, completely offline: Fulcio certificate chain at a verified signing time, embedded SCT, signer identity and OIDC issuer policy, message and DSSE signatures, Rekor entry consistency, signed entry timestamps, inclusion proofs against signed checkpoints, and RFC 3161 timestamps. The Sigstore public-good trusted root is embedded; `--trusted-root` overrides it.
+  - `hardex images --certificate-identity[-regexp] --certificate-oidc-issuer[-regexp]`: verifies bundles attached as OCI referrers (cosign v3, GitHub attestations; referrers API or tag fallback) and cosign's legacy keyless format.
+  - `hardex verify-blob`: verifies a file against a Sigstore bundle (for example a Hardex release's `SHA256SUMS`).
+- `hardex images --vulns`: known vulnerabilities (OSV) for the packages in each image's SBOM attestation; `--fail-on-vulns`. `--image` checks references given on the command line.
+- `hardex scan --node`: kubelet configuration (with security-relevant command-line flag overrides) and static pod manifests read on the node, without `nodes/proxy`; `--node-root`, `--node-name`, `--kubelet-config`, `--every`. `deploy/hardex-node.yaml`: a read-only, tokenless, network-isolated DaemonSet.
+- `hardex scan --stats`: load and evaluation time and the slowest rules; a performance-report issue template.
+- Attack paths follow node placement: token theft through a node is modelled only between pods whose `nodeSelector`, `nodeName` or required node affinity let them share a node. Cloud workload identities (EKS IRSA, GKE Workload Identity, Azure Workload Identity) are path goals.
+- HX-PATH-002: workloads whose token assumes a cloud identity.
+- HX-CP-010: admission webhooks served by URL from outside the cluster (high for mutating webhooks). HX-CP-009 now covers mutating webhooks.
+- HX-NET-008: Gateway API listeners serving plain HTTP with no TLS listener for the hostname. HX-NET-009: Gateway listeners accepting routes from every namespace.
+- Item-level framework mappings: every rule references CIS Kubernetes Benchmark v2.0 items and NSA/CISA Kubernetes Hardening Guidance v1.2 sections; a CIS coverage table in docs/baselines.md.
+- Live scans collect `MutatingWebhookConfiguration` and Gateway API `Gateway` objects; the reader role grants them.
+- CI verifies the latest published image and release with the code under test; bundle and timestamp parsers are fuzzed.
+
+### Changed
+- The roadmap's phase I–IV objectives are complete; ongoing work is listed separately.
+
 ## 0.5.0 — 2026-10-19
 
 ### Added

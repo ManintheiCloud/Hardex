@@ -1,17 +1,17 @@
 # Roadmap
 
-Roadmap items are development objectives, not completed or guaranteed features. Status as of v0.5.0.
+Roadmap items are development objectives, not completed or guaranteed features. Status as of v0.6.0. Every Phase I–IV objective is complete; ongoing work is listed at the end.
 
 ## Phase I — Foundation
 
 - [x] Define project architecture and technical requirements — [docs/architecture.md](docs/architecture.md), [ADRs](docs/adr/)
 - [x] Establish the initial threat model — [docs/threat-model.md](docs/threat-model.md)
 - [x] Define supported Kubernetes versions and environments — [docs/compatibility.md](docs/compatibility.md)
-- [x] Build the initial cluster assessment framework — `core/assessment`, `core/resource`, 51 rules
+- [x] Build the initial cluster assessment framework — `core/assessment`, `core/resource`, 55 rules
 - [x] Develop configuration inspection capabilities — static pods, KubeletConfiguration, workloads, RBAC, network, secrets
 - [x] Create the first security baseline — `minimal`, `baseline`, `restricted` profiles; full PSS coverage
 - [x] Establish contribution guidelines and development workflows — CONTRIBUTING, CI, templates
-- [ ] Item-level mappings for CIS and NSA/CISA, reviewed against named versions
+- [x] Item-level mappings for CIS and NSA/CISA, reviewed against named versions — CIS Kubernetes Benchmark v2.0 items and NSA/CISA v1.2 sections per rule ([docs/baselines.md](docs/baselines.md))
 - [x] Signed releases (checksums, cosign signatures, SLSA provenance, SBOM)
 - [x] Fuzzing in CI — manifest loader, policy config, rule modules, admission requests, control-plane flags
 
@@ -26,7 +26,7 @@ Roadmap items are development objectives, not completed or guaranteed features. 
 - [x] Establish automated security testing — detection, false-positive, regression suites
 - [x] RBAC reachability: effective permissions per workload through bindings and service accounts — HX-RBAC-008
 - [x] Kustomize-aware remediation output — `hardex fix --kustomize` (patch overlays; your manifests stay untouched)
-- [ ] Kubelet configuration collection from live nodes without `nodes/proxy`
+- [x] Kubelet configuration collection from live nodes without `nodes/proxy` — `hardex scan --node` with flag overrides, `deploy/hardex-node.yaml` ([docs/node-scanning.md](docs/node-scanning.md))
 
 ## Phase III — Continuous Protection
 
@@ -36,7 +36,7 @@ Roadmap items are development objectives, not completed or guaranteed features. 
 - [x] Security event reporting integrations — JSON Lines, HMAC-signed webhooks, Slack format
 - [x] Expand analysis: Ingress TLS (HX-NET-005), fail-open admission webhooks (HX-CP-009)
 - [x] Expand analysis: Cilium and Calico policies in default-deny detection; ingress-nginx snippets (HX-NET-006) and the retired ingress-nginx controller (HX-NET-007)
-- [ ] Expand analysis: mutating webhooks, Gateway API
+- [x] Expand analysis: mutating webhooks (HX-CP-009, HX-CP-010), Gateway API (HX-NET-008, HX-NET-009)
 - [x] Out-of-tree, community-maintained rule modules — declarative YAML modules ([ADR 0007](docs/adr/0007-declarative-rule-modules.md))
 
 ## Phase IV — Advanced Security Engineering
@@ -44,15 +44,23 @@ Roadmap items are development objectives, not completed or guaranteed features. 
 - [x] Admission-control integration running the same rules at admission time — `hardex admission` ([ADR 0008](docs/adr/0008-admission-webhook.md))
 - [x] Cross-cluster security analysis — `hardex fleet`, `hardex compare`
 - [x] Supply-chain evaluation: digest resolution and cosign key-based signature verification (`hardex images`); registry allow-lists via rule modules
-- [ ] Keyless (Fulcio/Rekor) and Sigstore-bundle verification inside Hardex (today: delegated to cosign / policy controllers); vulnerability data
-- [x] Privilege-escalation path analysis across RBAC, workloads and nodes — HX-PATH-001
+- [x] Keyless (Fulcio/Rekor) and Sigstore-bundle verification inside Hardex, offline against the trusted root; vulnerability data from SBOM attestations via OSV — `hardex images`, `hardex verify-blob` ([docs/image-verification.md](docs/image-verification.md))
+- [x] Privilege-escalation path analysis across RBAC, workloads, node placement and cloud identities — HX-PATH-001, HX-PATH-002
 - [x] Posture scoring and evidence reporting — `hardex report` ([ADR 0009](docs/adr/0009-posture-scoring.md))
 - [x] Performance validation — synthetic 16k-object scale gate in CI, benchmarks ([docs/performance.md](docs/performance.md))
-- [ ] Performance validation on real large clusters (community reports welcome)
+- [x] Performance validation on real clusters: `scan --stats` and a [performance report](https://github.com/ManintheiCloud/Hardex/issues/new?template=performance.yml) template ([docs/performance.md](docs/performance.md))
 
 ## Beyond Phase IV
 
 - [x] Signed releases (checksums, keyless cosign signatures, SLSA provenance, SBOM) and a published multi-arch container image
-- [ ] Keyless signature verification and vulnerability data in `hardex images`
-- [ ] Item-level CIS and NSA/CISA mappings reviewed against named versions
-- [ ] Node-affinity-aware attack paths; cloud IAM (IRSA, Workload Identity) in reachability
+- [x] Keyless signature verification and vulnerability data in `hardex images`
+- [x] Item-level CIS and NSA/CISA mappings reviewed against named versions
+- [x] Node-affinity-aware attack paths; cloud IAM (IRSA, GKE and Azure Workload Identity) in reachability
+
+## Ongoing
+
+These are continuing efforts rather than milestones:
+
+- Collect real-cluster performance reports and keep the scale targets honest.
+- Re-review framework mappings when CIS or NSA/CISA publish new versions; refresh the embedded Sigstore trusted root each release.
+- Rekor v2 (tile-based log) entries in keyless verification; taints and preferred affinity in co-location analysis; the permissions behind cloud roles.

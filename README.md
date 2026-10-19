@@ -8,7 +8,7 @@ Harden the cluster. Reduce the attack surface. Establish trust.
 
 Hardex is an open-source Kubernetes security hardening framework. It brings systematic, measurable and reproducible security controls to containerized infrastructure: assess, harden, verify, defend.
 
-> **Status: v0.5.0.** All four roadmap phases are implemented and tested. Assessment (51 rules, three profiles, policy and waivers), read-only live-cluster scanning, RBAC reachability and multi-step attack-path analysis, guarded remediation with backup and rollback, history and drift monitoring with signed notifications, rule modules, an admission webhook, posture scoring with evidence reports, and multi-cluster comparison are implemented and tested. Keyless (Sigstore/Fulcio) signature verification is delegated to cosign; see [ROADMAP.md](ROADMAP.md). No production-readiness or security certification is claimed.
+> **Status: v0.6.0.** Every roadmap objective in phases I–IV is implemented and tested: assessment (55 rules mapped to CIS v2.0 items and NSA/CISA v1.2 sections, three profiles, policy and waivers), read-only live-cluster and node scanning, RBAC reachability and placement-aware attack paths into cluster admin, nodes and cloud identities, guarded remediation with backup and rollback, history and drift monitoring with signed notifications, rule modules, an admission webhook, posture scoring with evidence reports, multi-cluster comparison, and offline keyless Sigstore verification with SBOM vulnerability lookup. Ongoing work is in [ROADMAP.md](ROADMAP.md). No production-readiness or security certification is claimed.
 
 ## What Hardex does today
 
@@ -25,21 +25,21 @@ $ hardex scan --profile restricted ./manifests
 Summary: 76 findings (critical 13, high 24, medium 23, low 14, info 2), 0 waived
 ```
 
-- **Assessment** of workloads, RBAC, network segmentation, Secrets handling, control-plane static pods, and kubelet configuration — [51 rules](docs/rules.md), each with rationale, remediation, known limitations and references.
-- **Live-cluster scanning** (`--cluster`) with a minimal read-only client: no Secrets access, TLS required, least-privilege [reader role](deploy/hardex-reader.yaml) provided.
+- **Assessment** of workloads, RBAC, network segmentation, Secrets handling, control-plane static pods, and kubelet configuration — [55 rules](docs/rules.md), each with rationale, remediation, known limitations and references.
+- **Live-cluster scanning** (`--cluster`) with a minimal read-only client: no Secrets access, TLS required, least-privilege [reader role](deploy/hardex-reader.yaml) provided. **Node scanning** (`--node`) reads kubelet configuration, its flag overrides and static pod manifests from the node, without `nodes/proxy` ([docs/node-scanning.md](docs/node-scanning.md)).
 - **RBAC reachability**: follows each workload's service account through bindings to the permissions its token really carries (HX-RBAC-008).
 - **Remediation** (`hardex fix`): dry-run plans with risk ratings and a predicted result; patched manifests written to a new directory; on a cluster, explicitly authorised apply with backup, automatic all-or-nothing rollback on failure, post-change verification, and `hardex rollback`. See [docs/remediation.md](docs/remediation.md).
 - **Continuous monitoring**: `scan --history` and `hardex history` record and chart posture over time; `hardex monitor` re-assesses on an interval (or `--once` from cron), detects drift from the previous run or an approved baseline, and emits events as JSON Lines or HMAC-signed webhooks (generic or Slack). See [docs/monitoring.md](docs/monitoring.md).
 - **Rule modules**: organisation and community checks written in YAML, loaded with `--module`. See [docs/modules.md](docs/modules.md).
-- **Attack paths** (HX-PATH-001): finds chains such as *web pod escapes to its node → steals a co-located controller's token → cluster-admin*, combining container escape, token theft, workload creation, exec, token minting and RBAC escalation, and names each link so the cheapest one can be broken.
+- **Attack paths** (HX-PATH-001, HX-PATH-002): finds chains such as *web pod escapes to its node → steals the token of a controller that can run on the same node → cluster-admin* or *→ the AWS role behind an IRSA token*, combining container escape, node placement, token theft, workload creation, exec, token minting, RBAC escalation and cloud workload identities, and names each link so the cheapest one can be broken.
 - **Admission control** (`hardex admission`): the same rules enforced by the API server as a validating webhook, in warn, enforce (fail-closed) or audit mode. See [docs/admission.md](docs/admission.md).
 - **Posture score and evidence** (`hardex report`): a transparent, recomputable score and grade, framework-by-framework control evidence, and HTML/Markdown reports tied to the JSON report by SHA-256. See [docs/scoring.md](docs/scoring.md).
 - **Fleet view** (`hardex fleet`, `hardex compare`): assess many clusters and list controls that are inconsistent across them.
-- **Image supply chain** (`hardex images`): resolve every running image to its digest (with copy-paste pins) and verify cosign key-based signatures, with registry content checked against digests. See [docs/image-verification.md](docs/image-verification.md).
+- **Image supply chain** (`hardex images`, `hardex verify-blob`): resolve every running image to its digest (with copy-paste pins); verify cosign key signatures or keyless Sigstore signatures — completely offline against the Sigstore trusted root, with a required signer identity; look up known vulnerabilities (OSV) from SBOM attestations. See [docs/image-verification.md](docs/image-verification.md).
 - **Signed releases**: binaries, SBOM and a multi-arch container image, signed keylessly with Sigstore and carrying SLSA build provenance. See [docs/verifying-releases.md](docs/verifying-releases.md).
-- **Works with your stack**: Cilium and Calico policies are understood; fixes can be emitted as Kustomize overlays; supported Kubernetes versions and environments are in [docs/compatibility.md](docs/compatibility.md).
+- **Works with your stack**: Cilium and Calico policies, Gateway API and mutating webhooks are understood; fixes can be emitted as Kustomize overlays; supported Kubernetes versions and environments are in [docs/compatibility.md](docs/compatibility.md).
 - **Scales linearly**: ~16,000 objects with every rule in about a second ([docs/performance.md](docs/performance.md)).
-- **Complete Pod Security Standards coverage**: every Baseline and Restricted control, plus NSA/CISA recommendations PSS does not include.
+- **Complete Pod Security Standards coverage**: every Baseline and Restricted control, plus NSA/CISA recommendations PSS does not include; every rule mapped to CIS Kubernetes Benchmark v2.0 items and NSA/CISA v1.2 sections.
 - **Profiles** (`minimal` ⊂ `baseline` ⊂ `restricted`) defined as reviewable YAML, not code.
 - **Policy with accountability**: disabling a rule needs a justification; waivers need a justification and an expiry date, and expired waivers resurface automatically.
 - **Verification**: `hardex diff` compares two reports by stable fingerprints and refuses to call a finding "resolved" when the rule that found it did not run.
@@ -160,7 +160,10 @@ hardex/
 │   ├── cluster/           Minimal read-only Kubernetes API client and collector
 │   ├── fleet/             Cross-cluster comparison
 │   ├── history/           Recorded assessments and trends
-│   ├── imagesig/          cosign key-based signature verification
+│   ├── imagesig/          Image signatures: cosign keys and keyless Sigstore
+│   ├── sigstore/          Offline Sigstore bundle verification (Fulcio, Rekor, CT, TSA)
+│   ├── vuln/              SBOM attestations and OSV vulnerability lookup
+│   ├── node/              Node-local kubelet and static pod collection
 │   ├── registry/          Minimal read-only OCI registry client
 │   ├── modules/           Declarative (YAML) rule modules
 │   ├── finding/           Finding and report model (JSON schema v1alpha1)
@@ -178,8 +181,8 @@ hardex/
 │   ├── nodes/             HX-NODE-* kubelet configuration
 │   └── paths/             HX-PATH-* multi-step privilege-escalation paths
 ├── kubernetes/fixes.go    Automatic fixes and their risk ratings
-├── baselines/             Profiles (YAML) and guidance citations
-├── deploy/                Reader role, scan/monitor CronJobs, admission webhook
+├── baselines/             Profiles (YAML), guidance citations, CIS/NSA item mappings
+├── deploy/                Reader role, scan/monitor CronJobs, node DaemonSet, admission webhook
 ├── integrations/
 │   ├── admission/         Validating admission webhook
 │   ├── reporting/         Text, JSON, SARIF, HTML/Markdown evidence

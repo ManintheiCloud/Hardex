@@ -61,7 +61,7 @@ spec:
             matchLabels: {app: hardex-admission}
       containers:
         - name: hardex
-          image: ghcr.io/manintheicloud/hardex:0.5.0 # pin by digest in production
+          image: ghcr.io/manintheicloud/hardex:0.6.0 # pin by digest in production
           args: [admission, --mode=warn, --deny-at=high, --profile=baseline]
           ports:
             - {name: https, containerPort: 8443}

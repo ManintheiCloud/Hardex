@@ -1,6 +1,6 @@
 # Threat model
 
-Version 0.5.0. This document has two parts: the threats Hardex helps defend **clusters** against (what the rules are for), and the threats to **Hardex itself** (how the tool must behave). Both are living documents; propose changes by pull request.
+Version 0.6.0. This document has two parts: the threats Hardex helps defend **clusters** against (what the rules are for), and the threats to **Hardex itself** (how the tool must behave). Both are living documents; propose changes by pull request.
 
 ---
 
@@ -40,22 +40,24 @@ Version 0.5.0. This document has two parts: the threats Hardex helps defend **cl
 | T7 | A1 abuses unauthenticated API server or kubelet access | HX-CP-001, 002, HX-RBAC-007, HX-NODE-001, 002, 003 |
 | T8 | A5 or network attacker reads/modifies etcd or intercepts control-plane traffic | HX-CP-006, 008 |
 | T9 | A5 tampers with other nodes or pods via kubelet credentials | HX-CP-005 (NodeRestriction) |
-| T10 | A4 ships a modified image under an existing reference | HX-WL-011, 012 |
+| T10 | A4 ships a modified image under an existing reference | HX-WL-011, 012; `hardex images` keyless/key signature verification and SBOM vulnerability lookup |
 | T11 | A2 exhausts node resources (denial of service) | HX-WL-010 |
 | T12 | Any adversary operates undetected | HX-CP-003 (audit logging) |
-| T13 | Admission guardrails bypassed | HX-CP-005 (AlwaysAdmit, PodSecurity disabled) |
+| T13 | Admission guardrails bypassed | HX-CP-005 (AlwaysAdmit, PodSecurity disabled), HX-CP-009 (fail-open webhooks) |
+| T14 | A compromised or spoofed admission webhook rewrites or approves objects | HX-CP-010 (webhooks served from outside the cluster; mutating webhooks high) |
+| T15 | A2/A3 chains moderate weaknesses into a full compromise, including through node co-location | HX-PATH-001 (placement-aware paths to cluster admin, cloud identity, node root) |
+| T16 | A2 uses a workload's federated token against the cloud account | HX-PATH-002 (inventory of cloud identities), HX-PATH-001 (chains into them) |
+| T17 | A tenant attaches routes to a shared Gateway and intercepts another application's traffic | HX-NET-009; HX-NET-005/008 (TLS) |
 
 ### Known gaps (not yet covered)
 
 These are tracked in [ROADMAP.md](../ROADMAP.md):
 
-- Image vulnerability and signature verification (A4) — Hardex checks references, not image contents or provenance.
 - Runtime detection (behaviour after compromise) — out of scope; Hardex is a posture tool.
-- RBAC *reachability*: which pods actually hold which effective permissions through bindings and service accounts.
-- Cloud-provider IAM bindings to Kubernetes identities (IRSA, Workload Identity).
-- CNI-specific network policy types; ingress controller configuration; service mesh mTLS.
-- Kubelet flags (as opposed to config files); managed control planes whose flags are not visible.
-- Admission webhook configuration (failure policy, namespace exclusions).
+- Image *contents* beyond the SBOM: vulnerabilities in packages the SBOM misses, and reachability of vulnerable code.
+- Permissions of the cloud roles that workload identities assume (Hardex sees the binding, not the cloud policy); EKS Pod Identity associations, which live outside Kubernetes.
+- Taints and preferred affinity in co-location analysis; service mesh mTLS; managed control planes whose flags are not visible.
+- Admission webhook namespace exclusions.
 
 ---
 
@@ -112,9 +114,13 @@ These are tracked in [ROADMAP.md](../ROADMAP.md):
 | H32 | Evidence report altered after the fact | Report embeds the SHA-256 of its source JSON report (implemented, tested) |
 | H33 | Registry or proxy substitutes image content | Manifests and blobs fetched by digest are re-hashed and compared (implemented, tested) |
 | H34 | A valid signature for one image is replayed onto another | A signature verifies an image only if its payload names that exact digest (implemented, tested) |
-| H35 | Unsupported signature types reported as verified | Keyless/bundle signatures are reported as unsigned, never as verified (implemented, tested) |
+| H35 | Unsupported signature types reported as verified | Keyless verification requires an identity policy; unsupported log entry types (Rekor v2) are reported as invalid with the reason, never as verified (implemented, tested) |
 | H36 | A bug in the YAML library crashes Hardex on malformed input | Every YAML decode goes through `internal/yamlsafe`, which turns library panics into errors; continuous fuzzing in CI; the crashing input found by fuzzing is a permanent regression test (implemented, tested) |
 | H37 | A CNI policy is misread as isolating, hiding an open namespace | Only unambiguous default-deny forms count, following each project's reference docs; everything else is reported (implemented, tested) |
+| H38 | Forged keyless signature: a certificate from an untrusted CA, a signature never logged, a backdated or expired certificate, or a bundle replayed onto another artifact | Full offline verification against the trusted root: Fulcio chain at a *verified* signing time (signed entry timestamp or RFC 3161), SCT, Rekor body consistency with signature/certificate/digest, inclusion proof against a signed checkpoint, identity and issuer policy; tested against a real bundle and with mutations; bundle and timestamp parsers fuzzed (implemented, tested) |
+| H39 | Stale embedded Sigstore trust root after key rotation | `--trusted-root` accepts a current root; the embedded root is refreshed from sigstore/root-signing (checked against its TUF targets hash) at release time (implemented; refresh is a release step) |
+| H40 | Vulnerability lookup leaks inventory or reports "clean" without data | Only package URLs are sent to OSV; images without an SBOM are reported as unknown and fail `--fail-on-vulns` (implemented, tested) |
+| H41 | Node scanner becomes a root-equivalent credential | Node configuration is read from read-only file mounts with no API token and no network; `nodes/proxy` is never used (implemented) |
 
 ### Residual risks
 
