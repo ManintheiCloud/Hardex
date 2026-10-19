@@ -2,9 +2,9 @@
 // (KubeletConfiguration, kubelet.config.k8s.io/v1beta1).
 //
 // Unset fields are evaluated against the v1beta1 defaults applied by the
-// kubelet when it loads a configuration file. These differ from the defaults
-// of the equivalent command-line flags; kubelets configured purely through
-// flags are not yet assessed.
+// kubelet when it loads a configuration file. `hardex scan --node` collects
+// the file from the node itself and applies the security-relevant
+// command-line flags that override it (see core/node).
 package nodes
 
 import (
@@ -24,7 +24,7 @@ func Rules() []assessment.Rule {
 var (
 	refCISKubelet = baselines.CIS("4.2", "Kubelet")
 	refNSANode    = baselines.NSA("Network separation and hardening — worker node")
-	limitation    = "Only KubeletConfiguration files are assessed; command-line flags that override them are not visible."
+	limitation    = "Command-line flags that override the configuration file are applied only when the node is scanned with hardex scan --node; in manifests and other inputs they are not visible."
 )
 
 func kubeletRule(meta assessment.Metadata, check func(ctx *assessment.Context, o *resource.Object)) assessment.Rule {

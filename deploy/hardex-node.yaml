@@ -1,0 +1,74 @@
+# Example: per-node assessment of kubelet configuration (including flag
+# overrides) and control-plane static pod manifests, without granting the
+# scanner nodes/proxy. Each pod reads only the files it needs, read-only, and
+# writes a JSON report to its log every 24 hours.
+#
+# The paths below are kubeadm's; adjust the hostPath volumes for other
+# distributions (see docs/live-cluster.md, "Node configuration"). Replace the
+# image with your published one, pinned by digest.
+#
+# hostPath volumes are not allowed by the baseline Pod Security Standard, so
+# this runs in its own namespace. The pod runs as root to read the 0600 static
+# pod manifests, with every capability dropped, no API token and no network.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: hardex-node
+  labels:
+    pod-security.kubernetes.io/enforce: privileged
+    pod-security.kubernetes.io/warn: baseline
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: deny-all
+  namespace: hardex-node
+spec:
+  podSelector: {}
+  policyTypes: [Ingress, Egress]
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: hardex-node
+  namespace: hardex-node
+spec:
+  selector:
+    matchLabels: {app.kubernetes.io/name: hardex-node}
+  template:
+    metadata:
+      labels: {app.kubernetes.io/name: hardex-node}
+    spec:
+      automountServiceAccountToken: false
+      enableServiceLinks: false
+      tolerations:
+        - operator: Exists # every node, including control-plane nodes
+      securityContext:
+        seccompProfile: {type: RuntimeDefault}
+      containers:
+        - name: hardex
+          image: ghcr.io/manintheicloud/hardex:0.6.0 # pin by digest in production
+          args: ["scan", "--node", "--node-root", "/host", "--every", "24h", "--format", "json", "--fail-on", "none"]
+          env:
+            - name: NODE_NAME
+              valueFrom: {fieldRef: {fieldPath: spec.nodeName}}
+          securityContext:
+            runAsUser: 0
+            runAsNonRoot: false
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: {drop: ["ALL"]}
+          resources:
+            requests: {cpu: 10m, memory: 32Mi}
+            limits: {cpu: 200m, memory: 128Mi}
+          volumeMounts:
+            - {name: kubelet-config, mountPath: /host/var/lib/kubelet/config.yaml, readOnly: true}
+            - {name: kubelet-flags, mountPath: /host/var/lib/kubelet/kubeadm-flags.env, readOnly: true}
+            - {name: manifests, mountPath: /host/etc/kubernetes/manifests, readOnly: true}
+      volumes:
+        - name: kubelet-config
+          hostPath: {path: /var/lib/kubelet/config.yaml, type: File}
+        - name: kubelet-flags
+          hostPath: {path: /var/lib/kubelet/kubeadm-flags.env, type: File}
+        - name: manifests
+          hostPath: {path: /etc/kubernetes/manifests, type: DirectoryOrCreate}

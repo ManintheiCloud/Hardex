@@ -5,6 +5,7 @@ import (
 	"runtime/debug"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/ManintheiCloud/Hardex/core/finding"
 	"github.com/ManintheiCloud/Hardex/core/resource"
@@ -50,6 +51,15 @@ type Result struct {
 	Findings []finding.Finding
 	Errors   []string
 	Ran      []string
+	// Timings records how long each rule took, in evaluation order.
+	Timings []Timing
+}
+
+// Timing is the wall-clock cost of one rule.
+type Timing struct {
+	RuleID   string
+	Duration time.Duration
+	Findings int
 }
 
 // Evaluate runs each rule against the inventory.
@@ -63,7 +73,10 @@ func Evaluate(inv *resource.Inventory, rules []Rule, opts Options) Result {
 	for _, rule := range rules {
 		meta := rule.Metadata()
 		ctx := &Context{Inventory: inv, Options: opts, meta: meta}
-		if err := safeEvaluate(rule, ctx); err != nil {
+		start := time.Now()
+		err := safeEvaluate(rule, ctx)
+		res.Timings = append(res.Timings, Timing{RuleID: meta.ID, Duration: time.Since(start), Findings: len(ctx.findings)})
+		if err != nil {
 			res.Errors = append(res.Errors, fmt.Sprintf("%s: %v", meta.ID, err))
 			continue
 		}

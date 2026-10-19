@@ -28,3 +28,15 @@ The scale test fails if ~16,000 objects take longer than 15 seconds, so regressi
 - RBAC bindings are indexed by subject, and each service account's effective permissions are computed once.
 - Attack paths are found with one backwards breadth-first search per goal (cluster administrator, node root) over the whole graph, instead of one search per workload. Before this change the same 15,800-object cluster took 35 seconds.
 - Live-cluster collection pages through LIST results (500 per page) and skips controller-owned objects, so a Deployment's ReplicaSets and Pods are not assessed three times.
+
+## Real clusters
+
+Synthetic clusters bound the analysis cost; real clusters add API latency, unusual RBAC shapes and CRD volume. `--stats` prints the load and evaluation time and the ten slowest rules to stderr, without any names from the cluster:
+
+```sh
+hardex scan --cluster --stats --format json -o report.json
+# stats: 15800 objects, load 0s, evaluate 994ms (55 rules)
+# stats:   HX-PATH-001       310ms  ...
+```
+
+Collection time over the network is the wall-clock time minus the evaluation time. Please share results — fast or slow — with the [performance report](https://github.com/ManintheiCloud/Hardex/issues/new?template=performance.yml) issue template; they are how the targets above are kept honest for real clusters.

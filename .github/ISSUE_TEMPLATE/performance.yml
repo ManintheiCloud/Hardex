@@ -1,0 +1,43 @@
+name: Performance report
+description: Share how long Hardex takes on a real cluster — slow or fast, every data point helps.
+labels: [performance]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Run the scan with `--stats` and paste the `stats:` lines from stderr. They contain only object counts, rule IDs and timings — no names from your cluster. Do not paste the report itself.
+  - type: input
+    id: version
+    attributes:
+      label: hardex version
+      placeholder: "hardex version"
+    validations: {required: true}
+  - type: dropdown
+    id: source
+    attributes:
+      label: Input
+      options: [Live cluster (--cluster / --in-cluster), Manifests from files, Node scan (--node)]
+    validations: {required: true}
+  - type: input
+    id: size
+    attributes:
+      label: Cluster size
+      description: Approximate namespaces, workloads, RBAC bindings and nodes.
+      placeholder: "120 namespaces, 2,400 workloads, 900 bindings, 60 nodes"
+    validations: {required: true}
+  - type: textarea
+    id: stats
+    attributes:
+      label: Output of --stats
+      render: text
+    validations: {required: true}
+  - type: input
+    id: wall
+    attributes:
+      label: Total wall-clock time, including collection
+      placeholder: "time hardex scan --cluster ... → 41s"
+  - type: input
+    id: machine
+    attributes:
+      label: Where it ran
+      placeholder: "CI runner, 2 vCPU / 7 GB; or in-cluster CronJob with 1 CPU limit"

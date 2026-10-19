@@ -42,6 +42,17 @@ type ScanOptions struct {
 	// Modules are declarative rule module files. Their rules run in
 	// addition to the profile unless disabled in configuration.
 	Modules []string
+	// Stats, when non-nil, receives timings of the scan.
+	Stats *Stats
+}
+
+// Stats are the timings of a scan, for diagnosing performance on large
+// clusters (hardex scan --stats).
+type Stats struct {
+	Load     time.Duration // loading files; zero for a pre-collected inventory
+	Evaluate time.Duration
+	Objects  int
+	Rules    []assessment.Timing
 }
 
 // Scan runs a complete assessment.
@@ -86,13 +97,21 @@ func Scan(opts ScanOptions) (*finding.Report, []assessment.Metadata, error) {
 		return nil, nil, err
 	}
 	inv := opts.Inventory
+	loadStart := time.Now()
 	if inv == nil {
 		if inv, err = resource.Load(opts.Paths, opts.Stdin); err != nil {
 			return nil, nil, err
 		}
+		if opts.Stats != nil {
+			opts.Stats.Load = time.Since(loadStart)
+		}
 	}
 
+	evalStart := time.Now()
 	res := assessment.Evaluate(inv, rules, assessment.Options{IncludeSystem: cfg.IncludeSystem})
+	if opts.Stats != nil {
+		opts.Stats.Evaluate, opts.Stats.Objects, opts.Stats.Rules = time.Since(evalStart), len(inv.Objects), res.Timings
+	}
 	active, waived, policyWarnings := policy.Apply(cfg, res.Findings, now)
 
 	report := &finding.Report{

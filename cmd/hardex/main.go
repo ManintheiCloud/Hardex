@@ -7,10 +7,13 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"github.com/ManintheiCloud/Hardex/core/node"
 	"io"
 	"os"
+	"sort"
 	"strings"
 	"text/tabwriter"
+	"time"
 
 	"github.com/ManintheiCloud/Hardex"
 	"github.com/ManintheiCloud/Hardex/baselines"
@@ -146,6 +149,12 @@ func cmdScan(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 	fs.Var(&mods, "module", "declarative rule module file (repeatable; never loaded implicitly)")
 	historyDir := fs.String("history", "", "also record the report in this history directory (see hardex history)")
 	keep := fs.Int("keep", 0, "with --history, keep only the newest N reports (0 = keep all)")
+	stats := fs.Bool("stats", false, "print load and per-rule evaluation timings to stderr")
+	nodeScan := fs.Bool("node", false, "assess this node's kubelet configuration (file and flag overrides) and static pod manifests, read from the local filesystem")
+	nodeRoot := fs.String("node-root", "", "with --node, prefix for host paths (e.g. /host when the node's filesystem is mounted into a container)")
+	nodeName := fs.String("node-name", "", "with --node, the node's name in findings (default $NODE_NAME, else the hostname)")
+	kubeletConfig := fs.String("kubelet-config", "", "with --node, path of the kubelet configuration file on the node (default: discovered)")
+	every := fs.Duration("every", 0, "with --node, rescan at this interval and write each report (for the node DaemonSet); runs until stopped")
 	var cf clusterFlags
 	cf.register(fs)
 	positional, err := parseInterleaved(fs, args)
@@ -154,12 +163,23 @@ func cmdScan(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 	}
 	paths := append([]string(files), positional...)
 	switch {
-	case len(paths) == 0 && !cf.active():
-		fmt.Fprintln(stderr, "scan: no input; pass files, directories, - for stdin, or --cluster")
+	case len(paths) == 0 && !cf.active() && !*nodeScan:
+		fmt.Fprintln(stderr, "scan: no input; pass files, directories, - for stdin, --cluster or --node")
 		return exitUsage
-	case len(paths) > 0 && cf.active():
-		fmt.Fprintln(stderr, "scan: pass either paths or --cluster, not both")
+	case len(paths) > 0 && (cf.active() || *nodeScan), cf.active() && *nodeScan:
+		fmt.Fprintln(stderr, "scan: pass one of paths, --cluster or --node")
 		return exitUsage
+	}
+	if *every > 0 {
+		if !*nodeScan || *output != "" || *every < time.Minute {
+			fmt.Fprintln(stderr, "scan: --every needs --node, no -o, and an interval of at least 1m")
+			return exitUsage
+		}
+		once := withoutFlag(args, "every")
+		for {
+			cmdScan(once, stdin, stdout, stderr)
+			time.Sleep(*every)
+		}
 	}
 	threshold, err := finding.ParseSeverity(*failOn)
 	if err != nil {
@@ -174,6 +194,20 @@ func cmdScan(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 	}
 
 	opts := hardex.ScanOptions{Paths: paths, Stdin: stdin, Config: cfg, Profile: *profile, Modules: mods}
+	if *stats {
+		opts.Stats = &hardex.Stats{}
+	}
+	if *nodeScan {
+		res, err := node.Collect(node.Options{Root: *nodeRoot, NodeName: *nodeName, KubeletConfig: *kubeletConfig})
+		if err != nil {
+			fmt.Fprintln(stderr, "scan:", err)
+			return exitUsage
+		}
+		for _, n := range res.Notes {
+			fmt.Fprintln(stderr, "node:", n)
+		}
+		opts.Inventory, opts.CollectionErrors = res.Inventory, res.Errors
+	}
 	if cf.active() {
 		client, err := cf.connect(cluster.ReadOnly)
 		if err != nil {
@@ -191,6 +225,9 @@ func cmdScan(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 	if err != nil {
 		fmt.Fprintln(stderr, "scan:", err)
 		return exitUsage
+	}
+	if opts.Stats != nil {
+		printStats(stderr, opts.Stats)
 	}
 
 	out := stdout
@@ -381,4 +418,34 @@ func readReport(path string) (*finding.Report, error) {
 		return nil, fmt.Errorf("%s: %w", path, err)
 	}
 	return r, nil
+}
+
+// printStats writes scan timings, slowest rules first, for performance
+// reports (see .github/ISSUE_TEMPLATE/performance.yml).
+func printStats(w io.Writer, st *hardex.Stats) {
+	rules := append([]assessment.Timing(nil), st.Rules...)
+	sort.SliceStable(rules, func(i, j int) bool { return rules[i].Duration > rules[j].Duration })
+	fmt.Fprintf(w, "stats: %d objects, load %s, evaluate %s (%d rules)\n", st.Objects, st.Load.Round(time.Millisecond), st.Evaluate.Round(time.Millisecond), len(rules))
+	for i, r := range rules {
+		if i == 10 {
+			break
+		}
+		fmt.Fprintf(w, "stats:   %-12s %10s  %d findings\n", r.RuleID, r.Duration.Round(time.Microsecond), r.Findings)
+	}
+}
+
+// withoutFlag removes --name and --name=value (and "--name value") from args.
+func withoutFlag(args []string, name string) []string {
+	var out []string
+	for i := 0; i < len(args); i++ {
+		a := args[i]
+		switch {
+		case a == "-"+name || a == "--"+name:
+			i++ // skip the value
+		case strings.HasPrefix(a, "-"+name+"=") || strings.HasPrefix(a, "--"+name+"="):
+		default:
+			out = append(out, a)
+		}
+	}
+	return out
 }

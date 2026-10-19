@@ -88,6 +88,11 @@ func loadFile(inv *Inventory, path string) error {
 	return loadStream(inv, io.LimitReader(f, MaxInputBytes+1), path)
 }
 
+// LoadBytes decodes a YAML or JSON stream into inv, identified by source.
+func LoadBytes(inv *Inventory, data []byte, source string) error {
+	return loadStream(inv, bytes.NewReader(data), source)
+}
+
 func loadStream(inv *Inventory, r io.Reader, source string) error {
 	data, err := io.ReadAll(r)
 	if err != nil {

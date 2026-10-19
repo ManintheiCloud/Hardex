@@ -397,7 +397,7 @@ Severity is the default; individual findings may be raised or lowered where the 
 
 **Remediation:** Set authentication.anonymous.enabled: false and authentication.webhook.enabled: true.
 
-**Known limitations:** Only KubeletConfiguration files are assessed; command-line flags that override them are not visible.
+**Known limitations:** Command-line flags that override the configuration file are applied only when the node is scanned with hardex scan --node; in manifests and other inputs they are not visible.
 
 **References:**
 
@@ -414,7 +414,7 @@ Severity is the default; individual findings may be raised or lowered where the 
 
 **Remediation:** Set authorization.mode: Webhook and authentication.webhook.enabled: true.
 
-**Known limitations:** Only KubeletConfiguration files are assessed; command-line flags that override them are not visible.
+**Known limitations:** Command-line flags that override the configuration file are applied only when the node is scanned with hardex scan --node; in manifests and other inputs they are not visible.
 
 **References:**
 
@@ -431,7 +431,7 @@ Severity is the default; individual findings may be raised or lowered where the 
 
 **Remediation:** Set readOnlyPort: 0.
 
-**Known limitations:** Only KubeletConfiguration files are assessed; command-line flags that override them are not visible.
+**Known limitations:** Command-line flags that override the configuration file are applied only when the node is scanned with hardex scan --node; in manifests and other inputs they are not visible.
 
 **References:**
 
@@ -448,7 +448,7 @@ Severity is the default; individual findings may be raised or lowered where the 
 
 **Remediation:** Set protectKernelDefaults: true after configuring the required sysctls on the node.
 
-**Known limitations:** Only KubeletConfiguration files are assessed; command-line flags that override them are not visible.
+**Known limitations:** Command-line flags that override the configuration file are applied only when the node is scanned with hardex scan --node; in manifests and other inputs they are not visible.
 
 **References:**
 
