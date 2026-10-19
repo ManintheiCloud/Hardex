@@ -40,10 +40,15 @@ const usage = `Hardex — Kubernetes security assessment
 Usage:
   hardex scan [flags] PATH...      Assess manifests, directories or "-" (stdin)
   hardex scan --cluster [flags]    Assess the live cluster (read-only)
+  hardex scan --node [flags]       Assess this node's kubelet and static pod files
   hardex monitor [flags] PATH...|--cluster
                                    Assess repeatedly; record history; alert on drift
-  hardex images [--key K] PATH...|--cluster
-                                   Resolve image digests; verify cosign signatures
+  hardex images [flags] PATH...|--cluster
+                                   Resolve image digests; verify signatures (cosign
+                                   key or keyless); look up SBOM vulnerabilities
+  hardex verify-blob --bundle B --certificate-identity(-regexp) I
+                     --certificate-oidc-issuer O FILE
+                                   Verify a file's Sigstore keyless signature offline
   hardex fleet --contexts a,b,c    Assess several clusters and compare them
   hardex compare REPORT...         Compare saved reports across clusters
   hardex report REPORT.json        Evidence report (HTML/Markdown) and posture score
@@ -81,6 +86,8 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 		return cmdDiff(args[1:], stdout, stderr)
 	case "images":
 		return cmdImages(args[1:], stdin, stdout, stderr)
+	case "verify-blob":
+		return cmdVerifyBlob(args[1:], stdout, stderr)
 	case "compare":
 		return cmdCompare(args[1:], stdout, stderr)
 	case "fleet":

@@ -189,3 +189,33 @@ func TestFixKustomizeOverlay(t *testing.T) {
 		t.Error("--kustomize without --out accepted")
 	}
 }
+
+func TestVerifyBlob(t *testing.T) {
+	const td = "../../core/sigstore/testdata/"
+	id := []string{"--certificate-identity-regexp", `^https://github\.com/ManintheiCloud/Hardex/\.github/workflows/release\.yml@`, "--certificate-oidc-issuer", "https://token.actions.githubusercontent.com"}
+	code, out, errb := cli(t, "", append(append([]string{"verify-blob", "--bundle", td + "SHA256SUMS.sigstore.json"}, id...), td+"SHA256SUMS")...)
+	if code != exitOK || !strings.Contains(out, "Verified OK") {
+		t.Fatalf("code %d: %s %s", code, out, errb)
+	}
+	other := filepath.Join(t.TempDir(), "x")
+	os.WriteFile(other, []byte("tampered"), 0o600)
+	if code, _, errb := cli(t, "", append(append([]string{"verify-blob", "--bundle", td + "SHA256SUMS.sigstore.json"}, id...), other)...); code != exitFindings || !strings.Contains(errb, "NOT VERIFIED") {
+		t.Errorf("tampered file: code %d %s", code, errb)
+	}
+	if code, _, _ := cli(t, "", "verify-blob", "--bundle", td+"SHA256SUMS.sigstore.json", td+"SHA256SUMS"); code != exitUsage {
+		t.Error("verification without an identity policy must be refused")
+	}
+}
+
+func TestImagesFlagValidation(t *testing.T) {
+	for _, args := range [][]string{
+		{"images", "--offline", "--vulns", fixtures + "insecure"},
+		{"images", "--fail-on-vulns", fixtures + "insecure"},
+		{"images", "--certificate-identity", "x", fixtures + "insecure"},
+		{"images", "--require-signature", fixtures + "insecure"},
+	} {
+		if code, _, _ := cli(t, "", args...); code != exitUsage {
+			t.Errorf("%v: code %d", args, code)
+		}
+	}
+}

@@ -1,12 +1,11 @@
-// Package imagesig verifies container image signatures made with a cosign
-// key pair (cosign sign --key), using the signature format cosign stores
-// next to the image (tag "sha256-<digest>.sig").
+// Package imagesig verifies container image signatures: those made with a
+// cosign key pair (cosign sign --key, stored at tag "sha256-<digest>.sig"),
+// and keyless Sigstore signatures (keyless.go) — bundles attached as OCI
+// referrers and cosign's legacy keyless format.
 //
-// Keyless (Fulcio/Rekor) signatures and the newer Sigstore bundle format
-// stored as OCI referrers are reported as "not verified here"; verify those
-// with cosign or enforce them at admission with a Sigstore policy
-// controller. Hardex never reports an image as verified unless a signature
-// over that exact digest checks out against a trusted key.
+// Hardex never reports an image as verified unless a signature over that
+// exact digest checks out against a trusted key, or against the Sigstore
+// trusted root and a required signer identity.
 package imagesig
 
 import (
@@ -126,7 +125,7 @@ func Verify(ctx context.Context, c *registry.Client, ref registry.Ref, digest st
 	sigTag := strings.Replace(digest, ":", "-", 1) + ".sig"
 	m, err := c.GetManifest(ctx, ref.Registry, ref.Repository, sigTag)
 	if errors.Is(err, registry.ErrNotFound) {
-		return Result{Status: Unsigned, Detail: "no cosign key-based signature found (keyless/bundle signatures are not verified here)"}
+		return Result{Status: Unsigned, Detail: "no cosign key-based signature found (verify keyless signatures with --certificate-identity)"}
 	}
 	if err != nil {
 		return Result{Status: Error, Detail: err.Error()}

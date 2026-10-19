@@ -29,11 +29,12 @@ func digestOf(b []byte) string {
 type fakeRegistry struct {
 	manifests map[string][]byte // "repo:ref" -> body
 	blobs     map[string][]byte
+	referrers map[string][]byte // "repo:digest" -> index (OCI referrers API)
 	srv       *httptest.Server
 }
 
 func newFakeRegistry(t *testing.T) *fakeRegistry {
-	f := &fakeRegistry{manifests: map[string][]byte{}, blobs: map[string][]byte{}}
+	f := &fakeRegistry{manifests: map[string][]byte{}, blobs: map[string][]byte{}, referrers: map[string][]byte{}}
 	f.srv = httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/token" {
 			json.NewEncoder(w).Encode(map[string]string{"token": "t0k"})
@@ -45,6 +46,16 @@ func newFakeRegistry(t *testing.T) *fakeRegistry {
 			return
 		}
 		path := strings.TrimPrefix(r.URL.Path, "/v2/")
+		if i := strings.Index(path, "/referrers/"); i >= 0 {
+			body, ok := f.referrers[path[:i]+":"+path[i+len("/referrers/"):]]
+			if !ok {
+				w.WriteHeader(http.StatusNotFound)
+				return
+			}
+			w.Header().Set("Content-Type", "application/vnd.oci.image.index.v1+json")
+			w.Write(body)
+			return
+		}
 		if i := strings.Index(path, "/manifests/"); i >= 0 {
 			body, ok := f.manifests[path[:i]+":"+path[i+len("/manifests/"):]]
 			if !ok {

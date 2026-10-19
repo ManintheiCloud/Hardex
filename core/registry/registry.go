@@ -179,6 +179,58 @@ func (c *Client) GetManifest(ctx context.Context, registry, repo, reference stri
 	return &Manifest{Body: body, MediaType: resp.Header.Get("Content-Type"), Digest: computed}, nil
 }
 
+// Descriptor is an OCI content descriptor.
+type Descriptor struct {
+	MediaType    string            `json:"mediaType"`
+	Digest       string            `json:"digest"`
+	Size         int64             `json:"size"`
+	ArtifactType string            `json:"artifactType,omitempty"`
+	Annotations  map[string]string `json:"annotations,omitempty"`
+	Platform     *struct {
+		OS           string `json:"os"`
+		Architecture string `json:"architecture"`
+	} `json:"platform,omitempty"`
+}
+
+// Index is an OCI image index (or a manifest's layer list, which shares the
+// descriptor shape).
+type Index struct {
+	MediaType    string       `json:"mediaType"`
+	ArtifactType string       `json:"artifactType,omitempty"`
+	Manifests    []Descriptor `json:"manifests"`
+	Layers       []Descriptor `json:"layers"`
+}
+
+// Referrers lists the artifacts that refer to digest (signatures,
+// attestations, SBOMs), using the OCI 1.1 referrers API and falling back to
+// the referrers tag schema ("sha256-<hex>") for registries without it. The
+// listing itself is not content-addressed; callers must verify what they
+// fetch from it.
+func (c *Client) Referrers(ctx context.Context, registry, repo, digest string) ([]Descriptor, error) {
+	if !digestRE.MatchString(digest) {
+		return nil, fmt.Errorf("unsupported digest %q", digest)
+	}
+	_, body, err := c.get(ctx, registry, repo, "/v2/"+repo+"/referrers/"+digest, "application/vnd.oci.image.index.v1+json", maxManifest)
+	if errors.Is(err, ErrNotFound) {
+		var m *Manifest
+		m, err = c.GetManifest(ctx, registry, repo, strings.Replace(digest, ":", "-", 1))
+		if errors.Is(err, ErrNotFound) {
+			return nil, nil
+		}
+		if err == nil {
+			body = m.Body
+		}
+	}
+	if err != nil {
+		return nil, err
+	}
+	var idx Index
+	if err := json.Unmarshal(body, &idx); err != nil {
+		return nil, fmt.Errorf("referrers of %s: %w", digest, err)
+	}
+	return idx.Manifests, nil
+}
+
 // GetBlob fetches a blob and verifies its digest.
 func (c *Client) GetBlob(ctx context.Context, registry, repo, digest string) ([]byte, error) {
 	if !digestRE.MatchString(digest) {

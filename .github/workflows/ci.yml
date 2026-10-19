@@ -38,6 +38,33 @@ jobs:
         run: go run ./tools/gendocs && git diff --exit-code docs/rules.md
       - run: make vuln
 
+  supply-chain:
+    # Verifies the latest published release with the code under test, against
+    # the real registry, Sigstore and OSV: keyless image signature discovery
+    # (OCI referrers), SBOM attestations, and the signed release checksums.
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: stable
+      - name: Verify the published image and release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          go build -o hardex ./cmd/hardex
+          identity='^https://github.com/ManintheiCloud/Hardex/\.github/workflows/release\.yml@refs/(tags/v|heads/main)'
+          issuer=https://token.actions.githubusercontent.com
+          ./hardex images --image ghcr.io/manintheicloud/hardex:latest --require-signature --vulns \
+            --certificate-identity-regexp "$identity" --certificate-oidc-issuer "$issuer"
+          tag="$(gh release view --repo "$GITHUB_REPOSITORY" --json tagName --jq .tagName)"
+          gh release download "$tag" --repo "$GITHUB_REPOSITORY" --pattern 'SHA256SUMS*' --dir rel
+          ./hardex verify-blob rel/SHA256SUMS --bundle rel/SHA256SUMS.sigstore.json \
+            --certificate-identity-regexp "$identity" --certificate-oidc-issuer "$issuer"
+
   fuzz:
     # Short fuzzing runs of every parser that sees untrusted or operator
     # input. Crashing inputs are uploaded so they can be added to the seed
@@ -52,6 +79,8 @@ jobs:
           - {name: FuzzParse, pkg: ./core/modules}
           - {name: FuzzServeHTTP, pkg: ./integrations/admission}
           - {name: FuzzParseFlags, pkg: ./kubernetes/controlplane}
+          - {name: FuzzVerify, pkg: ./core/sigstore}
+          - {name: FuzzRFC3161, pkg: ./core/sigstore}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:

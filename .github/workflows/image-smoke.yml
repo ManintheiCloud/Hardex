@@ -43,3 +43,18 @@ jobs:
             --certificate-identity-regexp '^https://github.com/ManintheiCloud/Hardex/\.github/workflows/release\.yml@refs/(tags/v|heads/main)' \
             --certificate-oidc-issuer https://token.actions.githubusercontent.com > /dev/null
           echo "signature verified"
+      - name: Verify with Hardex itself (keyless image signature, release checksums, SBOM vulnerabilities)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          version="$(tr -d '[:space:]' < VERSION)"
+          image="ghcr.io/manintheicloud/hardex:${version}"
+          identity='^https://github.com/ManintheiCloud/Hardex/\.github/workflows/release\.yml@refs/(tags/v|heads/main)'
+          issuer=https://token.actions.githubusercontent.com
+          docker run --rm "$image" images --image "$image" --require-signature --vulns \
+            --certificate-identity-regexp "$identity" --certificate-oidc-issuer "$issuer"
+          mkdir -p rel
+          gh release download "v${version}" --repo "$GITHUB_REPOSITORY" --pattern 'SHA256SUMS*' --dir rel
+          docker run --rm -v "$PWD/rel:/rel:ro" "$image" verify-blob /rel/SHA256SUMS --bundle /rel/SHA256SUMS.sigstore.json \
+            --certificate-identity-regexp "$identity" --certificate-oidc-issuer "$issuer"

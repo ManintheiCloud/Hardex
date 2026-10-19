@@ -5,15 +5,18 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"net/http"
 	"sort"
 	"strings"
 	"sync"
 	"text/tabwriter"
+	"time"
 
 	"github.com/ManintheiCloud/Hardex/core/cluster"
 	"github.com/ManintheiCloud/Hardex/core/imagesig"
 	"github.com/ManintheiCloud/Hardex/core/registry"
 	"github.com/ManintheiCloud/Hardex/core/resource"
+	"github.com/ManintheiCloud/Hardex/core/vuln"
 	"github.com/ManintheiCloud/Hardex/integrations/reporting"
 )
 
@@ -25,8 +28,20 @@ type imageReport struct {
 	Digest    string           `json:"digest,omitempty"`
 	Pin       string           `json:"pin,omitempty"`
 	Signature *imagesig.Result `json:"signature,omitempty"`
+	Vulns     *vuln.Report     `json:"vulnerabilities,omitempty"`
+	VulnError string           `json:"vulnerabilityError,omitempty"`
 	Error     string           `json:"error,omitempty"`
 }
+
+// imageChecks are the registry checks requested on the command line.
+type imageChecks struct {
+	keys    []*imagesig.PublicKey
+	keyless *imagesig.Keyless
+	osv     *vuln.OSV
+	offline bool
+}
+
+func (c imageChecks) verifying() bool { return len(c.keys) > 0 || c.keyless != nil }
 
 // newRegistryClient is replaced in tests.
 var newRegistryClient = registry.NewClient
@@ -34,12 +49,18 @@ var newRegistryClient = registry.NewClient
 func cmdImages(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 	fs := flag.NewFlagSet("images", flag.ContinueOnError)
 	fs.SetOutput(stderr)
-	var keys multiFlag
+	var keys, direct multiFlag
+	fs.Var(&direct, "image", "check this image reference (repeatable; instead of or in addition to manifests)")
 	fs.Var(&keys, "key", "cosign public key to verify signatures with (repeatable)")
 	format := fs.String("format", "text", "text or json")
 	requireSig := fs.Bool("require-signature", false, "exit 1 unless every image has a signature verified by --key")
 	requireDigest := fs.Bool("require-digest", false, "exit 1 if any image is referenced by tag instead of digest")
 	offline := fs.Bool("offline", false, "do not contact registries; only report how images are referenced")
+	var sf sigstoreFlags
+	sf.register(fs)
+	vulns := fs.Bool("vulns", false, "look up known vulnerabilities (OSV) for the packages in each image's SBOM attestation")
+	osvURL := fs.String("osv-url", vuln.DefaultOSV, "OSV API base URL (with --vulns)")
+	failOnVulns := fs.Bool("fail-on-vulns", false, "with --vulns, exit 1 if any image has a known vulnerability or no SBOM")
 	var cf clusterFlags
 	cf.register(fs)
 	paths, err := parseInterleaved(fs, args)
@@ -48,12 +69,25 @@ func cmdImages(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 	}
 	fail := func(err error) int { fmt.Fprintln(stderr, "images:", err); return exitUsage }
 	switch {
-	case len(paths) == 0 && !cf.active():
-		return fail(fmt.Errorf("pass manifest paths or --cluster"))
-	case *requireSig && len(keys) == 0:
-		return fail(fmt.Errorf("--require-signature needs at least one --key"))
-	case *offline && len(keys) > 0:
-		return fail(fmt.Errorf("--key requires registry access; drop --offline"))
+	case len(paths) == 0 && !cf.active() && len(direct) == 0:
+		return fail(fmt.Errorf("pass manifest paths, --cluster or --image"))
+	case *requireSig && len(keys) == 0 && !sf.active():
+		return fail(fmt.Errorf("--require-signature needs --key or --certificate-identity"))
+	case *offline && (len(keys) > 0 || sf.active() || *vulns):
+		return fail(fmt.Errorf("--key, --certificate-identity and --vulns require registry access; drop --offline"))
+	case *failOnVulns && !*vulns:
+		return fail(fmt.Errorf("--fail-on-vulns needs --vulns"))
+	}
+	checks := imageChecks{offline: *offline}
+	if sf.active() {
+		k, err := sf.keyless()
+		if err != nil {
+			return fail(err)
+		}
+		checks.keyless = k
+	}
+	if *vulns {
+		checks.osv = &vuln.OSV{BaseURL: *osvURL, HTTP: &http.Client{Timeout: 60 * time.Second}}
 	}
 	var trusted []*imagesig.PublicKey
 	for _, k := range keys {
@@ -63,6 +97,7 @@ func cmdImages(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 		}
 		trusted = append(trusted, pk)
 	}
+	checks.keys = trusted
 
 	ctx := context.Background()
 	var inv *resource.Inventory
@@ -79,8 +114,12 @@ func cmdImages(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 			fmt.Fprintln(stderr, "images: warning: incomplete collection:", strings.Join(errs, "; "))
 		}
 		inv = col.Inventory
-	} else if inv, err = resource.Load(paths, stdin); err != nil {
-		return fail(err)
+	} else if len(paths) > 0 {
+		if inv, err = resource.Load(paths, stdin); err != nil {
+			return fail(err)
+		}
+	} else {
+		inv = resource.NewInventory()
 	}
 
 	usage := map[string]map[string]bool{}
@@ -96,6 +135,12 @@ func cmdImages(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 			}
 			usage[img][o.Ref()] = true
 		}
+	}
+	for _, img := range direct {
+		if usage[img] == nil {
+			usage[img] = map[string]bool{}
+		}
+		usage[img]["--image"] = true
 	}
 	images := make([]string, 0, len(usage))
 	for img := range usage {
@@ -119,7 +164,7 @@ func cmdImages(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 			defer wg.Done()
 			sem <- struct{}{}
 			defer func() { <-sem }()
-			checkImage(ctx, rc, r, trusted, *offline)
+			checkImage(ctx, rc, r, checks)
 		}(&reports[i])
 	}
 	wg.Wait()
@@ -127,11 +172,19 @@ func cmdImages(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 	if *format == "json" {
 		reporting.JSONValue(stdout, reports)
 	} else {
-		printImages(stdout, reports, len(trusted) > 0)
+		printImages(stdout, reports, checks.verifying())
 	}
 
 	exit := exitOK
 	for _, r := range reports {
+		if *failOnVulns {
+			switch {
+			case r.VulnError != "":
+				exit = max(exit, exitIncomplete)
+			case r.Vulns == nil || !r.Vulns.SBOM || len(r.Vulns.Findings) > 0:
+				exit = max(exit, exitFindings)
+			}
+		}
 		switch {
 		case *requireDigest && !r.Pinned:
 			exit = max(exit, exitFindings)
@@ -146,7 +199,7 @@ func cmdImages(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 	return exit
 }
 
-func checkImage(ctx context.Context, rc *registry.Client, r *imageReport, keys []*imagesig.PublicKey, offline bool) {
+func checkImage(ctx context.Context, rc *registry.Client, r *imageReport, checks imageChecks) {
 	ref, err := registry.ParseRef(r.Image)
 	if err != nil {
 		r.Error = err.Error()
@@ -154,7 +207,7 @@ func checkImage(ctx context.Context, rc *registry.Client, r *imageReport, keys [
 	}
 	r.Pinned = ref.Digest != ""
 	r.Digest = ref.Digest
-	if offline {
+	if checks.offline {
 		return
 	}
 	if !r.Pinned {
@@ -166,9 +219,23 @@ func checkImage(ctx context.Context, rc *registry.Client, r *imageReport, keys [
 		r.Digest = m.Digest
 		r.Pin = strings.SplitN(r.Image, "@", 2)[0] + "@" + m.Digest
 	}
-	if len(keys) > 0 {
-		res := imagesig.Verify(ctx, rc, ref, r.Digest, keys)
+	if len(checks.keys) > 0 {
+		res := imagesig.Verify(ctx, rc, ref, r.Digest, checks.keys)
 		r.Signature = &res
+	}
+	if checks.keyless != nil && (r.Signature == nil || r.Signature.Status != imagesig.Verified) {
+		res := imagesig.VerifyKeyless(ctx, rc, ref, r.Digest, *checks.keyless)
+		if r.Signature == nil || res.Status == imagesig.Verified || r.Signature.Status == imagesig.Unsigned {
+			r.Signature = &res
+		}
+	}
+	if checks.osv != nil {
+		v, err := vuln.Scan(ctx, rc, ref, r.Digest, checks.osv)
+		if err != nil {
+			r.VulnError = err.Error()
+		} else {
+			r.Vulns = v
+		}
 	}
 }
 
@@ -221,6 +288,22 @@ func printImages(w io.Writer, reports []imageReport, verify bool) {
 	for _, r := range reports {
 		if r.Signature != nil && r.Signature.Detail != "" && r.Signature.Status != imagesig.Verified {
 			fmt.Fprintf(w, "%s: %s: %s\n", reporting.Sanitize(r.Image), r.Signature.Status, reporting.Sanitize(r.Signature.Detail))
+		}
+	}
+	for _, r := range reports {
+		switch {
+		case r.VulnError != "":
+			fmt.Fprintf(w, "%s: vulnerabilities: error: %s\n", reporting.Sanitize(r.Image), reporting.Sanitize(r.VulnError))
+		case r.Vulns == nil:
+		case !r.Vulns.SBOM:
+			fmt.Fprintf(w, "%s: vulnerabilities: unknown (no SBOM attestation)\n", reporting.Sanitize(r.Image))
+		case len(r.Vulns.Findings) == 0:
+			fmt.Fprintf(w, "%s: vulnerabilities: none known in %d packages\n", reporting.Sanitize(r.Image), r.Vulns.Packages)
+		default:
+			fmt.Fprintf(w, "%s: %d known vulnerabilities in %d of %d packages:\n", reporting.Sanitize(r.Image), r.Vulns.VulnCount(), len(r.Vulns.Findings), r.Vulns.Packages)
+			for _, f := range r.Vulns.Findings {
+				fmt.Fprintf(w, "  %s: %s\n", reporting.Sanitize(f.PURL), reporting.Sanitize(strings.Join(f.Vulns, ", ")))
+			}
 		}
 	}
 }
