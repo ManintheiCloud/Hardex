@@ -9,6 +9,7 @@ package resource
 import (
 	"fmt"
 	"path/filepath"
+	"strings"
 )
 
 // Object is a single Kubernetes object plus the provenance needed to point a
@@ -52,6 +53,14 @@ func NewObject(raw map[string]any, source string, line int) (*Object, error) {
 	}, nil
 }
 
+// Group returns the API group of the object ("" for the core group).
+func (o *Object) Group() string {
+	if i := strings.Index(o.APIVersion, "/"); i >= 0 {
+		return o.APIVersion[:i]
+	}
+	return ""
+}
+
 // EffectiveNamespace returns the object's namespace, or "default" for a
 // namespaced object that does not declare one. Cluster-scoped kinds return "".
 func (o *Object) EffectiveNamespace() string {
@@ -85,6 +94,9 @@ var clusterScoped = map[string]bool{
 	"ValidatingAdmissionPolicy":      true,
 	"PriorityClass":                  true,
 	"RuntimeClass":                   true,
+	"CiliumClusterwideNetworkPolicy": true,
+	"GlobalNetworkPolicy":            true,
+	"IngressClass":                   true,
 	// Node-local configuration files, not API objects, but they have no
 	// namespace either.
 	"KubeletConfiguration": true,

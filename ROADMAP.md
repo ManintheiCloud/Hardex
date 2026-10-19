@@ -1,19 +1,19 @@
 # Roadmap
 
-Roadmap items are development objectives, not completed or guaranteed features. Status as of v0.4.0-dev.
+Roadmap items are development objectives, not completed or guaranteed features. Status as of v0.5.0.
 
 ## Phase I — Foundation
 
 - [x] Define project architecture and technical requirements — [docs/architecture.md](docs/architecture.md), [ADRs](docs/adr/)
 - [x] Establish the initial threat model — [docs/threat-model.md](docs/threat-model.md)
-- [ ] Define supported Kubernetes versions and environments — *proposed:* the three most recent upstream minor releases; kubeadm-style static pods for control-plane checks
-- [x] Build the initial cluster assessment framework — `core/assessment`, `core/resource`, 49 rules
+- [x] Define supported Kubernetes versions and environments — [docs/compatibility.md](docs/compatibility.md)
+- [x] Build the initial cluster assessment framework — `core/assessment`, `core/resource`, 51 rules
 - [x] Develop configuration inspection capabilities — static pods, KubeletConfiguration, workloads, RBAC, network, secrets
 - [x] Create the first security baseline — `minimal`, `baseline`, `restricted` profiles; full PSS coverage
 - [x] Establish contribution guidelines and development workflows — CONTRIBUTING, CI, templates
 - [ ] Item-level mappings for CIS and NSA/CISA, reviewed against named versions
 - [x] Signed releases (checksums, cosign signatures, SLSA provenance, SBOM)
-- [ ] Fuzzing of the loader and flag parser (`go test -fuzz`) in CI
+- [x] Fuzzing in CI — manifest loader, policy config, rule modules, admission requests, control-plane flags
 
 ## Phase II — Hardening Engine
 
@@ -25,7 +25,7 @@ Roadmap items are development objectives, not completed or guaranteed features. 
 - [x] Implement post-remediation verification — `hardex diff` (fingerprint-based; resolved vs. unverified)
 - [x] Establish automated security testing — detection, false-positive, regression suites
 - [x] RBAC reachability: effective permissions per workload through bindings and service accounts — HX-RBAC-008
-- [ ] Kustomize/Helm-aware remediation output (preserve comments and layout)
+- [x] Kustomize-aware remediation output — `hardex fix --kustomize` (patch overlays; your manifests stay untouched)
 - [ ] Kubelet configuration collection from live nodes without `nodes/proxy`
 
 ## Phase III — Continuous Protection
@@ -35,7 +35,8 @@ Roadmap items are development objectives, not completed or guaranteed features. 
 - [x] Historical assessment comparisons beyond two reports — `scan --history`, `hardex history`
 - [x] Security event reporting integrations — JSON Lines, HMAC-signed webhooks, Slack format
 - [x] Expand analysis: Ingress TLS (HX-NET-005), fail-open admission webhooks (HX-CP-009)
-- [ ] Expand analysis: CNI-specific policies (Cilium, Calico), ingress controller configuration, mutating webhooks
+- [x] Expand analysis: Cilium and Calico policies in default-deny detection; ingress-nginx snippets (HX-NET-006) and the retired ingress-nginx controller (HX-NET-007)
+- [ ] Expand analysis: mutating webhooks, Gateway API
 - [x] Out-of-tree, community-maintained rule modules — declarative YAML modules ([ADR 0007](docs/adr/0007-declarative-rule-modules.md))
 
 ## Phase IV — Advanced Security Engineering
@@ -53,7 +54,5 @@ Roadmap items are development objectives, not completed or guaranteed features. 
 
 - [x] Signed releases (checksums, keyless cosign signatures, SLSA provenance, SBOM) and a published multi-arch container image
 - [ ] Keyless signature verification and vulnerability data in `hardex images`
-- [ ] CNI-specific network policy support (Cilium, Calico)
-- [ ] Kustomize/Helm-aware remediation output
 - [ ] Item-level CIS and NSA/CISA mappings reviewed against named versions
 - [ ] Node-affinity-aware attack paths; cloud IAM (IRSA, Workload Identity) in reachability

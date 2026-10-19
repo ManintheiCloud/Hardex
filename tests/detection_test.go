@@ -65,6 +65,8 @@ var insecureExpectations = []expectation{
 	{"HX-NET-004", "Service shop/hijack", finding.Medium},
 	{"HX-NET-005", "Ingress shop/plain-http", finding.Medium},
 	{"HX-NET-005", "Ingress shop/partial-tls", finding.Medium},
+	{"HX-NET-006", "Ingress shop/snippet", finding.High},
+	{"HX-NET-007", "IngressClass nginx", finding.Medium},
 	{"HX-CP-001", "Pod kube-system/kube-apiserver-cp1", finding.Medium},
 	{"HX-CP-002", "Pod kube-system/kube-apiserver-cp1", finding.Critical},
 	{"HX-CP-003", "Pod kube-system/kube-apiserver-cp1", finding.Medium},

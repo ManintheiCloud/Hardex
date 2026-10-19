@@ -20,6 +20,8 @@ Severity is the default; individual findings may be raised or lowered where the 
 | [HX-NET-003](#hx-net-003) | medium | networking | Service exposed outside the cluster | baseline, restricted |
 | [HX-NET-004](#hx-net-004) | medium | networking | Service with externalIPs | baseline, restricted |
 | [HX-NET-005](#hx-net-005) | medium | networking | Ingress without TLS | baseline, restricted |
+| [HX-NET-006](#hx-net-006) | high | networking | Ingress injects NGINX configuration snippets | baseline, restricted |
+| [HX-NET-007](#hx-net-007) | medium | supply-chain | Retired ingress-nginx controller | baseline, restricted |
 | [HX-NODE-001](#hx-node-001) | high | nodes | Kubelet allows anonymous requests | baseline, minimal, restricted |
 | [HX-NODE-002](#hx-node-002) | critical | nodes | Kubelet authorization disabled | baseline, minimal, restricted |
 | [HX-NODE-003](#hx-node-003) | medium | nodes | Kubelet read-only port enabled | baseline, restricted |
@@ -281,6 +283,39 @@ Severity is the default; individual findings may be raised or lowered where the 
 
 - NSA-CISA: Kubernetes Hardening Guidance v1.2 — Network separation and hardening
 - Kubernetes: [Ingress: TLS](https://kubernetes.io/docs/concepts/services-networking/ingress/#tls)
+
+## HX-NET-006
+
+**Ingress injects NGINX configuration snippets** — high, networking
+
+**Checks:** Detects Ingresses with ingress-nginx snippet annotations (configuration-snippet, server-snippet, auth-snippet, modsecurity-snippet, stream-snippet).
+
+**Why it matters:** Snippets are inserted verbatim into the controller's NGINX configuration. Anyone who can create or edit an Ingress can use them to read the controller's service account token and every Secret it can access (CVE-2021-25742), or to proxy traffic anywhere.
+
+**Remediation:** Replace snippets with dedicated annotations or controller configuration, and run the controller with allow-snippet-annotations: false.
+
+**Known limitations:** Whether the controller actually honours snippets (allow-snippet-annotations) is controller configuration that Hardex does not read; the annotation is reported either way.
+
+**References:**
+
+- NSA-CISA: Kubernetes Hardening Guidance v1.2 — Network separation and hardening
+- Kubernetes: [CVE-2021-25742: ingress-nginx custom snippets](https://discuss.kubernetes.io/t/security-advisory-cve-2021-25742-ingress-nginx-custom-snippets-allows-retrieval-of-ingress-nginx-serviceaccount-token-and-secrets-across-all-namespaces/17860)
+
+## HX-NET-007
+
+**Retired ingress-nginx controller** — medium, supply-chain
+
+**Checks:** Detects workloads running the community ingress-nginx controller image and IngressClasses served by it.
+
+**Why it matters:** The Kubernetes project retired ingress-nginx: best-effort maintenance ended in March 2026 and no further releases or security fixes are published. An internet-facing component that will not receive security fixes accumulates exploitable vulnerabilities.
+
+**Remediation:** Migrate to a maintained ingress or Gateway API implementation, and plan the migration for internet-facing clusters first.
+
+**Known limitations:** Identified by image name (…/ingress-nginx/controller) and IngressClass controller (k8s.io/ingress-nginx); renamed mirrors of the image are not recognised.
+
+**References:**
+
+- Kubernetes: [Ingress NGINX retirement](https://kubernetes.io/blog/2025/11/11/ingress-nginx-retirement/)
 
 ## HX-NODE-001
 

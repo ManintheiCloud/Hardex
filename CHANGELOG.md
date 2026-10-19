@@ -2,6 +2,19 @@
 
 All notable changes are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow [Semantic Versioning](https://semver.org/). Before 1.0, minor versions may contain breaking changes.
 
+## 0.5.0 — 2026-10-19
+
+### Added
+- Default-deny detection (HX-NET-001/002) understands Cilium (`CiliumNetworkPolicy`, `CiliumClusterwideNetworkPolicy`) and Calico (`NetworkPolicy`, `GlobalNetworkPolicy`) policies; live scans collect them when installed.
+- HX-NET-006: Ingresses using ingress-nginx snippet annotations (CVE-2021-25742 class).
+- HX-NET-007: the retired ingress-nginx controller (no security fixes since March 2026).
+- `hardex fix --kustomize`: remediation as a Kustomize overlay of JSON 6902 patches, verified end to end with real Kustomize in CI.
+- Fuzzing in CI for the manifest loader, policy configuration, rule modules, admission requests and control-plane flags.
+- Compatibility policy: supported Kubernetes versions, environments and platforms (docs/compatibility.md).
+
+### Fixed
+- A malformed configuration could crash Hardex through a panic in the YAML library (found by fuzzing). All YAML decoding now converts library panics into errors.
+
 ## 0.4.0 (Phase IV: Advanced Security Engineering) — 2026-10-19
 
 ### Added

@@ -1,7 +1,6 @@
 package baselines
 
 import (
-	"bytes"
 	"embed"
 	"fmt"
 	"os"
@@ -9,6 +8,8 @@ import (
 	"strings"
 
 	"github.com/goccy/go-yaml"
+
+	"github.com/ManintheiCloud/Hardex/internal/yamlsafe"
 
 	"github.com/ManintheiCloud/Hardex/core/policy"
 )
@@ -46,8 +47,8 @@ func ProfileNames() []string {
 
 func parseProfile(data []byte, source string) (policy.Profile, error) {
 	var p policy.Profile
-	if err := yaml.NewDecoder(bytes.NewReader(data), yaml.DisallowUnknownField()).Decode(&p); err != nil {
-		return p, fmt.Errorf("profile %s: %s", source, yaml.FormatError(err, false, false))
+	if err := yamlsafe.Decode(data, &p, yaml.DisallowUnknownField()); err != nil {
+		return p, fmt.Errorf("profile %s: %w", source, err)
 	}
 	if p.Name == "" || len(p.Rules) == 0 {
 		return p, fmt.Errorf("profile %s: name and at least one rule are required", source)

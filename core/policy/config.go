@@ -8,13 +8,12 @@
 package policy
 
 import (
-	"bytes"
 	"fmt"
 	"os"
 	"strings"
 	"time"
 
-	"github.com/goccy/go-yaml"
+	"github.com/ManintheiCloud/Hardex/internal/yamlsafe"
 
 	"github.com/ManintheiCloud/Hardex/core/finding"
 )
@@ -87,9 +86,8 @@ func LoadConfig(path string) (*Config, error) {
 // rejected.
 func ParseConfig(data []byte) (*Config, error) {
 	cfg := &Config{}
-	dec := yaml.NewDecoder(bytes.NewReader(data), yaml.Strict(), yaml.DisallowUnknownField())
-	if err := dec.Decode(cfg); err != nil {
-		return nil, fmt.Errorf("config: %s", yaml.FormatError(err, false, false))
+	if err := yamlsafe.Strict(data, cfg); err != nil {
+		return nil, fmt.Errorf("config: %w", err)
 	}
 	if err := cfg.Validate(); err != nil {
 		return nil, fmt.Errorf("config: %w", err)

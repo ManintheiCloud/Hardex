@@ -8,7 +8,7 @@ Harden the cluster. Reduce the attack surface. Establish trust.
 
 Hardex is an open-source Kubernetes security hardening framework. It brings systematic, measurable and reproducible security controls to containerized infrastructure: assess, harden, verify, defend.
 
-> **Status: Phase IV (Advanced Security Engineering) — v0.4.0-dev.** Assessment (49 rules, three profiles, policy and waivers), read-only live-cluster scanning, RBAC reachability and multi-step attack-path analysis, guarded remediation with backup and rollback, history and drift monitoring with signed notifications, rule modules, an admission webhook, posture scoring with evidence reports, and multi-cluster comparison are implemented and tested. Keyless (Sigstore/Fulcio) signature verification is delegated to cosign; see [ROADMAP.md](ROADMAP.md). No production-readiness or security certification is claimed.
+> **Status: v0.5.0.** All four roadmap phases are implemented and tested. Assessment (51 rules, three profiles, policy and waivers), read-only live-cluster scanning, RBAC reachability and multi-step attack-path analysis, guarded remediation with backup and rollback, history and drift monitoring with signed notifications, rule modules, an admission webhook, posture scoring with evidence reports, and multi-cluster comparison are implemented and tested. Keyless (Sigstore/Fulcio) signature verification is delegated to cosign; see [ROADMAP.md](ROADMAP.md). No production-readiness or security certification is claimed.
 
 ## What Hardex does today
 
@@ -22,10 +22,10 @@ $ hardex scan --profile restricted ./manifests
   detail:   container "web" runs privileged
   fix:      Remove securityContext.privileged. If specific kernel access is needed, grant the single required capability instead and document why.
 ...
-Summary: 74 findings (critical 13, high 23, medium 22, low 14, info 2), 0 waived
+Summary: 76 findings (critical 13, high 24, medium 23, low 14, info 2), 0 waived
 ```
 
-- **Assessment** of workloads, RBAC, network segmentation, Secrets handling, control-plane static pods, and kubelet configuration — [49 rules](docs/rules.md), each with rationale, remediation, known limitations and references.
+- **Assessment** of workloads, RBAC, network segmentation, Secrets handling, control-plane static pods, and kubelet configuration — [51 rules](docs/rules.md), each with rationale, remediation, known limitations and references.
 - **Live-cluster scanning** (`--cluster`) with a minimal read-only client: no Secrets access, TLS required, least-privilege [reader role](deploy/hardex-reader.yaml) provided.
 - **RBAC reachability**: follows each workload's service account through bindings to the permissions its token really carries (HX-RBAC-008).
 - **Remediation** (`hardex fix`): dry-run plans with risk ratings and a predicted result; patched manifests written to a new directory; on a cluster, explicitly authorised apply with backup, automatic all-or-nothing rollback on failure, post-change verification, and `hardex rollback`. See [docs/remediation.md](docs/remediation.md).
@@ -37,6 +37,7 @@ Summary: 74 findings (critical 13, high 23, medium 22, low 14, info 2), 0 waived
 - **Fleet view** (`hardex fleet`, `hardex compare`): assess many clusters and list controls that are inconsistent across them.
 - **Image supply chain** (`hardex images`): resolve every running image to its digest (with copy-paste pins) and verify cosign key-based signatures, with registry content checked against digests. See [docs/image-verification.md](docs/image-verification.md).
 - **Signed releases**: binaries, SBOM and a multi-arch container image, signed keylessly with Sigstore and carrying SLSA build provenance. See [docs/verifying-releases.md](docs/verifying-releases.md).
+- **Works with your stack**: Cilium and Calico policies are understood; fixes can be emitted as Kustomize overlays; supported Kubernetes versions and environments are in [docs/compatibility.md](docs/compatibility.md).
 - **Scales linearly**: ~16,000 objects with every rule in about a second ([docs/performance.md](docs/performance.md)).
 - **Complete Pod Security Standards coverage**: every Baseline and Restricted control, plus NSA/CISA recommendations PSS does not include.
 - **Profiles** (`minimal` ⊂ `baseline` ⊂ `restricted`) defined as reviewable YAML, not code.

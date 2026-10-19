@@ -32,9 +32,35 @@ jobs:
       - run: make fmt vet
       - run: make test
       - run: make selfcheck
+      - name: Kustomize overlay end-to-end
+        run: kubectl version --client && make kustomize-check
       - name: Rule reference is up to date
         run: go run ./tools/gendocs && git diff --exit-code docs/rules.md
       - run: make vuln
+
+  fuzz:
+    # Short fuzzing runs of every parser that sees untrusted or operator
+    # input. Crashing inputs are uploaded so they can be added to the seed
+    # corpus as regression tests.
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        target:
+          - {name: FuzzLoad, pkg: ./core/resource}
+          - {name: FuzzParseConfig, pkg: ./core/policy}
+          - {name: FuzzParse, pkg: ./core/modules}
+          - {name: FuzzServeHTTP, pkg: ./integrations/admission}
+          - {name: FuzzParseFlags, pkg: ./kubernetes/controlplane}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: stable
+          check-latest: true
+      - run: go test -run '^$' -fuzz '^${{ matrix.target.name }}$' -fuzztime 60s ${{ matrix.target.pkg }}
 
   minimum-go:
     # Confirm the module still builds and passes on the minimum Go version

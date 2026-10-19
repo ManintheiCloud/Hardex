@@ -1,8 +1,8 @@
-VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo 0.4.0-dev)
+VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo 0.5.0-dev)
 LDFLAGS := -s -w -X github.com/ManintheiCloud/Hardex.Version=$(VERSION)
 GOVULNCHECK := golang.org/x/vuln/cmd/govulncheck@v1.9.0
 
-.PHONY: build test check fmt vet vuln docs selfcheck fuzz bench clean
+.PHONY: build test check fmt vet vuln docs selfcheck fuzz bench kustomize-check clean
 
 build:
 	CGO_ENABLED=0 go build -trimpath -ldflags '$(LDFLAGS)' -o bin/hardex ./cmd/hardex
@@ -21,6 +21,21 @@ vuln:
 
 fuzz:
 	go test -run='^$$' -fuzz=FuzzLoad -fuzztime=60s ./core/resource
+
+# End-to-end check of `hardex fix --kustomize` with real Kustomize (needs
+# kubectl): overlay the generated patches on a base and confirm the result
+# no longer has the fixed findings.
+kustomize-check: build
+	@set -e; d=$$(mktemp -d); mkdir -p $$d/base; \
+	cp tests/fixtures/insecure/workloads.yaml $$d/base/; \
+	printf 'resources: [workloads.yaml]\n' > $$d/base/kustomization.yaml; \
+	./bin/hardex fix $$d/base/workloads.yaml --max-risk high --out $$d/overlay --kustomize > /dev/null; \
+	sed -i 's|  # - ../base|  - ../base|' $$d/overlay/kustomization.yaml; \
+	kubectl kustomize $$d/overlay > $$d/out.yaml; \
+	./bin/hardex scan --profile minimal --fail-on none $$d/out.yaml > $$d/scan.txt; \
+	if grep -q 'HX-WL-001' $$d/scan.txt; then echo "kustomize overlay did not fix HX-WL-001"; exit 1; fi; \
+	grep -q 'kind: NetworkPolicy' $$d/out.yaml || { echo "overlay resources missing"; exit 1; }; \
+	echo "kustomize overlay verified"
 
 bench:
 	go test -run '^$$' -bench . -benchmem ./tests

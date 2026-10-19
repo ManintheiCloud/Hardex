@@ -1,6 +1,9 @@
 package controlplane
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 func TestParseFlags(t *testing.T) {
 	got := parseFlags([]string{"kube-apiserver", "--a=1", "--b", "2", "--c", "-d=x=y", "--a=3"})
@@ -19,4 +22,14 @@ func TestRuns(t *testing.T) {
 	if runs([]string{"sh", "-c", "kube-apiserver"}, "kube-apiserver") {
 		t.Error("shell wrapper misidentified as the binary")
 	}
+}
+
+func FuzzParseFlags(f *testing.F) {
+	f.Add("kube-apiserver --a=1 --b 2 -c")
+	f.Fuzz(func(t *testing.T, s string) {
+		argv := strings.Fields(s)
+		parseFlags(argv)
+		runs(argv, "kube-apiserver")
+		listContains(s, "x")
+	})
 }

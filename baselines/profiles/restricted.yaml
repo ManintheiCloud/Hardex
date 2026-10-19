@@ -37,6 +37,8 @@ rules:
   - HX-NET-003
   - HX-NET-004
   - HX-NET-005
+  - HX-NET-006
+  - HX-NET-007
   - HX-CP-001
   - HX-CP-003
   - HX-CP-005

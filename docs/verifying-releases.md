@@ -27,11 +27,11 @@ gh attestation verify hardex_0.4.0_linux_amd64.tar.gz --repo ManintheiCloud/Hard
 ## Container image
 
 ```sh
-cosign verify ghcr.io/manintheicloud/hardex:0.4.0 \
+cosign verify ghcr.io/manintheicloud/hardex:0.5.0 \
   --certificate-identity-regexp '^https://github.com/ManintheiCloud/Hardex/\.github/workflows/release\.yml@refs/(tags/v|heads/main)' \
   --certificate-oidc-issuer https://token.actions.githubusercontent.com
 
-gh attestation verify oci://ghcr.io/manintheicloud/hardex:0.4.0 --repo ManintheiCloud/Hardex
+gh attestation verify oci://ghcr.io/manintheicloud/hardex:0.5.0 --repo ManintheiCloud/Hardex
 ```
 
 Deploy by digest: take the digest printed by `cosign verify` (or `hardex images deploy/`) and replace the tag in the `deploy/` manifests.

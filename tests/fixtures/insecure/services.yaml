@@ -64,3 +64,22 @@ webhooks:
     clientConfig: {service: {name: policy, namespace: policy}}
     rules:
       - {apiGroups: [""], apiVersions: [v1], operations: [CREATE, UPDATE], resources: [pods]}
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: snippet
+  namespace: shop
+  annotations:
+    nginx.ingress.kubernetes.io/configuration-snippet: |
+      more_set_headers "X-Debug: on";
+spec:
+  tls: [{hosts: [snippet.example.com], secretName: s}]
+  rules: [{host: snippet.example.com}]
+---
+apiVersion: networking.k8s.io/v1
+kind: IngressClass
+metadata:
+  name: nginx
+spec:
+  controller: k8s.io/ingress-nginx

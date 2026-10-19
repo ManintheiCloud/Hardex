@@ -12,8 +12,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/goccy/go-yaml"
-	"github.com/goccy/go-yaml/parser"
+	"github.com/ManintheiCloud/Hardex/internal/yamlsafe"
 )
 
 // MaxInputBytes bounds the size of any single input file or stream. Hardex
@@ -160,7 +159,7 @@ func hasContent(b []byte) bool {
 }
 
 func decodeDocument(inv *Inventory, doc document, source string) error {
-	file, err := parser.ParseBytes(doc.body, 0)
+	file, err := yamlsafe.Parse(doc.body)
 	if err != nil {
 		return fmt.Errorf("%s:%d: invalid YAML: %v", source, doc.line, firstLine(err.Error()))
 	}
@@ -173,7 +172,7 @@ func decodeDocument(inv *Inventory, doc document, source string) error {
 		}
 		body := normalizeYAML11(d.Body)
 		var raw any
-		if err := yaml.NodeToValue(body, &raw); err != nil {
+		if err := yamlsafe.NodeToValue(body, &raw); err != nil {
 			return fmt.Errorf("%s:%d: invalid YAML: %v", source, doc.line, firstLine(err.Error()))
 		}
 		// Round-trip through JSON so every number is a float64 and every

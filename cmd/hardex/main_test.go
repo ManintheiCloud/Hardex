@@ -4,10 +4,14 @@ import (
 	"bytes"
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/ManintheiCloud/Hardex/core/remediation"
+	"github.com/ManintheiCloud/Hardex/core/resource"
 )
 
 func cli(t *testing.T, stdin string, args ...string) (int, string, string) {
@@ -147,5 +151,41 @@ func TestImagesOffline(t *testing.T) {
 	}
 	if code, _, _ := cli(t, "", "images", "--require-signature", fixtures+"insecure"); code != exitUsage {
 		t.Error("--require-signature without --key accepted")
+	}
+}
+
+func TestFixKustomizeOverlay(t *testing.T) {
+	out := t.TempDir()
+	if code, _, stderr := cli(t, "", "fix", fixtures+"insecure/workloads.yaml", "--max-risk", "high", "--out", out, "--kustomize"); code != exitOK {
+		t.Fatalf("exit %d: %s", code, stderr)
+	}
+	k, err := os.ReadFile(filepath.Join(out, "kustomization.yaml"))
+	if err != nil || !strings.Contains(string(k), "patches:") || !strings.Contains(string(k), "# - ../base") {
+		t.Fatalf("kustomization.yaml:\n%s", k)
+	}
+	data, err := os.ReadFile(filepath.Join(out, "patches", "deployment-shop-insecure-web.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var ops []remediation.Op
+	if err := json.Unmarshal(data, &ops); err != nil || len(ops) == 0 {
+		t.Fatalf("patch: %v", err)
+	}
+	inv, _ := resource.Load([]string{fixtures + "insecure/workloads.yaml"}, nil)
+	var base map[string]any
+	for _, o := range inv.Objects {
+		if o.Name == "insecure-web" {
+			base = o.Raw
+		}
+	}
+	patched, err := remediation.Apply(base, ops)
+	if err != nil {
+		t.Fatalf("patch does not apply to its base: %v", err)
+	}
+	if v, _ := remediation.Get(patched, "/spec/template/spec/containers/0/securityContext/privileged"); v != false {
+		t.Error("overlay patch does not fix HX-WL-001")
+	}
+	if code, _, _ := cli(t, "", "fix", fixtures+"insecure", "--kustomize"); code != exitUsage {
+		t.Error("--kustomize without --out accepted")
 	}
 }

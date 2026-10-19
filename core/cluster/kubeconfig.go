@@ -11,7 +11,6 @@
 package cluster
 
 import (
-	"bytes"
 	"encoding/base64"
 	"errors"
 	"fmt"
@@ -19,7 +18,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/goccy/go-yaml"
+	"github.com/ManintheiCloud/Hardex/internal/yamlsafe"
 )
 
 // kubeconfig mirrors the subset of the kubeconfig file format Hardex uses.
@@ -122,8 +121,8 @@ func LoadKubeconfig(paths []string, context string) (*Config, error) {
 			return nil, err
 		}
 		var kc kubeconfig
-		if err := yaml.NewDecoder(bytes.NewReader(data)).Decode(&kc); err != nil {
-			return nil, fmt.Errorf("kubeconfig %s: %s", p, yaml.FormatError(err, false, false))
+		if err := yamlsafe.Decode(data, &kc); err != nil {
+			return nil, fmt.Errorf("kubeconfig %s: %w", p, err)
 		}
 		kc.dir = filepath.Dir(p)
 		files = append(files, &kc)

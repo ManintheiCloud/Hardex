@@ -4,6 +4,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/ManintheiCloud/Hardex/core/assessment"
 	"github.com/ManintheiCloud/Hardex/core/resource"
 )
 
@@ -35,5 +36,17 @@ func TestIsolates(t *testing.T) {
 		if got := isolates(p, "Egress"); got != c.egress {
 			t.Errorf("%s: egress isolates = %v, want %v", c.name, got, c.egress)
 		}
+	}
+}
+
+func TestRetiredIngressNginxByImage(t *testing.T) {
+	inv, err := resource.Load([]string{"-"}, strings.NewReader("apiVersion: apps/v1\nkind: Deployment\nmetadata: {name: ctl, namespace: ingress}\nspec:\n  template:\n    spec:\n      containers: [{name: c, image: registry.k8s.io/ingress-nginx/controller:v1.12.1}]\n"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	reg, _ := assessment.NewRegistry(retiredIngressNginx)
+	res := assessment.Evaluate(inv, reg.All(), assessment.Options{})
+	if len(res.Findings) != 1 || res.Findings[0].Resource.Name != "ctl" {
+		t.Fatalf("findings = %+v", res.Findings)
 	}
 }

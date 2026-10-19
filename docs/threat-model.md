@@ -1,6 +1,6 @@
 # Threat model
 
-Version 0.4.0. This document has two parts: the threats Hardex helps defend **clusters** against (what the rules are for), and the threats to **Hardex itself** (how the tool must behave). Both are living documents; propose changes by pull request.
+Version 0.5.0. This document has two parts: the threats Hardex helps defend **clusters** against (what the rules are for), and the threats to **Hardex itself** (how the tool must behave). Both are living documents; propose changes by pull request.
 
 ---
 
@@ -113,6 +113,8 @@ These are tracked in [ROADMAP.md](../ROADMAP.md):
 | H33 | Registry or proxy substitutes image content | Manifests and blobs fetched by digest are re-hashed and compared (implemented, tested) |
 | H34 | A valid signature for one image is replayed onto another | A signature verifies an image only if its payload names that exact digest (implemented, tested) |
 | H35 | Unsupported signature types reported as verified | Keyless/bundle signatures are reported as unsigned, never as verified (implemented, tested) |
+| H36 | A bug in the YAML library crashes Hardex on malformed input | Every YAML decode goes through `internal/yamlsafe`, which turns library panics into errors; continuous fuzzing in CI; the crashing input found by fuzzing is a permanent regression test (implemented, tested) |
+| H37 | A CNI policy is misread as isolating, hiding an open namespace | Only unambiguous default-deny forms count, following each project's reference docs; everything else is reported (implemented, tested) |
 
 ### Residual risks
 

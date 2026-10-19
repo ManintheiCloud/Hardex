@@ -13,7 +13,7 @@ import (
 
 // Rules returns every networking rule.
 func Rules() []assessment.Rule {
-	return []assessment.Rule{ingressIsolation, egressIsolation, serviceExposure, externalIPs, ingressTLS}
+	return []assessment.Rule{ingressIsolation, egressIsolation, serviceExposure, externalIPs, ingressTLS, nginxSnippets, retiredIngressNginx}
 }
 
 var (
@@ -64,7 +64,17 @@ func isolates(np *resource.Object, direction string) bool {
 
 func isolationRule(meta assessment.Metadata, direction string) assessment.Rule {
 	return assessment.InventoryRule{Meta: meta, Check: func(ctx *assessment.Context) {
-		policies := ctx.Inventory.OfKind("NetworkPolicy")
+		isolatedNS := map[string]bool{}
+		clusterWide := false
+		for _, np := range ctx.Inventory.OfKind(PolicyKinds...) {
+			if ok, global := policyScope(np, direction); ok {
+				if global {
+					clusterWide = true
+				} else {
+					isolatedNS[np.EffectiveNamespace()] = true
+				}
+			}
+		}
 		for _, ns := range ctx.Inventory.Namespaces() {
 			if systemNamespaces[ns] && !ctx.Options.IncludeSystem {
 				continue
@@ -73,13 +83,7 @@ func isolationRule(meta assessment.Metadata, direction string) assessment.Rule {
 			if subject == nil {
 				continue // namespace declared but has no workloads in scope
 			}
-			isolated := false
-			for _, np := range policies {
-				if np.EffectiveNamespace() == ns && isolates(np, direction) {
-					isolated = true
-					break
-				}
-			}
+			isolated := clusterWide || isolatedNS[ns]
 			if !isolated {
 				ctx.Report(assessment.Hit{Object: subject, Observed: "no default-deny policy",
 					Message: fmt.Sprintf("namespace %s has no NetworkPolicy isolating all pods for %s traffic", ns, direction)})

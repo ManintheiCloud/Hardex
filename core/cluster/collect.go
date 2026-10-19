@@ -65,6 +65,13 @@ var Collected = []Resource{
 	{"batch", "v1", "cronjobs", "CronJob", true},
 	{"networking.k8s.io", "v1", "networkpolicies", "NetworkPolicy", false},
 	{"networking.k8s.io", "v1", "ingresses", "Ingress", false},
+	{"networking.k8s.io", "v1", "ingressclasses", "IngressClass", false},
+	// CNI-specific policies: optional, since the CRDs exist only where the
+	// CNI is installed.
+	{"cilium.io", "v2", "ciliumnetworkpolicies", "CiliumNetworkPolicy", true},
+	{"cilium.io", "v2", "ciliumclusterwidenetworkpolicies", "CiliumClusterwideNetworkPolicy", true},
+	{"crd.projectcalico.org", "v1", "networkpolicies", "NetworkPolicy", true},
+	{"crd.projectcalico.org", "v1", "globalnetworkpolicies", "GlobalNetworkPolicy", true},
 	{"admissionregistration.k8s.io", "v1", "validatingwebhookconfigurations", "ValidatingWebhookConfiguration", false},
 	{"rbac.authorization.k8s.io", "v1", "roles", "Role", false},
 	{"rbac.authorization.k8s.io", "v1", "rolebindings", "RoleBinding", false},

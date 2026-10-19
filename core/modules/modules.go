@@ -9,7 +9,6 @@
 package modules
 
 import (
-	"bytes"
 	"fmt"
 	"os"
 	"regexp"
@@ -17,7 +16,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/goccy/go-yaml"
+	"github.com/ManintheiCloud/Hardex/internal/yamlsafe"
 
 	"github.com/ManintheiCloud/Hardex/core/assessment"
 	"github.com/ManintheiCloud/Hardex/core/finding"
@@ -104,9 +103,8 @@ func Load(path string) ([]assessment.Rule, error) {
 // Parse validates and compiles module bytes.
 func Parse(data []byte) ([]assessment.Rule, error) {
 	var m Module
-	dec := yaml.NewDecoder(bytes.NewReader(data), yaml.Strict(), yaml.DisallowUnknownField())
-	if err := dec.Decode(&m); err != nil {
-		return nil, fmt.Errorf("%s", yaml.FormatError(err, false, false))
+	if err := yamlsafe.Strict(data, &m); err != nil {
+		return nil, err
 	}
 	if m.APIVersion != APIVersion || m.Kind != Kind {
 		return nil, fmt.Errorf("expected apiVersion %q and kind %q", APIVersion, Kind)

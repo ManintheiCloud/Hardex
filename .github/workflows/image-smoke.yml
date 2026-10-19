@@ -7,7 +7,7 @@ name: image-smoke
 on:
   push:
     branches: [main]
-    paths: [.github/workflows/image-smoke.yml, VERSION]
+    paths: [.github/workflows/image-smoke.yml]
   workflow_run:
     workflows: [release]
     types: [completed]

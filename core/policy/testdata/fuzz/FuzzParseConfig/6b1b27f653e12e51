@@ -1,0 +1,2 @@
+go test fuzz v1
+[]byte("apiVersion: hardex.dev/v1alpha1\nkind: HardexConfig\nwaivers:\n !0 #0000000000000000000000000000000000000000000000000000000000000000000")

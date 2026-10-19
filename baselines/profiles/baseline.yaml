@@ -39,6 +39,8 @@ rules:
   - HX-NET-003 # external service exposure
   - HX-NET-004 # externalIPs
   - HX-NET-005 # ingress TLS
+  - HX-NET-006 # ingress-nginx snippets
+  - HX-NET-007 # retired ingress-nginx
   - HX-CP-001 # anonymous API access
   - HX-CP-003 # audit logging
   - HX-CP-005 # admission control

@@ -12,6 +12,16 @@ hardex fix ./k8s --rules HX-WL-004,HX-WL-008 --max-risk low
 
 `--out` never touches your input files. Patched objects are written one per file; comments and field order are not preserved, so diff them against your originals and merge.
 
+To keep your manifests exactly as they are, write a **Kustomize overlay** instead:
+
+```sh
+hardex fix ./k8s --out ./hardening --kustomize
+# edit hardening/kustomization.yaml: uncomment "- ../base" and point it at your manifests
+kubectl kustomize ./hardening | hardex scan -     # verify before applying
+```
+
+The overlay contains one JSON 6902 patch per object (including the guarding `test` operations, so Kustomize fails loudly if the base no longer matches what Hardex assessed) and any new objects such as default-deny NetworkPolicies. CI verifies overlays end to end with real Kustomize (`make kustomize-check`).
+
 ## Fix a live cluster
 
 ```sh
