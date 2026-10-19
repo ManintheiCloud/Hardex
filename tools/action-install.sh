@@ -4,6 +4,8 @@
 # the archive's SLSA build provenance with `gh attestation verify`, which
 # proves it was built by this repository's release workflow.
 set -euo pipefail
+err() { echo "::error title=hardex action::$*" >&2; }
+trap 'err "install failed at line $LINENO: $BASH_COMMAND"' ERR
 : "${VERSION:?}"
 case "${RUNNER_OS:-$(uname -s)}" in
   Linux) os=linux ;; macOS|Darwin) os=darwin ;; Windows) os=windows ;;
@@ -24,7 +26,7 @@ curl -sSfL --retry 3 -o SHA256SUMS "$base/SHA256SUMS"
 want="$(awk -v f="$name.$ext" '$2 == f || $2 == "*"f {print $1}' SHA256SUMS)"
 have="$( (sha256sum "$name.$ext" 2>/dev/null || shasum -a 256 "$name.$ext") | cut -d' ' -f1)"
 if [ -z "$want" ] || [ "$want" != "$have" ]; then
-  echo "checksum mismatch for $name.$ext (want ${want:-<missing>}, have $have)" >&2
+  err "checksum mismatch for $name.$ext (want ${want:-<missing>}, have $have)"
   exit 1
 fi
 if [ "${VERIFY:-true}" = true ]; then

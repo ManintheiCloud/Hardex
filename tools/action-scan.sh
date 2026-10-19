@@ -14,4 +14,10 @@ code=$?
 if [ "$FORMAT" = sarif ] || [ "$FORMAT" = json ]; then
   echo "report written to $OUTPUT"
 fi
+case $code in
+  0) ;;
+  1) echo "::error title=hardex::findings at or above $FAIL_ON (see $OUTPUT)" ;;
+  3) echo "::error title=hardex::assessment incomplete: some rules failed or inputs were unreadable" ;;
+  *) echo "::error title=hardex::hardex scan exited $code (usage or input error)" ;;
+esac
 exit $code
