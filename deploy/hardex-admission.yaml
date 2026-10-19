@@ -1,0 +1,163 @@
+# Hardex as a validating admission webhook.
+#
+# Requires cert-manager (for the serving certificate and CA injection) and
+# the hardex namespace from hardex-reader.yaml. Starts in "warn" mode: every
+# request is admitted and clients see Hardex findings as warnings. When the
+# warnings are understood, switch --mode=enforce (and keep failurePolicy:
+# Fail) to reject requests with high or critical findings.
+#
+# The webhook needs no Kubernetes API access, so it runs without a token.
+apiVersion: cert-manager.io/v1
+kind: Issuer
+metadata:
+  name: hardex-selfsigned
+  namespace: hardex
+spec:
+  selfSigned: {}
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: hardex-admission
+  namespace: hardex
+spec:
+  secretName: hardex-admission-tls
+  dnsNames:
+    - hardex-admission.hardex.svc
+  issuerRef: {name: hardex-selfsigned, kind: Issuer}
+  privateKey: {algorithm: ECDSA, size: 256, rotationPolicy: Always}
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: hardex-admission
+  namespace: hardex
+automountServiceAccountToken: false
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: hardex-admission
+  namespace: hardex
+spec:
+  replicas: 2
+  selector:
+    matchLabels: {app: hardex-admission}
+  template:
+    metadata:
+      labels: {app: hardex-admission}
+    spec:
+      serviceAccountName: hardex-admission
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        seccompProfile: {type: RuntimeDefault}
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: kubernetes.io/hostname
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels: {app: hardex-admission}
+      containers:
+        - name: hardex
+          image: ghcr.io/manintheicloud/hardex:0.4.0 # pin by digest in production
+          args: [admission, --mode=warn, --deny-at=high, --profile=baseline]
+          ports:
+            - {name: https, containerPort: 8443}
+          readinessProbe:
+            httpGet: {path: /healthz, port: https, scheme: HTTPS}
+          livenessProbe:
+            httpGet: {path: /healthz, port: https, scheme: HTTPS}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: {drop: ["ALL"]}
+          resources:
+            requests: {cpu: 100m, memory: 64Mi}
+            limits: {cpu: "1", memory: 256Mi}
+          volumeMounts:
+            - {name: tls, mountPath: /etc/hardex/tls, readOnly: true}
+      volumes:
+        - name: tls
+          secret: {secretName: hardex-admission-tls}
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: hardex-admission
+  namespace: hardex
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels: {app: hardex-admission}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: hardex-admission
+  namespace: hardex
+spec:
+  selector: {app: hardex-admission}
+  ports:
+    - {name: https, port: 443, targetPort: https}
+---
+# The API server calls the webhook from addresses that vary by platform, so
+# ingress to the webhook port is allowed from anywhere; everything else in
+# the namespace stays default-deny (see hardex-reader.yaml).
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: hardex-admission-ingress
+  namespace: hardex
+spec:
+  podSelector:
+    matchLabels: {app: hardex-admission}
+  policyTypes: [Ingress]
+  ingress:
+    - ports:
+        - {protocol: TCP, port: 8443}
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingWebhookConfiguration
+metadata:
+  name: hardex
+  annotations:
+    cert-manager.io/inject-ca-from: hardex/hardex-admission
+webhooks:
+  - name: validate.hardex.dev
+    admissionReviewVersions: [v1]
+    sideEffects: None
+    # Fail closed: if Hardex is unavailable, guarded changes are rejected
+    # rather than silently admitted (see HX-CP-009). The namespaces needed to
+    # recover the webhook are excluded below.
+    failurePolicy: Fail
+    timeoutSeconds: 5
+    clientConfig:
+      service: {name: hardex-admission, namespace: hardex, path: /validate, port: 443}
+    namespaceSelector:
+      matchExpressions:
+        - key: kubernetes.io/metadata.name
+          operator: NotIn
+          values: [kube-system, hardex, cert-manager]
+    rules:
+      - apiGroups: [""]
+        apiVersions: [v1]
+        operations: [CREATE, UPDATE]
+        resources: [pods, services, serviceaccounts]
+      - apiGroups: [apps]
+        apiVersions: [v1]
+        operations: [CREATE, UPDATE]
+        resources: [deployments, daemonsets, statefulsets, replicasets]
+      - apiGroups: [batch]
+        apiVersions: [v1]
+        operations: [CREATE, UPDATE]
+        resources: [jobs, cronjobs]
+      - apiGroups: [rbac.authorization.k8s.io]
+        apiVersions: [v1]
+        operations: [CREATE, UPDATE]
+        resources: [roles, rolebindings, clusterroles, clusterrolebindings]
+      - apiGroups: [networking.k8s.io]
+        apiVersions: [v1]
+        operations: [CREATE, UPDATE]
+        resources: [ingresses]

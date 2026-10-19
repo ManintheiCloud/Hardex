@@ -6,6 +6,7 @@ import (
 	"github.com/ManintheiCloud/Hardex/kubernetes/controlplane"
 	"github.com/ManintheiCloud/Hardex/kubernetes/networking"
 	"github.com/ManintheiCloud/Hardex/kubernetes/nodes"
+	"github.com/ManintheiCloud/Hardex/kubernetes/paths"
 	"github.com/ManintheiCloud/Hardex/kubernetes/rbac"
 	"github.com/ManintheiCloud/Hardex/kubernetes/secrets"
 	"github.com/ManintheiCloud/Hardex/kubernetes/workloads"
@@ -16,7 +17,7 @@ import (
 func Registry(extra ...assessment.Rule) (*assessment.Registry, error) {
 	all := append([]assessment.Rule(nil), extra...)
 	for _, group := range [][]assessment.Rule{
-		workloads.Rules(), secrets.Rules(), rbac.Rules(), networking.Rules(), controlplane.Rules(), nodes.Rules(),
+		workloads.Rules(), secrets.Rules(), rbac.Rules(), networking.Rules(), controlplane.Rules(), nodes.Rules(), paths.Rules(),
 	} {
 		all = append(all, group...)
 	}

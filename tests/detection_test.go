@@ -57,6 +57,7 @@ var insecureExpectations = []expectation{
 	{"HX-RBAC-006", "ClusterRole deployer", finding.Medium},
 	{"HX-RBAC-007", "ClusterRoleBinding anonymous-view", finding.Critical},
 	{"HX-RBAC-008", "Deployment ci/runner", finding.Critical},
+	{"HX-PATH-001", "Deployment shop/insecure-web", finding.Critical},
 	{"HX-NET-001", "Namespace shop", finding.Medium},
 	{"HX-NET-002", "Namespace shop", finding.Low},
 	{"HX-NET-003", "Service shop/public-lb", finding.Medium},

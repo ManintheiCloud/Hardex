@@ -9,5 +9,7 @@
 | [0005](0005-remediation-engine.md) | Remediation as guarded, reversible JSON patches | accepted |
 | [0006](0006-continuous-monitoring.md) | Continuous monitoring from recorded assessments | accepted |
 | [0007](0007-declarative-rule-modules.md) | Declarative rule modules for out-of-tree rules | accepted |
+| [0008](0008-admission-webhook.md) | Admission control with the same rules, one object at a time | accepted |
+| [0009](0009-posture-scoring.md) | A transparent, rule-weighted posture score | accepted |
 
 New ADRs: copy the format, take the next number, and open a PR. ADRs are never deleted; superseded ones are marked as such.

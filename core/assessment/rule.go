@@ -40,6 +40,11 @@ type Metadata struct {
 	// Limitations documents known blind spots (static analysis gaps, defaults
 	// that cannot be observed from manifests). Optional but encouraged.
 	Limitations string
+	// NeedsInventory marks rules whose verdict on one object depends on
+	// other objects (bindings, NetworkPolicies, LimitRanges, ServiceAccounts).
+	// Admission control sees one object at a time and skips these rules,
+	// rather than reporting false positives for context it cannot see.
+	NeedsInventory bool
 }
 
 // idPattern admits built-in IDs (HX-WL-001) and module IDs (ACME-WL-001).

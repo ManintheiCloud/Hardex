@@ -39,6 +39,10 @@ Usage:
   hardex scan --cluster [flags]    Assess the live cluster (read-only)
   hardex monitor [flags] PATH...|--cluster
                                    Assess repeatedly; record history; alert on drift
+  hardex fleet --contexts a,b,c    Assess several clusters and compare them
+  hardex compare REPORT...         Compare saved reports across clusters
+  hardex report REPORT.json        Evidence report (HTML/Markdown) and posture score
+  hardex admission [flags]         Serve a validating admission webhook (enforce/warn/audit)
   hardex history DIR               Show trends from scan --history / monitor
   hardex rules [RULE-ID]           List rules, or explain one
   hardex profiles                  List built-in profiles
@@ -70,6 +74,14 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 		return cmdProfiles(stdout, stderr)
 	case "diff":
 		return cmdDiff(args[1:], stdout, stderr)
+	case "compare":
+		return cmdCompare(args[1:], stdout, stderr)
+	case "fleet":
+		return cmdFleet(args[1:], stdout, stderr)
+	case "report":
+		return cmdReport(args[1:], stdout, stderr)
+	case "admission":
+		return cmdAdmission(args[1:], stdout, stderr)
 	case "monitor":
 		return cmdMonitor(args[1:], stdin, stdout, stderr)
 	case "history":

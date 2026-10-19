@@ -1,6 +1,6 @@
 # Threat model
 
-Version 0.3 — Phase III. This document has two parts: the threats Hardex helps defend **clusters** against (what the rules are for), and the threats to **Hardex itself** (how the tool must behave). Both are living documents; propose changes by pull request.
+Version 0.4 — Phase IV. This document has two parts: the threats Hardex helps defend **clusters** against (what the rules are for), and the threats to **Hardex itself** (how the tool must behave). Both are living documents; propose changes by pull request.
 
 ---
 
@@ -104,6 +104,12 @@ These are tracked in [ROADMAP.md](../ROADMAP.md):
 | H24 | A rule module weakens or bypasses assessment | Modules are loaded only via `--module` (never from scanned content), validated strictly, cannot reuse `HX-` IDs, and use RE2 (no catastrophic backtracking); invalid modules fail the run (implemented, tested) |
 | H25 | History exposes weaknesses to other local users | History files and directory are created owner-only (0600/0700) (implemented, tested) |
 | H26 | Two distinct findings share a fingerprint and are conflated by diff/history | Engine disambiguates collisions; test enforces uniqueness on fixtures (implemented, tested) |
+| H27 | Admission webhook bypassed by making it unavailable | Enforce mode fails closed; shipped config uses `failurePolicy: Fail`, two replicas, a PDB and minimal namespace exclusions (implemented, tested) |
+| H28 | Admission rejects valid objects for context it cannot see | Rules declaring `NeedsInventory` are skipped at admission (implemented, tested) |
+| H29 | Oversized or malformed AdmissionReview exhausts the webhook | 3 MiB body limit, strict decoding, server timeouts (implemented, tested) |
+| H30 | Certificate rotation breaks the webhook | Certificates reloaded on change; a broken rotation keeps the last good pair (implemented, tested) |
+| H31 | Manifest content injects markup into evidence reports | `html/template` escaping; Markdown neutralisation (implemented, tested) |
+| H32 | Evidence report altered after the fact | Report embeds the SHA-256 of its source JSON report (implemented, tested) |
 
 ### Residual risks
 

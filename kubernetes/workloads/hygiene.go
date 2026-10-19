@@ -11,15 +11,16 @@ import (
 )
 
 var resourceLimits = eachContainer(assessment.Metadata{
-	ID:          "HX-WL-010",
-	Title:       "Missing resource limits",
-	Severity:    finding.Low,
-	Category:    assessment.CategoryWorkloads,
-	Description: "Detects containers without a memory limit (low) or CPU limit (info), unless a LimitRange in the same namespace supplies a default.",
-	Rationale:   "Unbounded containers let one compromised or faulty workload exhaust node resources and deny service to its neighbours, including node-critical agents.",
-	Remediation: "Set resources.limits.memory on every container (and resources.requests.cpu, plus a CPU limit where your scheduling policy calls for one), or define a namespace LimitRange with defaults.",
-	References:  []finding.Reference{baselines.NSA("Kubernetes Pod security — resource policies")},
-	Limitations: "CPU limits are reported at info severity because they can cause throttling; many operators deliberately rely on CPU requests only.",
+	ID:             "HX-WL-010",
+	Title:          "Missing resource limits",
+	Severity:       finding.Low,
+	Category:       assessment.CategoryWorkloads,
+	Description:    "Detects containers without a memory limit (low) or CPU limit (info), unless a LimitRange in the same namespace supplies a default.",
+	Rationale:      "Unbounded containers let one compromised or faulty workload exhaust node resources and deny service to its neighbours, including node-critical agents.",
+	Remediation:    "Set resources.limits.memory on every container (and resources.requests.cpu, plus a CPU limit where your scheduling policy calls for one), or define a namespace LimitRange with defaults.",
+	References:     []finding.Reference{baselines.NSA("Kubernetes Pod security — resource policies")},
+	Limitations:    "CPU limits are reported at info severity because they can cause throttling; many operators deliberately rely on CPU requests only.",
+	NeedsInventory: true,
 }, func(ctx *assessment.Context, obj *resource.Object, _ map[string]any, prefix string, c resource.Container) {
 	if c.Field == "ephemeralContainers" {
 		return // ephemeral containers cannot declare resources
@@ -111,15 +112,16 @@ var imageDigest = eachContainer(assessment.Metadata{
 })
 
 var serviceAccountToken = eachPod(assessment.Metadata{
-	ID:          "HX-WL-013",
-	Title:       "Service account token auto-mounted",
-	Severity:    finding.Low,
-	Category:    assessment.CategoryWorkloads,
-	Description: "Detects pods that mount a Kubernetes API token without opting out, neither in the pod spec nor on a ServiceAccount found in the input.",
-	Rationale:   "Most applications never call the Kubernetes API, yet every compromised container with a mounted token can. The token's RBAC permissions become the attacker's.",
-	Remediation: "Set automountServiceAccountToken: false on the pod spec or its ServiceAccount; enable it only for workloads that call the API, with a dedicated least-privilege ServiceAccount.",
-	References:  []finding.Reference{baselines.NSA("Authentication and authorization"), baselines.CIS("5.1", "RBAC and Service Accounts")},
-	Limitations: "If the ServiceAccount is not part of the scanned input, its automount setting cannot be checked and the pod is reported.",
+	ID:             "HX-WL-013",
+	Title:          "Service account token auto-mounted",
+	Severity:       finding.Low,
+	Category:       assessment.CategoryWorkloads,
+	Description:    "Detects pods that mount a Kubernetes API token without opting out, neither in the pod spec nor on a ServiceAccount found in the input.",
+	Rationale:      "Most applications never call the Kubernetes API, yet every compromised container with a mounted token can. The token's RBAC permissions become the attacker's.",
+	Remediation:    "Set automountServiceAccountToken: false on the pod spec or its ServiceAccount; enable it only for workloads that call the API, with a dedicated least-privilege ServiceAccount.",
+	References:     []finding.Reference{baselines.NSA("Authentication and authorization"), baselines.CIS("5.1", "RBAC and Service Accounts")},
+	Limitations:    "If the ServiceAccount is not part of the scanned input, its automount setting cannot be checked and the pod is reported.",
+	NeedsInventory: true,
 }, func(ctx *assessment.Context, obj *resource.Object, pod map[string]any, prefix string) {
 	if v, set := resource.Bool(pod, "automountServiceAccountToken"); set {
 		if v {

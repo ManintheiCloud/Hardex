@@ -1,6 +1,6 @@
 # Architecture
 
-This document describes how Hardex is built today (Phase III) and where the later phases attach. Decisions with lasting consequences are recorded in [adr/](adr/).
+This document describes how Hardex is built today (Phase IV) and where the later phases attach. Decisions with lasting consequences are recorded in [adr/](adr/).
 
 ## Pipeline
 
@@ -36,6 +36,10 @@ This document describes how Hardex is built today (Phase III) and where the late
 | `core/modules` | Strictly validated declarative rules compiled to `assessment.Rule` | assessment, resource |
 | `integrations/monitoring` | Record, compare, emit events per assessment | history, verification, notify |
 | `integrations/notify` | JSON Lines and HMAC-signed webhook sinks | finding |
+| `kubernetes/paths` | Attack-path graph and reverse BFS to cluster-admin / node root | rbac, workloads |
+| `integrations/admission` | AdmissionReview v1 handler, TLS server with certificate reload | assessment, policy |
+| `core/score` | Rule-weighted score, grade, per-framework evidence | assessment, finding |
+| `core/fleet` | Cross-cluster comparison matrix | score |
 
 Dependency direction is strictly inward: `core/*` never imports `kubernetes/*`, `baselines` or `integrations/*`. A rule package never imports another rule package.
 
@@ -92,5 +96,6 @@ A finding's fingerprint is a hash of rule ID, resource kind/namespace/name, cont
 | II – remediation (done) | `core/remediation` + `kubernetes/fixes.go` | See [ADR 0005](adr/0005-remediation-engine.md) |
 | II – live cluster (done) | `core/cluster` produces an `Inventory` | Rules are unchanged; see [ADR 0004](adr/0004-live-cluster-client.md) |
 | III – continuous (done) | `core/history`, `integrations/monitoring`, `integrations/notify` | See [ADR 0006](adr/0006-continuous-monitoring.md) |
-| III/IV – admission | `integrations/admission-control` running the same rules in a validating webhook | Same rule code in CI and at admission avoids drift between "what we check" and "what we block" |
+| IV – admission (done) | `integrations/admission`; rules mark `NeedsInventory` | See [ADR 0008](adr/0008-admission-webhook.md) |
+| IV – scoring, fleet, paths (done) | `core/score`, `core/fleet`, `kubernetes/paths` | See [ADR 0009](adr/0009-posture-scoring.md) |
 | III – modules (done) | `core/modules`, `--module` | See [ADR 0007](adr/0007-declarative-rule-modules.md) |

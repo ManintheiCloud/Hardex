@@ -88,3 +88,26 @@ func TestJSONRoundTrip(t *testing.T) {
 		t.Error("report did not survive a JSON round trip")
 	}
 }
+
+func TestEvidenceEscapesUntrustedContent(t *testing.T) {
+	r, rules := sample()
+	r.Findings[0].Resource.Name = `<script>alert(1)</script>|x`
+	r.Findings[0].Message = "a\nb | c"
+	r.RulesEvaluated = []string{"HX-WL-001"}
+	for _, format := range []string{"html", "markdown"} {
+		var buf bytes.Buffer
+		if err := Evidence(&buf, format, r, rules, "abc"); err != nil {
+			t.Fatal(err)
+		}
+		out := buf.String()
+		if strings.Contains(out, "<script>") {
+			t.Errorf("%s: unescaped script tag", format)
+		}
+		if !strings.Contains(out, "abc") || !strings.Contains(out, "HX-WL-001") {
+			t.Errorf("%s: missing digest or finding", format)
+		}
+		if format == "markdown" && strings.Contains(out, "a\nb") {
+			t.Error("markdown: newline in table cell")
+		}
+	}
+}

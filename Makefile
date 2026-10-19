@@ -1,8 +1,8 @@
-VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo 0.3.0-dev)
+VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo 0.4.0-dev)
 LDFLAGS := -s -w -X github.com/ManintheiCloud/Hardex.Version=$(VERSION)
 GOVULNCHECK := golang.org/x/vuln/cmd/govulncheck@v1.9.0
 
-.PHONY: build test check fmt vet vuln docs selfcheck fuzz clean
+.PHONY: build test check fmt vet vuln docs selfcheck fuzz bench clean
 
 build:
 	CGO_ENABLED=0 go build -trimpath -ldflags '$(LDFLAGS)' -o bin/hardex ./cmd/hardex
@@ -21,6 +21,9 @@ vuln:
 
 fuzz:
 	go test -run='^$$' -fuzz=FuzzLoad -fuzztime=60s ./core/resource
+
+bench:
+	go test -run '^$$' -bench . -benchmem ./tests
 
 docs:
 	go run ./tools/gendocs

@@ -24,6 +24,7 @@ Severity is the default; individual findings may be raised or lowered where the 
 | [HX-NODE-002](#hx-node-002) | critical | nodes | Kubelet authorization disabled | baseline, minimal, restricted |
 | [HX-NODE-003](#hx-node-003) | medium | nodes | Kubelet read-only port enabled | baseline, restricted |
 | [HX-NODE-004](#hx-node-004) | low | nodes | Kubelet does not protect kernel defaults | restricted |
+| [HX-PATH-001](#hx-path-001) | critical | attack-paths | Privilege-escalation path from workload | baseline, minimal, restricted |
 | [HX-RBAC-001](#hx-rbac-001) | high | rbac | Wildcard RBAC permission | baseline, restricted |
 | [HX-RBAC-002](#hx-rbac-002) | high | rbac | cluster-admin granted | baseline, minimal, restricted |
 | [HX-RBAC-003](#hx-rbac-003) | high | rbac | Read access to Secrets | baseline, restricted |
@@ -347,6 +348,23 @@ Severity is the default; individual findings may be raised or lowered where the 
 **References:**
 
 - CIS: [§4.2 Kubelet](https://www.cisecurity.org/benchmark/kubernetes)
+
+## HX-PATH-001
+
+**Privilege-escalation path from workload** — critical, attack-paths
+
+**Checks:** Searches for multi-step paths from each workload to cluster administrator (critical) or, failing that, to root on a node (high), combining container escape, token theft from co-located pods, workload creation, exec, token minting and RBAC escalation. Direct grants are reported by HX-RBAC-008 and direct escapes by the HX-WL rules; this rule reports chains.
+
+**Why it matters:** Real attacks chain weaknesses: an exploited web pod that can escape to its node can steal the token of a privileged controller scheduled on the same node. Each step alone may look acceptable; the chain is a full compromise.
+
+**Remediation:** Break the chain at its cheapest link, listed in the finding: remove the escape vector, stop mounting powerful tokens in pods that do not need them, narrow the RBAC grant, or enforce Pod Security admission in the namespace.
+
+**Known limitations:** Assumes any two pods may share a node (no node affinity analysis). Namespaces without a Namespace object in the input are assumed not to enforce Pod Security. Cloud IAM, legacy token Secrets and admission policies other than Pod Security are not modelled. Workloads in kube-system are not reported as starting points unless --include-system is set, but their tokens are considered.
+
+**References:**
+
+- NSA-CISA: Kubernetes Hardening Guidance v1.2 — Threat model
+- Kubernetes: [RBAC good practices: privilege escalation risks](https://kubernetes.io/docs/concepts/security/rbac-good-practices/#privilege-escalation-risks)
 
 ## HX-RBAC-001
 

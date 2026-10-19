@@ -20,6 +20,7 @@ rules:
   - HX-RBAC-004 # escalate / bind / impersonate
   - HX-RBAC-007 # anonymous or all-user grants
   - HX-RBAC-008 # workloads holding dangerous permissions
+  - HX-PATH-001 # multi-step privilege-escalation paths
   # Control plane and nodes
   - HX-CP-002 # authorization disabled
   - HX-CP-006 # etcd without mutual TLS

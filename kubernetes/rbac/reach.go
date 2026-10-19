@@ -112,64 +112,174 @@ func resourceMatches(have, want string) bool {
 	return false
 }
 
-// binding is one path from a subject to a role.
-type binding struct {
+// Capability identifies a class of dangerous permission (an index into
+// capabilities).
+type Capability int
+
+const (
+	CapFullControl Capability = iota
+	CapEscalate
+	CapImpersonate
+	CapReadSecrets
+	CapExec
+	CapMintTokens
+	CapNodeProxy
+	CapCreateWorkloads
+)
+
+// Name describes the capability.
+func (c Capability) Name() string { return capabilities[c].name }
+
+// Severity is the impact of holding the capability.
+func (c Capability) Severity() finding.Severity { return capabilities[c].severity }
+
+// Permission is one dangerous capability held by a service account.
+type Permission struct {
+	Cap Capability
+	// Namespace is where it applies; "" means cluster-wide.
+	Namespace string
+	// Via names the binding and role that grant it.
+	Via string
+}
+
+// Scope renders the namespace for messages.
+func (p Permission) Scope() string {
+	if p.Namespace == "" {
+		return "cluster-wide"
+	}
+	return "in namespace " + p.Namespace
+}
+
+// Index answers "what can this service account do?" for an inventory. It
+// is built once per evaluation so that analysing many workloads stays linear.
+type Index struct {
+	inv *resource.Inventory
+	// bySubject maps a subject key ("sa:ns/name" or "group:name") to the
+	// bindings naming it, so lookups do not scan every binding.
+	bySubject map[string][]*indexedBinding
+	automount map[string]bool // ns/name -> explicit ServiceAccount setting
+	cache     map[string][]Permission
+}
+
+type indexedBinding struct {
 	obj   *resource.Object
 	rules []map[string]any
 	role  string
-	scope string // "cluster-wide" or "in namespace X"
 }
 
-func bindingsFor(inv *resource.Inventory, ns, sa string) []binding {
+// NewIndex builds an index over the inventory's RBAC objects.
+func NewIndex(inv *resource.Inventory) *Index {
+	idx := &Index{inv: inv, bySubject: map[string][]*indexedBinding{}, automount: map[string]bool{}, cache: map[string][]Permission{}}
 	roles := map[string]*resource.Object{}
 	for _, r := range inv.OfKind("Role", "ClusterRole") {
 		roles[r.Kind+"/"+r.EffectiveNamespace()+"/"+r.Name] = r
 	}
-	var out []binding
 	for _, b := range inv.OfKind("RoleBinding", "ClusterRoleBinding") {
-		if !subjectsInclude(b, ns, sa) {
-			continue
-		}
 		refKind, refName := resource.String(b.Raw, "roleRef", "kind"), resource.String(b.Raw, "roleRef", "name")
-		bd := binding{obj: b, role: refKind + " " + refName, scope: "cluster-wide"}
-		if b.Kind == "RoleBinding" {
-			bd.scope = "in namespace " + b.EffectiveNamespace()
-		}
+		ib := indexedBinding{obj: b, role: refKind + " " + refName}
 		lookupNS := ""
 		if refKind == "Role" {
 			lookupNS = b.EffectiveNamespace()
 		}
 		if r, ok := roles[refKind+"/"+lookupNS+"/"+refName]; ok {
-			bd.rules = resource.Maps(r.Raw, "rules")
+			ib.rules = resource.Maps(r.Raw, "rules")
 		} else if builtin, ok := builtinRoles[refName]; ok && refKind == "ClusterRole" {
-			bd.rules = builtin
+			ib.rules = builtin
 		} else {
 			continue // role not in input; nothing can be concluded
 		}
-		out = append(out, bd)
+		bound := &ib
+		seen := map[string]bool{}
+		for _, subj := range resource.Maps(b.Raw, "subjects") {
+			key := subjectKey(b, subj)
+			if key != "" && !seen[key] {
+				seen[key] = true
+				idx.bySubject[key] = append(idx.bySubject[key], bound)
+			}
+		}
 	}
+	for _, o := range inv.OfKind("ServiceAccount") {
+		if v, set := resource.Bool(o.Raw, "automountServiceAccountToken"); set {
+			idx.automount[o.EffectiveNamespace()+"/"+o.Name] = v
+		}
+	}
+	return idx
+}
+
+// Permissions returns the dangerous capabilities of a service account.
+// Full control subsumes everything else and is reported alone per binding.
+func (idx *Index) Permissions(ns, sa string) []Permission {
+	key := ns + "/" + sa
+	if p, ok := idx.cache[key]; ok {
+		return p
+	}
+	var out []Permission
+	seen := map[*indexedBinding]bool{}
+	for _, subj := range []string{"sa:" + ns + "/" + sa, "group:system:serviceaccounts", "group:system:serviceaccounts:" + ns, "group:system:authenticated"} {
+		for _, b := range idx.bySubject[subj] {
+			if seen[b] {
+				continue
+			}
+			seen[b] = true
+			scope := ""
+			if b.obj.Kind == "RoleBinding" {
+				scope = b.obj.EffectiveNamespace()
+			}
+			via := b.obj.Kind + " " + b.obj.Name + " → " + b.role
+			for ci, c := range capabilities {
+				if grantsAny(b.rules, c.grants) {
+					out = append(out, Permission{Cap: Capability(ci), Namespace: scope, Via: via})
+					if ci == int(CapFullControl) {
+						break
+					}
+				}
+			}
+		}
+	}
+	sort.SliceStable(out, func(i, j int) bool { return out[i].Via < out[j].Via })
+	idx.cache[key] = out
 	return out
 }
 
-func subjectsInclude(b *resource.Object, ns, sa string) bool {
-	for _, s := range resource.Maps(b.Raw, "subjects") {
-		kind, name := resource.String(s, "kind"), resource.String(s, "name")
-		subjNS := resource.String(s, "namespace")
-		if subjNS == "" && b.Kind == "RoleBinding" {
-			subjNS = b.EffectiveNamespace()
-		}
-		switch {
-		case kind == "ServiceAccount" && name == sa && subjNS == ns:
-			return true
-		case kind == "Group" && (name == "system:serviceaccounts" || name == "system:serviceaccounts:"+ns || name == "system:authenticated"):
-			return true
+func grantsAny(rules []map[string]any, grants []grant) bool {
+	for _, r := range rules {
+		for _, g := range grants {
+			if effectiveMatch(r, g) {
+				return true
+			}
 		}
 	}
 	return false
 }
 
-// tokenMounted reports whether pods of the workload receive an API token.
-func tokenMounted(inv *resource.Inventory, obj *resource.Object, pod map[string]any, sa string) bool {
+// subjectKey identifies a binding subject that can match a service account.
+func subjectKey(b *resource.Object, s map[string]any) string {
+	kind, name := resource.String(s, "kind"), resource.String(s, "name")
+	switch kind {
+	case "ServiceAccount":
+		ns := resource.String(s, "namespace")
+		if ns == "" && b.Kind == "RoleBinding" {
+			ns = b.EffectiveNamespace()
+		}
+		return "sa:" + ns + "/" + name
+	case "Group":
+		if name == "system:serviceaccounts" || name == "system:authenticated" || strings.HasPrefix(name, "system:serviceaccounts:") {
+			return "group:" + name
+		}
+	}
+	return ""
+}
+
+// ServiceAccountOf returns the workload's service account name.
+func ServiceAccountOf(pod map[string]any) string {
+	if sa := resource.String(pod, "serviceAccountName"); sa != "" {
+		return sa
+	}
+	return "default"
+}
+
+// TokenMounted reports whether pods of the workload receive an API token.
+func (idx *Index) TokenMounted(obj *resource.Object, pod map[string]any) bool {
 	for _, v := range resource.Maps(pod, "volumes") {
 		for _, src := range resource.Maps(v, "projected", "sources") {
 			if resource.Map(src, "serviceAccountToken") != nil {
@@ -180,71 +290,47 @@ func tokenMounted(inv *resource.Inventory, obj *resource.Object, pod map[string]
 	if v, set := resource.Bool(pod, "automountServiceAccountToken"); set {
 		return v
 	}
-	for _, o := range inv.OfKind("ServiceAccount") {
-		if o.Name == sa && o.EffectiveNamespace() == obj.EffectiveNamespace() {
-			if v, set := resource.Bool(o.Raw, "automountServiceAccountToken"); set {
-				return v
-			}
-		}
+	if v, set := idx.automount[obj.EffectiveNamespace()+"/"+ServiceAccountOf(pod)]; set {
+		return v
 	}
 	return true
 }
 
 var reachableWorkloads = assessment.InventoryRule{
 	Meta: assessment.Metadata{
-		ID:          "HX-RBAC-008",
-		Title:       "Workload holds dangerous API permissions",
-		Severity:    finding.High,
-		Category:    assessment.CategoryRBAC,
-		Description: "Follows each workload's service account through RoleBindings and ClusterRoleBindings to the permissions its mounted token carries, and reports workloads that can read secrets, exec into pods, mint tokens, reach kubelets, create workloads (medium), escalate or impersonate, or control everything (critical).",
-		Rationale:   "Container compromise is common; what matters is what the stolen token can do next. A web server whose service account can read every secret turns one application bug into a cluster-wide breach.",
-		Remediation: "Give the workload a dedicated service account bound only to what it needs, or set automountServiceAccountToken: false if it never calls the API. Remove broad grants found through the listed binding.",
-		References:  []finding.Reference{refCISRBAC, refNSAAuth, baselines.K8s("RBAC good practices", "https://kubernetes.io/docs/concepts/security/rbac-good-practices/")},
-		Limitations: "Only bindings and roles present in the input are followed (plus the default cluster-admin, admin, edit and view ClusterRoles). Aggregated ClusterRoles, cloud IAM mappings and webhook authorizers are not evaluated. Workloads in kube-system are skipped unless --include-system is set.",
+		ID:             "HX-RBAC-008",
+		Title:          "Workload holds dangerous API permissions",
+		Severity:       finding.High,
+		Category:       assessment.CategoryRBAC,
+		Description:    "Follows each workload's service account through RoleBindings and ClusterRoleBindings to the permissions its mounted token carries, and reports workloads that can read secrets, exec into pods, mint tokens, reach kubelets, create workloads (medium), escalate or impersonate, or control everything (critical).",
+		Rationale:      "Container compromise is common; what matters is what the stolen token can do next. A web server whose service account can read every secret turns one application bug into a cluster-wide breach.",
+		Remediation:    "Give the workload a dedicated service account bound only to what it needs, or set automountServiceAccountToken: false if it never calls the API. Remove broad grants found through the listed binding.",
+		References:     []finding.Reference{refCISRBAC, refNSAAuth, baselines.K8s("RBAC good practices", "https://kubernetes.io/docs/concepts/security/rbac-good-practices/")},
+		Limitations:    "Only bindings and roles present in the input are followed (plus the default cluster-admin, admin, edit and view ClusterRoles). Aggregated ClusterRoles, cloud IAM mappings and webhook authorizers are not evaluated. Workloads in kube-system are skipped unless --include-system is set.",
+		NeedsInventory: true,
 	},
 	Check: func(ctx *assessment.Context) {
+		idx := NewIndex(ctx.Inventory)
 		for _, obj := range ctx.Inventory.Objects {
 			pod, prefix := resource.PodSpec(obj)
 			if pod == nil || (obj.EffectiveNamespace() == "kube-system" && !ctx.Options.IncludeSystem) {
 				continue
 			}
-			sa := resource.String(pod, "serviceAccountName")
-			if sa == "" {
-				sa = "default"
-			}
-			if !tokenMounted(ctx.Inventory, obj, pod, sa) {
+			if !idx.TokenMounted(obj, pod) {
 				continue
 			}
+			sa := ServiceAccountOf(pod)
 			worst := finding.Severity(-1)
 			var found []string
 			seen := map[string]bool{}
-			for _, b := range bindingsFor(ctx.Inventory, obj.EffectiveNamespace(), sa) {
-			capLoop:
-				for i, c := range capabilities {
-					for _, r := range b.rules {
-						matched := false
-						for _, g := range c.grants {
-							if effectiveMatch(r, g) {
-								matched = true
-							}
-						}
-						if !matched {
-							continue
-						}
-						desc := fmt.Sprintf("%s %s (via %s %s → %s)", c.name, b.scope, b.obj.Kind, b.obj.Name, b.role)
-						if !seen[desc] {
-							seen[desc] = true
-							found = append(found, desc)
-						}
-						if c.severity > worst {
-							worst = c.severity
-						}
-						if i == 0 {
-							// Full control subsumes every other capability.
-							break capLoop
-						}
-						break
-					}
+			for _, p := range idx.Permissions(obj.EffectiveNamespace(), sa) {
+				desc := fmt.Sprintf("%s %s (via %s)", p.Cap.Name(), p.Scope(), p.Via)
+				if !seen[desc] {
+					seen[desc] = true
+					found = append(found, desc)
+				}
+				if p.Cap.Severity() > worst {
+					worst = p.Cap.Severity()
 				}
 			}
 			if len(found) == 0 {

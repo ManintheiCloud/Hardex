@@ -13,7 +13,7 @@ import (
 )
 
 // Formats lists the supported output formats.
-var Formats = []string{"text", "json", "sarif"}
+var Formats = []string{"text", "json", "sarif", "html", "markdown"}
 
 // Write renders a report in the named format.
 func Write(w io.Writer, format string, r *finding.Report, rules []assessment.Metadata) error {
@@ -24,6 +24,8 @@ func Write(w io.Writer, format string, r *finding.Report, rules []assessment.Met
 		return JSON(w, r)
 	case "sarif":
 		return SARIF(w, r, rules)
+	case "html", "markdown":
+		return Evidence(w, format, r, rules, "")
 	}
 	return fmt.Errorf("unknown format %q (want %s)", format, strings.Join(Formats, ", "))
 }

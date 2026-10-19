@@ -2,7 +2,20 @@
 
 All notable changes are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow [Semantic Versioning](https://semver.org/). Before 1.0, minor versions may contain breaking changes.
 
-## [Unreleased] — 0.3.0 (Phase III: Continuous Protection)
+## [Unreleased] — 0.4.0 (Phase IV: Advanced Security Engineering)
+
+### Added
+- HX-PATH-001: multi-step privilege-escalation paths (container escape, token theft from co-located pods, workload creation, exec, token minting, RBAC escalation) to cluster administrator or node root.
+- `hardex admission`: validating admission webhook running the same rules (warn, enforce fail-closed, audit), certificate hot-reload, decision log; `deploy/hardex-admission.yaml`.
+- `hardex report` and `scan --format html|markdown`: posture score, grade, framework evidence, accepted risks, and the SHA-256 of the source report.
+- `hardex fleet` and `hardex compare`: multi-cluster assessment and a matrix of inconsistent controls.
+- Scale test (~16k objects) and benchmarks; `make bench`.
+
+### Changed
+- RBAC bindings are indexed by subject and attack paths use one backwards search per goal: a 15,800-object assessment went from 35 s to under 1 s.
+- Rules declare `NeedsInventory` when their verdict depends on other objects.
+
+## 0.3.0 (Phase III: Continuous Protection)
 
 ### Added
 - `scan --history DIR` and `hardex history`: recorded assessments and trend tables.

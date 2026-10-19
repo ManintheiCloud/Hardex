@@ -112,27 +112,29 @@ func namespaceObject(inv *resource.Inventory, ns string) *resource.Object {
 }
 
 var ingressIsolation = isolationRule(assessment.Metadata{
-	ID:          "HX-NET-001",
-	Title:       "Namespace without default-deny ingress",
-	Severity:    finding.Medium,
-	Category:    assessment.CategoryNetworking,
-	Description: "Detects namespaces containing workloads where no NetworkPolicy selects all pods and denies ingress by default.",
-	Rationale:   "Kubernetes allows all pod-to-pod traffic by default. Without a default-deny policy, one compromised pod can reach every service in the cluster, including databases and internal admin endpoints.",
-	Remediation: "Add a NetworkPolicy with podSelector: {} and policyTypes: [Ingress], then add policies allowing only required traffic. Confirm your CNI plugin enforces NetworkPolicy.",
-	References:  []finding.Reference{refNSANet, refCISNet},
-	Limitations: "Only NetworkPolicies present in the scanned input are considered. CNI-specific policies (e.g. CiliumNetworkPolicy, Calico GlobalNetworkPolicy) are not yet understood.",
+	ID:             "HX-NET-001",
+	Title:          "Namespace without default-deny ingress",
+	Severity:       finding.Medium,
+	Category:       assessment.CategoryNetworking,
+	Description:    "Detects namespaces containing workloads where no NetworkPolicy selects all pods and denies ingress by default.",
+	Rationale:      "Kubernetes allows all pod-to-pod traffic by default. Without a default-deny policy, one compromised pod can reach every service in the cluster, including databases and internal admin endpoints.",
+	Remediation:    "Add a NetworkPolicy with podSelector: {} and policyTypes: [Ingress], then add policies allowing only required traffic. Confirm your CNI plugin enforces NetworkPolicy.",
+	References:     []finding.Reference{refNSANet, refCISNet},
+	Limitations:    "Only NetworkPolicies present in the scanned input are considered. CNI-specific policies (e.g. CiliumNetworkPolicy, Calico GlobalNetworkPolicy) are not yet understood.",
+	NeedsInventory: true,
 }, "Ingress")
 
 var egressIsolation = isolationRule(assessment.Metadata{
-	ID:          "HX-NET-002",
-	Title:       "Namespace without default-deny egress",
-	Severity:    finding.Low,
-	Category:    assessment.CategoryNetworking,
-	Description: "Detects namespaces containing workloads where no NetworkPolicy selects all pods and denies egress by default.",
-	Rationale:   "Unrestricted egress lets a compromised pod reach cloud metadata services, the API server, other tenants and the internet for command-and-control or exfiltration.",
-	Remediation: "Add a NetworkPolicy with podSelector: {} and policyTypes: [Egress], then allow DNS and the specific destinations each workload needs.",
-	References:  []finding.Reference{refNSANet, refCISNet},
-	Limitations: "As for HX-NET-001.",
+	ID:             "HX-NET-002",
+	Title:          "Namespace without default-deny egress",
+	Severity:       finding.Low,
+	Category:       assessment.CategoryNetworking,
+	Description:    "Detects namespaces containing workloads where no NetworkPolicy selects all pods and denies egress by default.",
+	Rationale:      "Unrestricted egress lets a compromised pod reach cloud metadata services, the API server, other tenants and the internet for command-and-control or exfiltration.",
+	Remediation:    "Add a NetworkPolicy with podSelector: {} and policyTypes: [Egress], then allow DNS and the specific destinations each workload needs.",
+	References:     []finding.Reference{refNSANet, refCISNet},
+	Limitations:    "As for HX-NET-001.",
+	NeedsInventory: true,
 }, "Egress")
 
 var serviceExposure = assessment.ObjectRule{

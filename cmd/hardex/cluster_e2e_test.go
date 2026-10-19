@@ -206,3 +206,47 @@ func TestFixManifestsWritesOutputWithoutTouchingInputs(t *testing.T) {
 		t.Fatal("patched output still has minimal-profile findings")
 	}
 }
+
+func TestFleetAcrossTwoClusters(t *testing.T) {
+	_, kcA := startFakeCluster(t, "web")
+	_, kcB := startFakeCluster(t)
+	// Merge the two single-context kubeconfigs into one with contexts a and b.
+	read := func(p, ctx string) string {
+		b, _ := os.ReadFile(p)
+		dir := filepath.Dir(p)
+		s := strings.ReplaceAll(string(b), "certificate-authority: ca.crt", "certificate-authority: "+filepath.Join(dir, "ca.crt"))
+		s = strings.ReplaceAll(s, "{name: c,", "{name: c-"+ctx+",")
+		s = strings.ReplaceAll(s, "{name: u,", "{name: u-"+ctx+",")
+		s = strings.ReplaceAll(s, "{cluster: c, user: u}", "{cluster: c-"+ctx+", user: u-"+ctx+"}")
+		return strings.ReplaceAll(s, "{name: test,", "{name: "+ctx+",")
+	}
+	a, b := read(kcA, "a"), read(kcB, "b")
+	section := func(s, key string) string {
+		for _, line := range strings.Split(s, "\n") {
+			if strings.HasPrefix(line, key+": [") {
+				return strings.TrimSuffix(strings.TrimPrefix(line, key+": ["), "]")
+			}
+		}
+		return ""
+	}
+	merged := "apiVersion: v1\nkind: Config\ncurrent-context: a\n"
+	for _, key := range []string{"clusters", "contexts", "users"} {
+		merged += key + ": [" + section(a, key) + ", " + section(b, key) + "]\n"
+	}
+	kc := filepath.Join(t.TempDir(), "config")
+	os.WriteFile(kc, []byte(merged), 0o600)
+
+	out := t.TempDir()
+	code, stdout, stderr := cli(t, "", "fleet", "--kubeconfig", kc, "--contexts", "a,b", "--out", out, "--profile", "minimal")
+	if code != exitFindings || !strings.Contains(stdout, "HX-WL-001") || !strings.Contains(stdout, "inconsistent across clusters") {
+		t.Fatalf("exit %d\n%s\n%s", code, stdout, stderr)
+	}
+	for _, f := range []string{"a.json", "b.json"} {
+		if _, err := os.Stat(filepath.Join(out, f)); err != nil {
+			t.Errorf("report %s not saved", f)
+		}
+	}
+	if code, stdout, _ := cli(t, "", "compare", filepath.Join(out, "a.json"), filepath.Join(out, "b.json")); code != exitOK || !strings.Contains(stdout, "HX-WL-001") {
+		t.Fatalf("compare: exit %d\n%s", code, stdout)
+	}
+}

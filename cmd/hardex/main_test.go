@@ -2,6 +2,8 @@ package main
 
 import (
 	"bytes"
+	"crypto/sha256"
+	"encoding/hex"
 	"os"
 	"path/filepath"
 	"strings"
@@ -117,5 +119,20 @@ func TestModules(t *testing.T) {
 	os.WriteFile(bad, []byte("apiVersion: hardex.dev/v1alpha1\nkind: RuleModule\nname: x\nrules: []\n"), 0o644)
 	if code, _, _ := cli(t, "", "scan", "--module", bad, fixtures+"hardened"); code != exitUsage {
 		t.Fatal("invalid module accepted")
+	}
+}
+
+func TestReportDigestMatchesFile(t *testing.T) {
+	dir := t.TempDir()
+	rep := filepath.Join(dir, "r.json")
+	cli(t, "", "scan", "--format", "json", "-o", rep, "--fail-on", "none", fixtures+"insecure")
+	data, _ := os.ReadFile(rep)
+	sum := sha256.Sum256(data)
+	code, out, stderr := cli(t, "", "report", rep, "--format", "markdown")
+	if code != exitOK || !strings.Contains(out, hex.EncodeToString(sum[:])) {
+		t.Fatalf("exit %d, digest missing\n%s", code, stderr)
+	}
+	if code, out, _ := cli(t, "", "report", rep, "--format", "score"); code != exitOK || !strings.Contains(out, `"grade"`) {
+		t.Fatalf("score: exit %d\n%s", code, out)
 	}
 }
