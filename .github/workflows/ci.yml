@@ -9,17 +9,26 @@ on:
 permissions:
   contents: read
 
+# CodeQL runs through GitHub's default code-scanning setup (repository
+# Settings → Code security), which rejects a second, workflow-based CodeQL
+# upload. It is therefore not configured here.
+
 jobs:
   test:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       # Actions are pinned by commit SHA; Dependabot keeps them current.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+      # Build and test with the latest supported Go release, so binaries and
+      # the vulnerability scan include current standard-library security
+      # fixes. go.mod's "go" line is only the minimum version for users.
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
-          go-version-file: go.mod
+          go-version: stable
+          check-latest: true
+      - run: go version
       - run: make fmt vet
       - run: make test
       - run: make selfcheck
@@ -27,11 +36,10 @@ jobs:
         run: go run ./tools/gendocs && git diff --exit-code docs/rules.md
       - run: make vuln
 
-  codeql:
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      security-events: write
+  minimum-go:
+    # Confirm the module still builds and passes on the minimum Go version
+    # declared in go.mod.
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -39,8 +47,4 @@ jobs:
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version-file: go.mod
-      - uses: github/codeql-action/init@6f2ac81f5cd81fe351a197ba0b00d91d03cd2aee # v4.39.0
-        with:
-          languages: go
-      - uses: github/codeql-action/autobuild@6f2ac81f5cd81fe351a197ba0b00d91d03cd2aee # v4.39.0
-      - uses: github/codeql-action/analyze@6f2ac81f5cd81fe351a197ba0b00d91d03cd2aee # v4.39.0
+      - run: go test -count=1 ./...

@@ -1,5 +1,5 @@
 # Build a static binary and ship it on a distroless, non-root base.
-FROM golang:1.24 AS build
+FROM golang:1 AS build
 WORKDIR /src
 COPY go.mod go.sum ./
 RUN go mod download && go mod verify

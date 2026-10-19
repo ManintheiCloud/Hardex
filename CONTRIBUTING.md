@@ -21,7 +21,7 @@ make build            # ./bin/hardex
 go run ./tools/gendocs  # regenerate docs/rules.md after changing rule metadata
 ```
 
-Go 1.24 or later is required.
+Go 1.24 or later is required to build; CI and releases use the latest stable Go.
 
 ## Pull request expectations
 
