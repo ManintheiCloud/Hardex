@@ -17,9 +17,13 @@ WORK="$(mktemp -d)"
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 cd "$ROOT"
 
-pass() { echo "PASS: $*"; }
-fail() { echo "FAIL: $*" >&2; exit 1; }
-step() { echo; echo "=== $*"; }
+# On GitHub Actions, results are also annotations, readable without the log.
+annotate() { [ -n "${GITHUB_ACTIONS:-}" ] && echo "::$1 title=e2e::$(echo "$2" | tr '\n' ' ' | cut -c1-900)" || true; }
+pass() { echo "PASS: $*"; annotate notice "PASS: $*"; }
+fail() { echo "FAIL: $*" >&2; annotate error "FAIL: $*"; exit 1; }
+CURRENT_STEP=""
+step() { echo; echo "=== $*"; CURRENT_STEP="$*"; }
+trap 'rc=$?; annotate error "command failed (exit $rc) in step \"$CURRENT_STEP\" at line $LINENO: $BASH_COMMAND"' ERR
 cleanup() {
   if [ "${KEEP_CLUSTER:-}" != 1 ]; then kind delete cluster --name "$CLUSTER" >/dev/null 2>&1 || true; fi
   rm -rf "$WORK"
