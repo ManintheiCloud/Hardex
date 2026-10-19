@@ -35,11 +35,13 @@ rules:
   - HX-NET-001
   - HX-NET-003
   - HX-NET-004
+  - HX-NET-005
   - HX-CP-001
   - HX-CP-003
   - HX-CP-005
   - HX-CP-007
   - HX-CP-008
+  - HX-CP-009
   - HX-NODE-003
   # --- restricted additions ---
   - HX-WL-004 # privilege escalation

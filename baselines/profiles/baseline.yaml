@@ -37,9 +37,11 @@ rules:
   - HX-NET-001 # default-deny ingress
   - HX-NET-003 # external service exposure
   - HX-NET-004 # externalIPs
+  - HX-NET-005 # ingress TLS
   - HX-CP-001 # anonymous API access
   - HX-CP-003 # audit logging
   - HX-CP-005 # admission control
   - HX-CP-007 # encryption at rest
   - HX-CP-008 # kubelet certificate verification
+  - HX-CP-009 # fail-open validating webhooks
   - HX-NODE-003 # kubelet read-only port

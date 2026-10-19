@@ -8,7 +8,7 @@ Harden the cluster. Reduce the attack surface. Establish trust.
 
 Hardex is an open-source Kubernetes security hardening framework. It brings systematic, measurable and reproducible security controls to containerized infrastructure: assess, harden, verify, defend.
 
-> **Status: Phase II (Hardening Engine) — v0.2.0-dev.** Assessment (46 rules, three profiles, policy and waivers, JSON/SARIF), read-only live-cluster scanning, RBAC reachability analysis, and guarded remediation with backup, verification and rollback are implemented and tested. Continuous monitoring and admission control are **not** implemented yet; see [ROADMAP.md](ROADMAP.md). No production-readiness or security certification is claimed.
+> **Status: Phase III (Continuous Protection) — v0.3.0-dev.** Assessment (48 rules, three profiles, policy and waivers, JSON/SARIF), read-only live-cluster scanning, RBAC reachability, guarded remediation with backup, verification and rollback, assessment history, drift monitoring with signed notifications, and declarative rule modules are implemented and tested. Admission-time enforcement and cross-cluster analysis are **not** implemented yet; see [ROADMAP.md](ROADMAP.md). No production-readiness or security certification is claimed.
 
 ## What Hardex does today
 
@@ -22,13 +22,15 @@ $ hardex scan --profile restricted ./manifests
   detail:   container "web" runs privileged
   fix:      Remove securityContext.privileged. If specific kernel access is needed, grant the single required capability instead and document why.
 ...
-Summary: 69 findings (critical 11, high 23, medium 19, low 14, info 2), 0 waived
+Summary: 72 findings (critical 11, high 23, medium 22, low 14, info 2), 0 waived
 ```
 
-- **Assessment** of workloads, RBAC, network segmentation, Secrets handling, control-plane static pods, and kubelet configuration — [46 rules](docs/rules.md), each with rationale, remediation, known limitations and references.
+- **Assessment** of workloads, RBAC, network segmentation, Secrets handling, control-plane static pods, and kubelet configuration — [48 rules](docs/rules.md), each with rationale, remediation, known limitations and references.
 - **Live-cluster scanning** (`--cluster`) with a minimal read-only client: no Secrets access, TLS required, least-privilege [reader role](deploy/hardex-reader.yaml) provided.
 - **RBAC reachability**: follows each workload's service account through bindings to the permissions its token really carries (HX-RBAC-008).
 - **Remediation** (`hardex fix`): dry-run plans with risk ratings and a predicted result; patched manifests written to a new directory; on a cluster, explicitly authorised apply with backup, automatic all-or-nothing rollback on failure, post-change verification, and `hardex rollback`. See [docs/remediation.md](docs/remediation.md).
+- **Continuous monitoring**: `scan --history` and `hardex history` record and chart posture over time; `hardex monitor` re-assesses on an interval (or `--once` from cron), detects drift from the previous run or an approved baseline, and emits events as JSON Lines or HMAC-signed webhooks (generic or Slack). See [docs/monitoring.md](docs/monitoring.md).
+- **Rule modules**: organisation and community checks written in YAML, loaded with `--module`. See [docs/modules.md](docs/modules.md).
 - **Complete Pod Security Standards coverage**: every Baseline and Restricted control, plus NSA/CISA recommendations PSS does not include.
 - **Profiles** (`minimal` ⊂ `baseline` ⊂ `restricted`) defined as reviewable YAML, not code.
 - **Policy with accountability**: disabling a rule needs a justification; waivers need a justification and an expiry date, and expired waivers resurface automatically.
@@ -67,6 +69,13 @@ hardex fix --cluster --rules HX-WL-004,HX-WL-008 --apply   # backup, apply, veri
 hardex rollback hardex-backups/hardex-backup-<time>.json --cluster
 ```
 
+Monitor continuously:
+
+```sh
+hardex monitor --cluster --interval 1h --history ./hardex-history --webhook https://hooks.example.com/hardex
+hardex history ./hardex-history
+```
+
 Control-plane checks read static pod manifests (`/etc/kubernetes/manifests/*.yaml` on kubeadm nodes) and node checks read kubelet configuration files (commonly `/var/lib/kubelet/config.yaml`).
 
 Verify a remediation:
@@ -83,9 +92,9 @@ hardex diff before.json after.json          # exit 1 if anything >= high was int
 | Code | Meaning |
 |---|---|
 | 0 | No active findings at or above `--fail-on` (default `high`) |
-| 1 | Findings at or above `--fail-on`; for `diff`, a regression was introduced; for `fix --apply`, verification found a regression or an unresolved target |
+| 1 | Findings at or above `--fail-on`; for `diff`, a regression was introduced; for `fix --apply`, verification found a regression or an unresolved target; for `monitor --once`, new findings or baseline drift |
 | 2 | Invalid arguments, configuration or input |
-| 3 | Incomplete — a rule failed or cluster resources could not be read (results understate risk), or an apply failed and was rolled back |
+| 3 | Incomplete — a rule failed or cluster resources could not be read (results understate risk), an apply failed and was rolled back, or a notification could not be delivered |
 
 ### Configuration
 
@@ -133,6 +142,8 @@ hardex/
 ├── core/
 │   ├── assessment/        Rule contract, registry, fail-safe evaluator
 │   ├── cluster/           Minimal read-only Kubernetes API client and collector
+│   ├── history/           Recorded assessments and trends
+│   ├── modules/           Declarative (YAML) rule modules
 │   ├── finding/           Finding and report model (JSON schema v1alpha1)
 │   ├── policy/            Profiles selection, config, waivers, overrides
 │   ├── remediation/       Guarded JSON patches, inverses, backup, apply/rollback
@@ -148,13 +159,16 @@ hardex/
 ├── kubernetes/fixes.go    Automatic fixes and their risk ratings
 ├── baselines/             Profiles (YAML) and guidance citations
 ├── deploy/                Least-privilege reader role, example in-cluster CronJob
-├── integrations/reporting Text, JSON, SARIF
+├── integrations/
+│   ├── reporting/         Text, JSON, SARIF
+│   ├── monitoring/        Repeated assessment, drift, events
+│   └── notify/            JSON Lines and signed webhook delivery
 ├── tests/                 End-to-end detection / false-positive suites and fixtures
 ├── tools/gendocs          Generates docs/rules.md from rule metadata
 └── docs/
 ```
 
-`integrations/admission-control/` and `integrations/monitoring/` from the original design are deliberately absent until Phase III/IV; see [ROADMAP.md](ROADMAP.md).
+`integrations/admission-control/` from the original design is deliberately absent until Phase IV; see [ROADMAP.md](ROADMAP.md).
 
 ## Security validation
 

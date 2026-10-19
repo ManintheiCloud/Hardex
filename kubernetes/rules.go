@@ -11,9 +11,10 @@ import (
 	"github.com/ManintheiCloud/Hardex/kubernetes/workloads"
 )
 
-// Registry returns a validated registry of every built-in rule.
-func Registry() (*assessment.Registry, error) {
-	var all []assessment.Rule
+// Registry returns a validated registry of every built-in rule, plus any
+// extra rules (e.g. from declarative modules).
+func Registry(extra ...assessment.Rule) (*assessment.Registry, error) {
+	all := append([]assessment.Rule(nil), extra...)
 	for _, group := range [][]assessment.Rule{
 		workloads.Rules(), secrets.Rules(), rbac.Rules(), networking.Rules(), controlplane.Rules(), nodes.Rules(),
 	} {

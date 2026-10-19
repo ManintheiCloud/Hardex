@@ -1,6 +1,6 @@
 # Architecture
 
-This document describes how Hardex is built today (Phase II) and where the later phases attach. Decisions with lasting consequences are recorded in [adr/](adr/).
+This document describes how Hardex is built today (Phase III) and where the later phases attach. Decisions with lasting consequences are recorded in [adr/](adr/).
 
 ## Pipeline
 
@@ -32,6 +32,10 @@ This document describes how Hardex is built today (Phase II) and where the later
 | `core/cluster` | kubeconfig/in-cluster auth; read-only-by-default API client; paginated collection into an `Inventory` | resource |
 | `core/remediation` | Guarded JSON patches, inverse patches, risk-rated plans, backups, all-or-nothing apply, rollback | finding, resource |
 | `kubernetes/fixes.go` | Which findings have automatic fixes, and their risk | remediation |
+| `core/history` | Report store (one JSON file per assessment), trends | finding, verification |
+| `core/modules` | Strictly validated declarative rules compiled to `assessment.Rule` | assessment, resource |
+| `integrations/monitoring` | Record, compare, emit events per assessment | history, verification, notify |
+| `integrations/notify` | JSON Lines and HMAC-signed webhook sinks | finding |
 
 Dependency direction is strictly inward: `core/*` never imports `kubernetes/*`, `baselines` or `integrations/*`. A rule package never imports another rule package.
 
@@ -87,6 +91,6 @@ A finding's fingerprint is a hash of rule ID, resource kind/namespace/name, cont
 |---|---|---|
 | II – remediation (done) | `core/remediation` + `kubernetes/fixes.go` | See [ADR 0005](adr/0005-remediation-engine.md) |
 | II – live cluster (done) | `core/cluster` produces an `Inventory` | Rules are unchanged; see [ADR 0004](adr/0004-live-cluster-client.md) |
-| III – continuous | Scheduled scans persisting JSON reports; `verification.Compare` for drift | Report schema is versioned for this reason |
+| III – continuous (done) | `core/history`, `integrations/monitoring`, `integrations/notify` | See [ADR 0006](adr/0006-continuous-monitoring.md) |
 | III/IV – admission | `integrations/admission-control` running the same rules in a validating webhook | Same rule code in CI and at admission avoids drift between "what we check" and "what we block" |
-| IV – policy modules | Out-of-tree rule packages registering through `assessment.NewRegistry` | Requires a stable rule API (post-1.0) |
+| III – modules (done) | `core/modules`, `--module` | See [ADR 0007](adr/0007-declarative-rule-modules.md) |

@@ -1,6 +1,6 @@
 # Threat model
 
-Version 0.2 — Phase II. This document has two parts: the threats Hardex helps defend **clusters** against (what the rules are for), and the threats to **Hardex itself** (how the tool must behave). Both are living documents; propose changes by pull request.
+Version 0.3 — Phase III. This document has two parts: the threats Hardex helps defend **clusters** against (what the rules are for), and the threats to **Hardex itself** (how the tool must behave). Both are living documents; propose changes by pull request.
 
 ---
 
@@ -97,6 +97,13 @@ These are tracked in [ROADMAP.md](../ROADMAP.md):
 | H17 | Rollback overwrites someone else's later change | Inverse patches test the values Hardex set; rollback refuses a different API server than the backup's (implemented, tested) |
 | H18 | Hostile object names write files outside `--out` | Output file names are sanitised to a safe character set (implemented, tested) |
 | H19 | Partial collection reported as a clean cluster | Unreadable resources make the assessment incomplete (exit 3) unless `--allow-partial` (implemented, tested) |
+| H20 | Forged or replayed alerts sent to the receiver | Webhooks are HTTPS-only and HMAC-SHA256 signed over timestamp and body; `notify.Verify` enforces a time window (implemented, tested) |
+| H21 | Manifest content injects mentions or links into chat alerts | Object names escaped in Slack payloads (implemented, tested) |
+| H22 | Alerts silently lost | Delivery failures are reported and make one-shot monitoring exit 3 (implemented, tested) |
+| H23 | Webhook secret leaks via process listings or shell history | Secret read only from `$HARDEX_WEBHOOK_SECRET`; no flag (implemented) |
+| H24 | A rule module weakens or bypasses assessment | Modules are loaded only via `--module` (never from scanned content), validated strictly, cannot reuse `HX-` IDs, and use RE2 (no catastrophic backtracking); invalid modules fail the run (implemented, tested) |
+| H25 | History exposes weaknesses to other local users | History files and directory are created owner-only (0600/0700) (implemented, tested) |
+| H26 | Two distinct findings share a fingerprint and are conflated by diff/history | Engine disambiguates collisions; test enforces uniqueness on fixtures (implemented, tested) |
 
 ### Residual risks
 

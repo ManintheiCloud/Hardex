@@ -1,6 +1,7 @@
 package baselines_test
 
 import (
+	"regexp"
 	"testing"
 
 	"github.com/ManintheiCloud/Hardex/baselines"
@@ -50,6 +51,18 @@ func TestEveryRuleCitesGuidance(t *testing.T) {
 	for _, r := range reg.All() {
 		if len(r.Metadata().References) == 0 {
 			t.Errorf("rule %s has no references", r.Metadata().ID)
+		}
+	}
+}
+
+// Built-in rule IDs follow HX-AREA-NNN; the looser pattern accepted by the
+// registry exists only for declarative modules.
+func TestBuiltinRuleIDs(t *testing.T) {
+	reg, _ := kubernetes.Registry()
+	re := regexp.MustCompile(`^HX-[A-Z]+-\d{3}$`)
+	for _, r := range reg.All() {
+		if !re.MatchString(r.Metadata().ID) {
+			t.Errorf("built-in rule id %s does not match HX-AREA-NNN", r.Metadata().ID)
 		}
 	}
 }

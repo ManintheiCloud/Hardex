@@ -5,6 +5,7 @@ package assessment
 import (
 	"fmt"
 	"regexp"
+	"strings"
 
 	"github.com/ManintheiCloud/Hardex/core/finding"
 	"github.com/ManintheiCloud/Hardex/core/resource"
@@ -41,7 +42,9 @@ type Metadata struct {
 	Limitations string
 }
 
-var idPattern = regexp.MustCompile(`^HX-[A-Z]+-\d{3}$`)
+// idPattern admits built-in IDs (HX-WL-001) and module IDs (ACME-WL-001).
+// Built-in IDs are additionally held to HX-AREA-NNN by a test.
+var idPattern = regexp.MustCompile(`^[A-Z][A-Z0-9]*(-[A-Z0-9]+)+$`)
 
 // Validate reports whether the metadata is complete.
 func (m Metadata) Validate() error {
@@ -79,8 +82,9 @@ type Context struct {
 	Inventory *resource.Inventory
 	Options   Options
 
-	meta     Metadata
-	findings []finding.Finding
+	meta         Metadata
+	findings     []finding.Finding
+	fingerprints map[string]bool
 }
 
 // Hit describes one occurrence of a rule's weakness.
@@ -125,6 +129,18 @@ func (c *Context) Report(h Hit) {
 		References:  c.meta.References,
 	}
 	f.ComputeFingerprint()
+	// Two distinct occurrences must never share a fingerprint, or diffing
+	// would conflate them. Rules should report distinct paths; if one does
+	// not, disambiguate deterministically by the message.
+	if c.fingerprints == nil {
+		c.fingerprints = map[string]bool{}
+	}
+	if c.fingerprints[f.Fingerprint] {
+		f.Path += "#" + f.Message
+		f.ComputeFingerprint()
+		f.Path = strings.TrimSuffix(f.Path, "#"+f.Message)
+	}
+	c.fingerprints[f.Fingerprint] = true
 	c.findings = append(c.findings, f)
 }
 

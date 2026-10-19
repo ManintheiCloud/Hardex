@@ -14,10 +14,12 @@ Severity is the default; individual findings may be raised or lowered where the 
 | [HX-CP-006](#hx-cp-006) | high | control-plane | etcd not protected by mutual TLS | baseline, minimal, restricted |
 | [HX-CP-007](#hx-cp-007) | medium | control-plane | Secrets not encrypted at rest | baseline, restricted |
 | [HX-CP-008](#hx-cp-008) | medium | control-plane | API server does not verify kubelet certificates | baseline, restricted |
+| [HX-CP-009](#hx-cp-009) | medium | control-plane | Validating webhook fails open | baseline, restricted |
 | [HX-NET-001](#hx-net-001) | medium | networking | Namespace without default-deny ingress | baseline, restricted |
 | [HX-NET-002](#hx-net-002) | low | networking | Namespace without default-deny egress | restricted |
 | [HX-NET-003](#hx-net-003) | medium | networking | Service exposed outside the cluster | baseline, restricted |
 | [HX-NET-004](#hx-net-004) | medium | networking | Service with externalIPs | baseline, restricted |
+| [HX-NET-005](#hx-net-005) | medium | networking | Ingress without TLS | baseline, restricted |
 | [HX-NODE-001](#hx-node-001) | high | nodes | Kubelet allows anonymous requests | baseline, minimal, restricted |
 | [HX-NODE-002](#hx-node-002) | critical | nodes | Kubelet authorization disabled | baseline, minimal, restricted |
 | [HX-NODE-003](#hx-node-003) | medium | nodes | Kubelet read-only port enabled | baseline, restricted |
@@ -180,6 +182,23 @@ Severity is the default; individual findings may be raised or lowered where the 
 - CIS: [§1.2 API Server](https://www.cisecurity.org/benchmark/kubernetes)
 - NSA-CISA: Kubernetes Hardening Guidance v1.2 — Network separation and hardening — control plane
 
+## HX-CP-009
+
+**Validating webhook fails open** — medium, control-plane
+
+**Checks:** Detects ValidatingWebhookConfigurations whose webhooks guard workload, RBAC or networking resources with failurePolicy: Ignore.
+
+**Why it matters:** A policy webhook that fails open is bypassed whenever it is unavailable. An attacker who can slow down, crash or partition the webhook service can then create workloads the policy would have rejected.
+
+**Remediation:** Set failurePolicy: Fail for security policy webhooks, run them highly available, and exclude only the namespaces needed to recover the webhook itself.
+
+**Known limitations:** Webhooks that are not security controls (e.g. defaulting or metrics) are reported too when they fail open; waive them with a justification.
+
+**References:**
+
+- NSA-CISA: Kubernetes Hardening Guidance v1.2 — Authentication and authorization
+- Kubernetes: [Dynamic admission control: failure policy](https://kubernetes.io/docs/reference/access-authn-authz/extensible-admission-controllers/#failure-policy)
+
 ## HX-NET-001
 
 **Namespace without default-deny ingress** — medium, networking
@@ -244,6 +263,23 @@ Severity is the default; individual findings may be raised or lowered where the 
 
 - NSA-CISA: Kubernetes Hardening Guidance v1.2 — Network separation and hardening
 - Kubernetes: [CVE-2020-8554](https://github.com/kubernetes/kubernetes/issues/97076)
+
+## HX-NET-005
+
+**Ingress without TLS** — medium, networking
+
+**Checks:** Detects Ingresses with no TLS configuration, and Ingress hosts not covered by any TLS entry.
+
+**Why it matters:** Traffic to hosts without TLS crosses the network in clear text: credentials, session cookies and API tokens can be read or modified in transit.
+
+**Remediation:** Add spec.tls entries (with a certificate Secret, e.g. issued by cert-manager) covering every host in spec.rules, and redirect HTTP to HTTPS in the ingress controller.
+
+**Known limitations:** TLS terminated in front of the Ingress (e.g. at a cloud load balancer) is not visible and is reported.
+
+**References:**
+
+- NSA-CISA: Kubernetes Hardening Guidance v1.2 — Network separation and hardening
+- Kubernetes: [Ingress: TLS](https://kubernetes.io/docs/concepts/services-networking/ingress/#tls)
 
 ## HX-NODE-001
 

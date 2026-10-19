@@ -1,0 +1,55 @@
+# Example declarative rule module. Load it with:
+#   hardex scan --module examples/modules/organization-policy.yaml ./k8s
+#
+# Each rule describes a *violation*: a finding is reported when the value at
+# `path` satisfies `op`. IDs must not start with HX- (reserved for built-ins).
+apiVersion: hardex.dev/v1alpha1
+kind: RuleModule
+name: example-organization-policy
+description: Organisation-specific guardrails layered on top of the Hardex profiles.
+rules:
+  - id: ORG-WL-001
+    title: Workload has no owner label
+    severity: low
+    category: governance
+    description: Every long-running workload must carry an `owner` label naming the team responsible for it.
+    rationale: Findings on unowned workloads are not acted on; incident responders need to know whom to call.
+    remediation: Add metadata.labels.owner with the owning team's identifier.
+    match:
+      scope: object
+      kinds: [Deployment, StatefulSet, DaemonSet, CronJob]
+      excludeNamespaces: [kube-system]
+    violation:
+      path: metadata.labels.owner
+      op: absent
+    message: workload has no owner label
+
+  - id: ORG-SC-001
+    title: Image from an unapproved registry
+    severity: high
+    category: supply-chain
+    description: Container images must come from the organisation's registry, where they are scanned and signed.
+    rationale: Images pulled directly from public registries bypass vulnerability scanning and provenance checks.
+    remediation: Mirror the image into registry.example.com and reference it from there.
+    references:
+      - {framework: NSA-CISA, control: "Kubernetes Hardening Guidance v1.2 — image scanning and integrity"}
+    match:
+      scope: container
+    violation:
+      path: image
+      op: notMatches
+      pattern: '^registry\.example\.com/'
+    message: image is not from registry.example.com
+
+  - id: ORG-WL-002
+    title: Container has no memory request
+    severity: low
+    category: workloads
+    description: Containers must request memory so the scheduler can place them safely.
+    rationale: Pods without memory requests are the first to be evicted and make node capacity planning unreliable.
+    remediation: Set resources.requests.memory on every container.
+    match:
+      scope: container
+    violation:
+      path: resources.requests.memory
+      op: absent

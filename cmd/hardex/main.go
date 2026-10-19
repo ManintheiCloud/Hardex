@@ -14,8 +14,11 @@ import (
 
 	"github.com/ManintheiCloud/Hardex"
 	"github.com/ManintheiCloud/Hardex/baselines"
+	"github.com/ManintheiCloud/Hardex/core/assessment"
 	"github.com/ManintheiCloud/Hardex/core/cluster"
 	"github.com/ManintheiCloud/Hardex/core/finding"
+	"github.com/ManintheiCloud/Hardex/core/history"
+	"github.com/ManintheiCloud/Hardex/core/modules"
 	"github.com/ManintheiCloud/Hardex/core/verification"
 	"github.com/ManintheiCloud/Hardex/integrations/reporting"
 	"github.com/ManintheiCloud/Hardex/kubernetes"
@@ -34,6 +37,9 @@ const usage = `Hardex — Kubernetes security assessment
 Usage:
   hardex scan [flags] PATH...      Assess manifests, directories or "-" (stdin)
   hardex scan --cluster [flags]    Assess the live cluster (read-only)
+  hardex monitor [flags] PATH...|--cluster
+                                   Assess repeatedly; record history; alert on drift
+  hardex history DIR               Show trends from scan --history / monitor
   hardex rules [RULE-ID]           List rules, or explain one
   hardex profiles                  List built-in profiles
   hardex diff BEFORE AFTER         Compare two JSON reports (verify remediation)
@@ -64,6 +70,10 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 		return cmdProfiles(stdout, stderr)
 	case "diff":
 		return cmdDiff(args[1:], stdout, stderr)
+	case "monitor":
+		return cmdMonitor(args[1:], stdin, stdout, stderr)
+	case "history":
+		return cmdHistory(args[1:], stdout, stderr)
 	case "fix":
 		return cmdFix(args[1:], stdin, stdout, stderr)
 	case "rollback":
@@ -116,6 +126,10 @@ func cmdScan(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 	output := fs.String("o", "", "write report to this file instead of stdout")
 	failOn := fs.String("fail-on", "high", "exit 1 if any active finding is at or above this severity (info..critical, or none)")
 	includeSystem := fs.Bool("include-system", false, "also assess Kubernetes-managed objects (system:* RBAC, kube-system networking, control-plane pods as workloads)")
+	var mods multiFlag
+	fs.Var(&mods, "module", "declarative rule module file (repeatable; never loaded implicitly)")
+	historyDir := fs.String("history", "", "also record the report in this history directory (see hardex history)")
+	keep := fs.Int("keep", 0, "with --history, keep only the newest N reports (0 = keep all)")
 	var cf clusterFlags
 	cf.register(fs)
 	positional, err := parseInterleaved(fs, args)
@@ -143,7 +157,7 @@ func cmdScan(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 		return exitUsage
 	}
 
-	opts := hardex.ScanOptions{Paths: paths, Stdin: stdin, Config: cfg, Profile: *profile}
+	opts := hardex.ScanOptions{Paths: paths, Stdin: stdin, Config: cfg, Profile: *profile, Modules: mods}
 	if cf.active() {
 		client, err := cf.connect(cluster.ReadOnly)
 		if err != nil {
@@ -181,6 +195,20 @@ func cmdScan(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 		fmt.Fprintf(stderr, "report written to %s: %d findings (%d critical, %d high)\n",
 			*output, report.Summary.Total, report.Summary.Critical, report.Summary.High)
 	}
+	if *historyDir != "" {
+		store, err := history.Open(*historyDir)
+		if err == nil {
+			var path string
+			if path, err = store.Save(report); err == nil {
+				fmt.Fprintf(stderr, "recorded in history: %s\n", path)
+				_, err = store.Prune(*keep)
+			}
+		}
+		if err != nil {
+			fmt.Fprintln(stderr, "scan: history:", err)
+			return exitUsage
+		}
+	}
 
 	switch {
 	case !report.Complete():
@@ -193,7 +221,24 @@ func cmdScan(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 }
 
 func cmdRules(args []string, stdout, stderr io.Writer) int {
-	reg, err := kubernetes.Registry()
+	fs := flag.NewFlagSet("rules", flag.ContinueOnError)
+	fs.SetOutput(stderr)
+	var mods multiFlag
+	fs.Var(&mods, "module", "also list rules from this module file (repeatable)")
+	args, err := parseInterleaved(fs, args)
+	if err != nil {
+		return exitUsage
+	}
+	var extra []assessment.Rule
+	for _, m := range mods {
+		rules, err := modules.Load(m)
+		if err != nil {
+			fmt.Fprintln(stderr, "rules:", err)
+			return exitUsage
+		}
+		extra = append(extra, rules...)
+	}
+	reg, err := kubernetes.Registry(extra...)
 	if err != nil {
 		fmt.Fprintln(stderr, err)
 		return exitUsage

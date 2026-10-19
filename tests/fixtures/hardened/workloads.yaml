@@ -151,3 +151,38 @@ spec:
   loadBalancerSourceRanges: ["203.0.113.0/24"]
   selector: {app: web}
   ports: [{port: 443, targetPort: 8080}]
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: web
+  namespace: shop
+spec:
+  tls:
+    - hosts: ["*.example.com"]
+      secretName: wildcard-tls
+  rules:
+    - host: shop.example.com
+      http:
+        paths: [{path: /, pathType: Prefix, backend: {service: {name: web, port: {number: 80}}}}]
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingWebhookConfiguration
+metadata:
+  name: policy-engine
+webhooks:
+  - name: validate.policy.example.com
+    failurePolicy: Fail
+    sideEffects: None
+    admissionReviewVersions: [v1]
+    clientConfig: {service: {name: policy, namespace: policy}}
+    rules:
+      - {apiGroups: [""], apiVersions: [v1], operations: [CREATE, UPDATE], resources: [pods]}
+  # Non-blocking metrics webhook on reads only: failing open is fine.
+  - name: observe.metrics.example.com
+    failurePolicy: Ignore
+    sideEffects: None
+    admissionReviewVersions: [v1]
+    clientConfig: {service: {name: metrics, namespace: metrics}}
+    rules:
+      - {apiGroups: [""], apiVersions: [v1], operations: [DELETE], resources: [pods]}

@@ -2,7 +2,20 @@
 
 All notable changes are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow [Semantic Versioning](https://semver.org/). Before 1.0, minor versions may contain breaking changes.
 
-## [Unreleased] — 0.2.0 (Phase II: Hardening Engine)
+## [Unreleased] — 0.3.0 (Phase III: Continuous Protection)
+
+### Added
+- `scan --history DIR` and `hardex history`: recorded assessments and trend tables.
+- `hardex monitor`: repeated (`--interval`) or one-shot (`--once`) assessment with drift detection against the previous run or an approved `--baseline`; events as JSON Lines and HTTPS webhooks signed with HMAC-SHA256 (generic or Slack format).
+- Declarative rule modules (`--module`), with an example organisation policy.
+- HX-NET-005 (Ingress without TLS) and HX-CP-009 (fail-open validating webhooks); Ingresses and ValidatingWebhookConfigurations are now collected from live clusters.
+- `deploy/hardex-monitor.yaml` for hourly in-cluster monitoring.
+
+### Fixed
+- HX-CP-005 reported two different problems with the same fingerprint, so `diff` could conflate them. Findings now have distinct paths, and the engine guarantees unique fingerprints.
+- CI: removed the workflow CodeQL job that conflicted with GitHub's default setup; build and scan with the latest stable Go.
+
+## 0.2.0 (Phase II: Hardening Engine)
 
 ### Added
 - `hardex scan --cluster` / `--in-cluster`: read-only live-cluster assessment with a dependency-free API client (kubeconfig tokens, client certificates, exec plugins, in-cluster service accounts). Secrets are never read; unreadable resources make the assessment incomplete unless `--allow-partial`.

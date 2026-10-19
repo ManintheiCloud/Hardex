@@ -64,6 +64,8 @@ var Collected = []Resource{
 	{"batch", "v1", "jobs", "Job", false},
 	{"batch", "v1", "cronjobs", "CronJob", true},
 	{"networking.k8s.io", "v1", "networkpolicies", "NetworkPolicy", false},
+	{"networking.k8s.io", "v1", "ingresses", "Ingress", false},
+	{"admissionregistration.k8s.io", "v1", "validatingwebhookconfigurations", "ValidatingWebhookConfiguration", false},
 	{"rbac.authorization.k8s.io", "v1", "roles", "Role", false},
 	{"rbac.authorization.k8s.io", "v1", "rolebindings", "RoleBinding", false},
 	{"rbac.authorization.k8s.io", "v1", "clusterroles", "ClusterRole", false},

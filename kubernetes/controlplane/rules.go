@@ -11,7 +11,7 @@ import (
 
 // Rules returns every control-plane rule.
 func Rules() []assessment.Rule {
-	return []assessment.Rule{anonymousAuth, authorizationMode, auditLogging, profiling, admissionPlugins, etcdTLS, encryptionAtRest, kubeletCA}
+	return []assessment.Rule{anonymousAuth, authorizationMode, auditLogging, profiling, admissionPlugins, etcdTLS, encryptionAtRest, kubeletCA, failOpenWebhooks}
 }
 
 var (
@@ -24,6 +24,14 @@ var (
 
 func report(ctx *assessment.Context, c component, flag, observed, msg string, sev *finding.Severity) {
 	ctx.Report(assessment.Hit{Object: c.obj, Container: c.container.Name, Path: c.path() + "[--" + flag + "]",
+		Observed: observed, Message: msg, Severity: sev})
+}
+
+// reportItem reports a problem with one item of a list-valued flag, so that
+// separate problems with the same flag have distinct field paths (and
+// therefore distinct fingerprints).
+func reportItem(ctx *assessment.Context, c component, flag, item, observed, msg string, sev *finding.Severity) {
+	ctx.Report(assessment.Hit{Object: c.obj, Container: c.container.Name, Path: c.path() + "[--" + flag + "][" + item + "]",
 		Observed: observed, Message: msg, Severity: sev})
 }
 
@@ -135,13 +143,13 @@ var admissionPlugins = apiServerRule(assessment.Metadata{
 	enabled, _ := c.flag("enable-admission-plugins")
 	disabled, _ := c.flag("disable-admission-plugins")
 	if listContains(enabled, "AlwaysAdmit") {
-		report(ctx, c, "enable-admission-plugins", enabled, "AlwaysAdmit admission plugin is enabled", nil)
+		reportItem(ctx, c, "enable-admission-plugins", "AlwaysAdmit", enabled, "AlwaysAdmit admission plugin is enabled", nil)
 	}
 	if listContains(disabled, "PodSecurity") {
-		report(ctx, c, "disable-admission-plugins", disabled, "PodSecurity admission is disabled", nil)
+		reportItem(ctx, c, "disable-admission-plugins", "PodSecurity", disabled, "PodSecurity admission is disabled", nil)
 	}
 	if !listContains(enabled, "NodeRestriction") {
-		report(ctx, c, "enable-admission-plugins", valueOrDefault(enabled, "<unset>"), "NodeRestriction admission plugin is not enabled",
+		reportItem(ctx, c, "enable-admission-plugins", "NodeRestriction", valueOrDefault(enabled, "<unset>"), "NodeRestriction admission plugin is not enabled",
 			assessment.SeverityOverride(finding.Medium))
 	}
 })

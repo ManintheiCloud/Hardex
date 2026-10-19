@@ -1,0 +1,70 @@
+# Continuous in-cluster monitoring: an hourly one-shot assessment that keeps
+# its history on a volume, compares each run with the previous one, and
+# posts new and resolved findings to a signed webhook.
+#
+# Apply hardex-reader.yaml first. Create the webhook secret with:
+#   kubectl -n hardex create secret generic hardex-webhook \
+#     --from-literal=url=https://hooks.example.com/... \
+#     --from-literal=signing-secret="$(openssl rand -hex 32)"
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: hardex-history
+  namespace: hardex
+spec:
+  accessModes: [ReadWriteOnce]
+  resources:
+    requests: {storage: 1Gi}
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: hardex-monitor
+  namespace: hardex
+spec:
+  schedule: "7 * * * *"
+  concurrencyPolicy: Forbid
+  jobTemplate:
+    spec:
+      backoffLimit: 0
+      template:
+        spec:
+          serviceAccountName: hardex
+          # The scanner needs its own token to read the API; nothing else does.
+          automountServiceAccountToken: true
+          restartPolicy: Never
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 65532
+            fsGroup: 65532
+            seccompProfile: {type: RuntimeDefault}
+          containers:
+            - name: hardex
+              image: ghcr.io/manintheicloud/hardex:0.3.0 # pin by digest in production
+              args:
+                - monitor
+                - --once
+                - --in-cluster
+                - --history=/var/lib/hardex/history
+                - --keep=720
+                - --notify-min=high
+                - --webhook=$(WEBHOOK_URL)
+              env:
+                - name: WEBHOOK_URL
+                  valueFrom:
+                    secretKeyRef: {name: hardex-webhook, key: url}
+                - name: HARDEX_WEBHOOK_SECRET
+                  valueFrom:
+                    secretKeyRef: {name: hardex-webhook, key: signing-secret}
+              securityContext:
+                allowPrivilegeEscalation: false
+                readOnlyRootFilesystem: true
+                capabilities: {drop: ["ALL"]}
+              resources:
+                requests: {cpu: 100m, memory: 128Mi}
+                limits: {cpu: "1", memory: 512Mi}
+              volumeMounts:
+                - {name: history, mountPath: /var/lib/hardex}
+          volumes:
+            - name: history
+              persistentVolumeClaim: {claimName: hardex-history}

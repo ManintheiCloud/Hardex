@@ -2,3 +2,5 @@
 *.sarif
 /report*.json
 .DS_Store
+/hardex-history/
+/hardex-backups/

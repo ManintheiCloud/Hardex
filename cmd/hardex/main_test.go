@@ -77,3 +77,45 @@ func TestDiffWorkflow(t *testing.T) {
 		t.Errorf("regression: exit %d, want %d", code, exitFindings)
 	}
 }
+
+func TestMonitorOnce(t *testing.T) {
+	dir := t.TempDir()
+	m := filepath.Join(dir, "m")
+	os.MkdirAll(m, 0o755)
+	copyFile := func(src, dst string) {
+		b, _ := os.ReadFile(src)
+		os.WriteFile(dst, b, 0o644)
+	}
+	copyFile(fixtures+"hardened/workloads.yaml", filepath.Join(m, "a.yaml"))
+	h := filepath.Join(dir, "h")
+	if code, _, stderr := cli(t, "", "monitor", "--once", "--history", h, "--events", "", m); code != exitOK {
+		t.Fatalf("first: exit %d %s", code, stderr)
+	}
+	copyFile(fixtures+"insecure/workloads.yaml", filepath.Join(m, "b.yaml"))
+	code, out, _ := cli(t, "", "monitor", "--once", "--history", h, m)
+	if code != exitFindings || !strings.Contains(out, `"finding.introduced"`) {
+		t.Fatalf("drift: exit %d\n%s", code, out)
+	}
+	if code, out, _ := cli(t, "", "history", h); code != exitOK || !strings.Contains(out, "+") {
+		t.Fatalf("history: exit %d\n%s", code, out)
+	}
+	if code, _, _ := cli(t, "", "monitor", "--once", "--history", h, "--webhook", "http://insecure.example", m); code != exitUsage {
+		t.Error("accepted http webhook")
+	}
+}
+
+func TestModules(t *testing.T) {
+	mod := "../../examples/modules/organization-policy.yaml"
+	code, out, stderr := cli(t, "", "scan", "--module", mod, "--format", "json", "--fail-on", "none", fixtures+"hardened")
+	if code != exitOK || !strings.Contains(out, `"ORG-SC-001"`) || !strings.Contains(out, `"ORG-WL-001"`) {
+		t.Fatalf("exit %d\n%s\n%s", code, out, stderr)
+	}
+	if code, out, _ := cli(t, "", "rules", "--module", mod, "ORG-SC-001"); code != exitOK || !strings.Contains(out, "unapproved registry") {
+		t.Fatalf("rules: exit %d\n%s", code, out)
+	}
+	bad := filepath.Join(t.TempDir(), "bad.yaml")
+	os.WriteFile(bad, []byte("apiVersion: hardex.dev/v1alpha1\nkind: RuleModule\nname: x\nrules: []\n"), 0o644)
+	if code, _, _ := cli(t, "", "scan", "--module", bad, fixtures+"hardened"); code != exitUsage {
+		t.Fatal("invalid module accepted")
+	}
+}

@@ -62,6 +62,8 @@ var insecureExpectations = []expectation{
 	{"HX-NET-003", "Service shop/public-lb", finding.Medium},
 	{"HX-NET-003", "Service shop/node-port", finding.Low},
 	{"HX-NET-004", "Service shop/hijack", finding.Medium},
+	{"HX-NET-005", "Ingress shop/plain-http", finding.Medium},
+	{"HX-NET-005", "Ingress shop/partial-tls", finding.Medium},
 	{"HX-CP-001", "Pod kube-system/kube-apiserver-cp1", finding.Medium},
 	{"HX-CP-002", "Pod kube-system/kube-apiserver-cp1", finding.Critical},
 	{"HX-CP-003", "Pod kube-system/kube-apiserver-cp1", finding.Medium},
@@ -71,6 +73,7 @@ var insecureExpectations = []expectation{
 	{"HX-CP-006", "Pod kube-system/kube-apiserver-cp1", finding.High},
 	{"HX-CP-007", "Pod kube-system/kube-apiserver-cp1", finding.Medium},
 	{"HX-CP-008", "Pod kube-system/kube-apiserver-cp1", finding.Medium},
+	{"HX-CP-009", "ValidatingWebhookConfiguration policy-engine", finding.Medium},
 	{"HX-NODE-001", "KubeletConfiguration kubelet.yaml", finding.High},
 	{"HX-NODE-002", "KubeletConfiguration kubelet.yaml", finding.Critical},
 	{"HX-NODE-003", "KubeletConfiguration kubelet.yaml", finding.Medium},
@@ -190,6 +193,21 @@ func TestYAML11BooleansDoNotEvadeDetection(t *testing.T) {
 	for id, found := range want {
 		if !found {
 			t.Errorf("%s evaded by YAML 1.1 boolean spelling", id)
+		}
+	}
+}
+
+// Distinct findings must have distinct fingerprints; otherwise diff, history
+// and remediation verification would conflate them.
+func TestFingerprintsAreUnique(t *testing.T) {
+	for _, dir := range []string{"fixtures/insecure", "fixtures/evasion"} {
+		r := scan(t, "restricted", dir)
+		seen := map[string]finding.Finding{}
+		for _, f := range r.Findings {
+			if prev, dup := seen[f.Fingerprint]; dup {
+				t.Errorf("fingerprint %s shared by %s %q and %s %q", f.Fingerprint, prev.RuleID, prev.Message, f.RuleID, f.Message)
+			}
+			seen[f.Fingerprint] = f
 		}
 	}
 }

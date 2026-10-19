@@ -11,13 +11,14 @@ import (
 	"github.com/ManintheiCloud/Hardex/baselines"
 	"github.com/ManintheiCloud/Hardex/core/assessment"
 	"github.com/ManintheiCloud/Hardex/core/finding"
+	"github.com/ManintheiCloud/Hardex/core/modules"
 	"github.com/ManintheiCloud/Hardex/core/policy"
 	"github.com/ManintheiCloud/Hardex/core/resource"
 	"github.com/ManintheiCloud/Hardex/kubernetes"
 )
 
 // Version is set at build time with -ldflags "-X github.com/ManintheiCloud/Hardex.Version=...".
-var Version = "0.2.0-dev"
+var Version = "0.3.0-dev"
 
 // ScanOptions configures a scan.
 type ScanOptions struct {
@@ -38,6 +39,9 @@ type ScanOptions struct {
 	CollectionErrors []string
 	// CollectionWarnings are reported as warnings.
 	CollectionWarnings []string
+	// Modules are declarative rule module files. Their rules run in
+	// addition to the profile unless disabled in configuration.
+	Modules []string
 }
 
 // Scan runs a complete assessment.
@@ -58,13 +62,24 @@ func Scan(opts ScanOptions) (*finding.Report, []assessment.Metadata, error) {
 		now = time.Now()
 	}
 
-	reg, err := kubernetes.Registry()
+	var moduleRules []assessment.Rule
+	for _, path := range opts.Modules {
+		rules, err := modules.Load(path)
+		if err != nil {
+			return nil, nil, err
+		}
+		moduleRules = append(moduleRules, rules...)
+	}
+	reg, err := kubernetes.Registry(moduleRules...)
 	if err != nil {
-		return nil, nil, fmt.Errorf("internal error: %w", err)
+		return nil, nil, fmt.Errorf("rules: %w", err)
 	}
 	profile, err := baselines.Profile(profileName)
 	if err != nil {
 		return nil, nil, err
+	}
+	for _, r := range moduleRules {
+		profile.Rules = append(profile.Rules, r.Metadata().ID)
 	}
 	rules, warnings, err := policy.SelectRules(reg, profile, cfg)
 	if err != nil {
