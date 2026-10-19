@@ -66,3 +66,26 @@ func TestBuiltinRuleIDs(t *testing.T) {
 		}
 	}
 }
+
+// Every built-in rule carries item-level guidance, and every CIS item it
+// cites exists in the named benchmark version.
+func TestItemLevelMappings(t *testing.T) {
+	reg, _ := kubernetes.Registry()
+	for _, r := range reg.All() {
+		id := r.Metadata().ID
+		m, ok := baselines.Mappings[id]
+		if !ok || len(m.NSA) == 0 {
+			t.Errorf("rule %s has no item-level NSA/CISA mapping", id)
+		}
+		for _, item := range m.CIS {
+			if _, ok := baselines.CISItem(item); !ok {
+				t.Errorf("rule %s cites unknown %s item %s", id, baselines.CISVersion, item)
+			}
+		}
+	}
+	for _, id := range baselines.MappedRuleIDs() {
+		if _, ok := reg.Get(id); !ok {
+			t.Errorf("mapping for unknown rule %s", id)
+		}
+	}
+}

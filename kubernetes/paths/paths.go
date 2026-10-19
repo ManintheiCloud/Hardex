@@ -1,21 +1,25 @@
 // Package paths finds multi-step privilege-escalation paths: chains of
 // individually "moderate" weaknesses that together lead from one compromised
-// workload to node root or cluster administrator.
+// workload to cluster administrator, a cloud identity, or root on a node.
 //
-// The analysis is a breadth-first search over principals (service accounts)
-// and the node, with edges for:
+// The analysis is a breadth-first search over principals (service accounts),
+// nodes and goals, with edges for:
 //
 //   - container escape (privileged, hostPID, sensitive hostPath, critical
-//     capabilities, HostProcess) → node root;
-//   - node root → the token of every pod that mounts one, in any namespace
-//     (the scheduler may co-locate any two pods);
-//   - creating workloads → any service account in scope, and node root where
-//     Pod Security admission does not enforce baseline or restricted;
+//     capabilities, HostProcess) → root on the nodes the pod can run on;
+//   - root on a node → the token of every pod that mounts one and could be
+//     scheduled on the same node (placement constraints that make two pods'
+//     node sets provably disjoint break this edge);
+//   - creating workloads → any service account in scope, and root on any
+//     node where Pod Security admission does not enforce baseline or
+//     restricted;
 //   - exec/attach → the service accounts of pods in scope, and node root if
 //     any of those pods can escape;
 //   - minting tokens → any service account in scope;
-//   - nodes/proxy → node root (kubelet API: exec into any pod);
-//   - full control, escalate/bind, impersonate → cluster administrator.
+//   - nodes/proxy → root-equivalent access to any node's pods;
+//   - full control, escalate/bind, impersonate → cluster administrator;
+//   - a token bound to a cloud workload identity (EKS IRSA, GKE Workload
+//     Identity, Azure Workload Identity) → that cloud identity.
 package paths
 
 import (
@@ -32,49 +36,57 @@ import (
 )
 
 // Rules returns the attack-path rules.
-func Rules() []assessment.Rule { return []assessment.Rule{escalationPaths} }
+func Rules() []assessment.Rule { return []assessment.Rule{escalationPaths, cloudIdentities} }
 
+// Goal states. Node states are "node:<placement>"; every node state also
+// leads to the goal nodeGoal.
 const (
-	nodeState  = "node"
-	adminState = "cluster-admin"
+	adminState = "goal:cluster-admin"
+	cloudGoal  = "goal:cloud"
+	nodeGoal   = "goal:node"
+	anyNode    = "node:*"
 )
 
 type workload struct {
-	obj      *resource.Object
-	ns, sa   string
-	token    bool
-	escape   string
-	canEsc   bool
-	saPrefix string
+	obj       *resource.Object
+	ns, sa    string
+	token     bool
+	escape    string
+	canEsc    bool
+	placement placement
 }
 
 type edge struct {
 	to   string
-	step string
+	step string // empty for internal bookkeeping edges, which are not shown
+}
+
+type tokenHolder struct {
+	state     string // "sa:ns/name"
+	placement placement
 }
 
 type graph struct {
 	idx       *rbac.Index
 	workloads []workload
-	// tokensByNS lists service accounts whose tokens are mounted by some pod,
-	// per namespace.
+	// tokens are service accounts whose tokens some pod mounts, with the
+	// placement of a pod that mounts them.
+	tokens     []tokenHolder
 	tokensByNS map[string][]string
-	allTokens  []string
-	// saByNS lists every service account known per namespace (objects and
-	// references), for "create a pod as any service account".
-	saByNS map[string][]string
-	// escapable namespaces: a pod that can escape exists there.
-	escapeIn map[string]string
-	// enforced namespaces: Pod Security admission enforces baseline or
-	// restricted, so new privileged pods are rejected.
-	enforced map[string]bool
-	allNS    []string
-	edges    map[string][]edge
+	saByNS     map[string][]string
+	escapeIn   map[string]workload // first escapable workload per namespace
+	enforced   map[string]bool
+	allNS      []string
+	// cloud maps "sa:ns/name" to the cloud identity its token assumes.
+	cloud      map[string]string
+	placements map[string]placement // node state -> placement
+	edges      map[string][]edge
 }
 
 func build(inv *resource.Inventory) *graph {
 	g := &graph{idx: rbac.NewIndex(inv), tokensByNS: map[string][]string{}, saByNS: map[string][]string{},
-		escapeIn: map[string]string{}, enforced: map[string]bool{}, edges: map[string][]edge{}}
+		escapeIn: map[string]workload{}, enforced: map[string]bool{}, cloud: map[string]string{},
+		placements: map[string]placement{anyNode: nil}, edges: map[string][]edge{}}
 	saSeen := map[string]bool{}
 	addSA := func(ns, sa string) {
 		if !saSeen[ns+"/"+sa] {
@@ -82,34 +94,51 @@ func build(inv *resource.Inventory) *graph {
 			g.saByNS[ns] = append(g.saByNS[ns], sa)
 		}
 	}
-	tokenSeen := map[string]bool{}
 	nsSeen := map[string]bool{}
+	saCloud := map[string]string{}
+	azureSA := map[string]bool{}
 	for _, o := range inv.OfKind("ServiceAccount") {
 		addSA(o.EffectiveNamespace(), o.Name)
+		if id, azure := cloudIdentity(o); id != "" {
+			saCloud[o.EffectiveNamespace()+"/"+o.Name] = id
+			azureSA[o.EffectiveNamespace()+"/"+o.Name] = azure
+		}
 	}
 	for _, o := range inv.OfKind("Namespace") {
 		nsSeen[o.Name] = true
 		level := resource.String(o.Raw, "metadata", "labels", "pod-security.kubernetes.io/enforce")
 		g.enforced[o.Name] = level == "baseline" || level == "restricted"
 	}
+	tokenSeen := map[string]bool{}
 	for _, o := range inv.Objects {
 		pod, _ := resource.PodSpec(o)
 		if pod == nil {
 			continue
 		}
-		w := workload{obj: o, ns: o.EffectiveNamespace(), sa: rbac.ServiceAccountOf(pod), token: g.idx.TokenMounted(o, pod)}
+		w := workload{obj: o, ns: o.EffectiveNamespace(), sa: rbac.ServiceAccountOf(pod), token: g.idx.TokenMounted(o, pod),
+			placement: placementOf(pod)}
 		w.escape, w.canEsc = workloads.EscapeVector(pod)
 		nsSeen[w.ns] = true
 		addSA(w.ns, w.sa)
-		if w.token && !tokenSeen[w.ns+"/"+w.sa] {
-			tokenSeen[w.ns+"/"+w.sa] = true
-			g.tokensByNS[w.ns] = append(g.tokensByNS[w.ns], w.sa)
-			g.allTokens = append(g.allTokens, w.ns+"/"+w.sa)
+		key := w.ns + "/" + w.sa
+		if id := saCloud[key]; id != "" {
+			// Azure injects the federated token only into labelled pods.
+			if !azureSA[key] || podLabel(o, "azure.workload.identity/use") == "true" {
+				g.cloud["sa:"+key] = id
+			}
+		}
+		if w.token {
+			g.tokens = append(g.tokens, tokenHolder{state: "sa:" + key, placement: w.placement})
+			if !tokenSeen[key] {
+				tokenSeen[key] = true
+				g.tokensByNS[w.ns] = append(g.tokensByNS[w.ns], w.sa)
+			}
 		}
 		if w.canEsc {
 			if _, ok := g.escapeIn[w.ns]; !ok {
-				g.escapeIn[w.ns] = fmt.Sprintf("%s %s/%s, which %s", o.Kind, w.ns, o.Name, w.escape)
+				g.escapeIn[w.ns] = w
 			}
+			g.placements[nodeStateFor(w.placement)] = w.placement
 		}
 		g.workloads = append(g.workloads, w)
 	}
@@ -117,20 +146,39 @@ func build(inv *resource.Inventory) *graph {
 		g.allNS = append(g.allNS, ns)
 	}
 	sort.Strings(g.allNS)
-	sort.Strings(g.allTokens)
-	for _, t := range g.allTokens {
-		g.edges[nodeState] = append(g.edges[nodeState], edge{to: "sa:" + t, step: "steals the token of service account " + t + " from a pod on the node"})
-	}
 	return g
 }
 
-// saEdges computes (and caches) the outgoing edges of a service account.
-func (g *graph) saEdges(state string) []edge {
-	if e, ok := g.edges[state]; ok {
-		return e
+func nodeStateFor(p placement) string {
+	if len(p) == 0 {
+		return anyNode
 	}
+	return "node:" + p.key()
+}
+
+// nodeEdges: root on a node in a placement group exposes the tokens of
+// every pod that could run on the same node.
+func (g *graph) nodeEdges(state string) []edge {
+	p := g.placements[state]
+	out := []edge{{to: nodeGoal}}
+	seen := map[string]bool{}
+	for _, t := range g.tokens {
+		if seen[t.state] || !p.compatible(t.placement) {
+			continue
+		}
+		seen[t.state] = true
+		out = append(out, edge{to: t.state, step: "steals the token of service account " + strings.TrimPrefix(t.state, "sa:") + " from a pod that can run on the same node"})
+	}
+	return out
+}
+
+// saEdges computes the outgoing edges of a service account.
+func (g *graph) saEdges(state string) []edge {
 	ns, sa, _ := strings.Cut(strings.TrimPrefix(state, "sa:"), "/")
 	var out []edge
+	if id := g.cloud[state]; id != "" {
+		out = append(out, edge{to: cloudGoal, step: "assumes " + id + " through the token's workload identity"})
+	}
 	inScope := func(p rbac.Permission) []string {
 		if p.Namespace != "" {
 			return []string{p.Namespace}
@@ -143,11 +191,11 @@ func (g *graph) saEdges(state string) []edge {
 		case rbac.CapFullControl, rbac.CapEscalate, rbac.CapImpersonate:
 			out = append(out, edge{to: adminState, step: fmt.Sprintf("obtains %s %s", p.Cap.Name(), via)})
 		case rbac.CapNodeProxy:
-			out = append(out, edge{to: nodeState, step: "reaches the kubelet API through nodes/proxy and executes in any pod " + via})
+			out = append(out, edge{to: anyNode, step: "reaches the kubelet API through nodes/proxy and executes in any pod " + via})
 		case rbac.CapCreateWorkloads:
 			for _, target := range inScope(p) {
 				if !g.enforced[target] {
-					out = append(out, edge{to: nodeState, step: fmt.Sprintf("creates a privileged pod in namespace %s, which does not enforce Pod Security %s", target, via)})
+					out = append(out, edge{to: anyNode, step: fmt.Sprintf("creates a privileged pod, scheduled on any node, in namespace %s, which does not enforce Pod Security %s", target, via)})
 					break
 				}
 			}
@@ -158,8 +206,8 @@ func (g *graph) saEdges(state string) []edge {
 			}
 		case rbac.CapExec:
 			for _, target := range inScope(p) {
-				if desc, ok := g.escapeIn[target]; ok {
-					out = append(out, edge{to: nodeState, step: fmt.Sprintf("execs into %s %s", desc, via)})
+				if w, ok := g.escapeIn[target]; ok {
+					out = append(out, edge{to: nodeStateFor(w.placement), step: fmt.Sprintf("execs into %s %s/%s, which %s %s", w.obj.Kind, w.ns, w.obj.Name, w.escape, via)})
 				}
 				for _, other := range g.tokensByNS[target] {
 					out = append(out, edge{to: "sa:" + target + "/" + other, step: fmt.Sprintf("execs into a pod of service account %s/%s and takes its token %s", target, other, via)})
@@ -173,15 +221,22 @@ func (g *graph) saEdges(state string) []edge {
 			}
 		}
 	}
-	g.edges[state] = out
 	return out
 }
 
 func (g *graph) next(state string) []edge {
-	if state == nodeState {
-		return g.edges[nodeState]
+	if e, ok := g.edges[state]; ok {
+		return e
 	}
-	return g.saEdges(state)
+	var out []edge
+	switch {
+	case strings.HasPrefix(state, "node:"):
+		out = g.nodeEdges(state)
+	case strings.HasPrefix(state, "sa:"):
+		out = g.saEdges(state)
+	}
+	g.edges[state] = out
+	return out
 }
 
 // hop is the next step from a state towards a goal.
@@ -194,8 +249,15 @@ type hop struct {
 // state, so each workload's shortest path is a lookup instead of a search:
 // the whole analysis stays linear in the size of the graph.
 func (g *graph) distances(goal string) map[string]hop {
-	states := []string{nodeState}
-	seen := map[string]bool{nodeState: true}
+	var states []string
+	for st := range g.placements {
+		states = append(states, st)
+	}
+	sort.Strings(states)
+	seen := map[string]bool{}
+	for _, st := range states {
+		seen[st] = true
+	}
 	for _, ns := range g.allNS {
 		for _, sa := range g.saByNS[ns] {
 			if st := "sa:" + ns + "/" + sa; !seen[st] {
@@ -204,10 +266,7 @@ func (g *graph) distances(goal string) map[string]hop {
 			}
 		}
 	}
-	type rev struct {
-		from string
-		step string
-	}
+	type rev struct{ from, step string }
 	reverse := map[string][]rev{}
 	for _, st := range states {
 		for _, e := range g.next(st) {
@@ -220,7 +279,7 @@ func (g *graph) distances(goal string) map[string]hop {
 		cur := queue[0]
 		queue = queue[1:]
 		for _, r := range reverse[cur] {
-			if _, done := next[r.from]; done || r.from == adminState {
+			if _, done := next[r.from]; done || strings.HasPrefix(r.from, "goal:") {
 				continue
 			}
 			next[r.from] = hop{to: cur, step: r.step}
@@ -230,20 +289,25 @@ func (g *graph) distances(goal string) map[string]hop {
 	return next
 }
 
-// shortest returns the steps of the shortest path from the start edges to
-// goal, using precomputed distances.
+// shortest returns the visible steps of the shortest path from the start
+// edges to goal, using precomputed distances.
 func shortest(start []edge, goal string, next map[string]hop) []string {
 	var best []string
+	bestLen := -1
 	for _, e := range start {
 		if _, ok := next[e.to]; !ok {
 			continue
 		}
 		steps := []string{e.step}
+		hops := 1
 		for st := e.to; st != goal; st = next[st].to {
-			steps = append(steps, next[st].step)
+			hops++
+			if s := next[st].step; s != "" {
+				steps = append(steps, s)
+			}
 		}
-		if best == nil || len(steps) < len(best) {
-			best = steps
+		if bestLen < 0 || hops < bestLen {
+			best, bestLen = steps, hops
 		}
 	}
 	return best
@@ -255,55 +319,58 @@ var escalationPaths = assessment.InventoryRule{
 		Title:          "Privilege-escalation path from workload",
 		Severity:       finding.Critical,
 		Category:       "attack-paths",
-		Description:    "Searches for multi-step paths from each workload to cluster administrator (critical) or, failing that, to root on a node (high), combining container escape, token theft from co-located pods, workload creation, exec, token minting and RBAC escalation. Direct grants are reported by HX-RBAC-008 and direct escapes by the HX-WL rules; this rule reports chains.",
-		Rationale:      "Real attacks chain weaknesses: an exploited web pod that can escape to its node can steal the token of a privileged controller scheduled on the same node. Each step alone may look acceptable; the chain is a full compromise.",
-		Remediation:    "Break the chain at its cheapest link, listed in the finding: remove the escape vector, stop mounting powerful tokens in pods that do not need them, narrow the RBAC grant, or enforce Pod Security admission in the namespace.",
+		Description:    "Searches for multi-step paths from each workload to cluster administrator (critical), to a cloud workload identity (high) or, failing those, to root on a node (high), combining container escape, token theft from pods that can share a node, workload creation, exec, token minting, RBAC escalation and cloud workload identities. Direct grants are reported by HX-RBAC-008 and HX-PATH-002, direct escapes by the HX-WL rules; this rule reports chains.",
+		Rationale:      "Real attacks chain weaknesses: an exploited web pod that can escape to its node can steal the token of a privileged controller scheduled on the same node. Each step alone may look acceptable; the chain is a full compromise — of the cluster, or of the cloud account behind it.",
+		Remediation:    "Break the chain at its cheapest link, listed in the finding: remove the escape vector, keep powerful tokens off shared node pools (node selectors or dedicated pools), stop mounting tokens in pods that do not need them, narrow the RBAC grant or cloud role, or enforce Pod Security admission in the namespace.",
 		References:     []finding.Reference{baselines.NSA("Threat model"), baselines.K8s("RBAC good practices: privilege escalation risks", "https://kubernetes.io/docs/concepts/security/rbac-good-practices/#privilege-escalation-risks")},
-		Limitations:    "Assumes any two pods may share a node (no node affinity analysis). Namespaces without a Namespace object in the input are assumed not to enforce Pod Security. Cloud IAM, legacy token Secrets and admission policies other than Pod Security are not modelled. Workloads in kube-system are not reported as starting points unless --include-system is set, but their tokens are considered.",
+		Limitations:    "Pods may share a node unless their nodeSelector or a single required node-affinity term makes their node sets provably disjoint; taints and preferred affinity are not modelled. Namespaces without a Namespace object in the input are assumed not to enforce Pod Security. Cloud identities are recognised from ServiceAccount annotations (EKS IRSA, GKE Workload Identity, Azure Workload Identity); EKS Pod Identity associations live outside Kubernetes and are not visible. Workloads in kube-system are not reported as starting points unless --include-system is set, but their tokens are considered.",
 		NeedsInventory: true,
 	},
 	Check: func(ctx *assessment.Context) {
 		g := build(ctx.Inventory)
-		toAdmin, toNode := g.distances(adminState), g.distances(nodeState)
+		toAdmin, toCloud, toNode := g.distances(adminState), g.distances(cloudGoal), g.distances(nodeGoal)
 		for _, w := range g.workloads {
 			if w.ns == "kube-system" && !ctx.Options.IncludeSystem {
 				continue
 			}
 			own := "sa:" + w.ns + "/" + w.sa
-			if w.token && directAdmin(g, own) {
-				continue // a direct grant is HX-RBAC-008's finding, not a path
-			}
 			var start []edge
 			if w.canEsc {
-				start = append(start, edge{to: nodeState, step: "escapes to its node (" + w.escape + ")"})
+				start = append(start, edge{to: nodeStateFor(w.placement), step: "escapes to its node (" + w.escape + ")"})
 			}
-			if w.token {
+			ownToken := w.token && !directTo(g, own, adminState)
+			if ownToken {
 				start = append(start, edge{to: own, step: fmt.Sprintf("uses its mounted token (service account %s/%s)", w.ns, w.sa)})
 			}
-			if len(start) == 0 {
+			if len(start) == 0 || (w.token && directTo(g, own, adminState)) {
+				continue // direct grants are HX-RBAC-008's finding, not a path
+			}
+			report := func(sev finding.Severity, goal string, steps []string) {
+				ctx.Report(assessment.Hit{Object: w.obj, Path: "spec", Observed: fmt.Sprintf("%d steps", len(steps)), Severity: &sev,
+					Message: fmt.Sprintf("compromise of this workload leads to %s: %s", goal, strings.Join(steps, " → "))})
+			}
+			if steps := shortest(start, adminState, toAdmin); len(steps) >= 2 {
+				report(finding.Critical, "cluster administrator", steps)
 				continue
 			}
-			sev, goal := finding.Critical, "cluster administrator"
-			steps := shortest(start, adminState, toAdmin)
-			if steps == nil {
-				if w.canEsc {
-					continue // reaching the node directly is reported by the HX-WL rules
-				}
-				sev, goal = finding.High, "root on a node"
-				steps = shortest(start, nodeState, toNode)
-			}
-			if len(steps) < 2 {
+			// A workload's own cloud identity is HX-PATH-002's finding.
+			if steps := shortest(start, cloudGoal, toCloud); len(steps) >= 2 && !(w.token && g.cloud[own] != "" && len(steps) == 2) {
+				report(finding.High, "a cloud identity", steps)
 				continue
 			}
-			ctx.Report(assessment.Hit{Object: w.obj, Path: "spec", Observed: fmt.Sprintf("%d steps", len(steps)), Severity: &sev,
-				Message: fmt.Sprintf("compromise of this workload leads to %s: %s", goal, strings.Join(steps, " → "))})
+			if w.canEsc {
+				continue // reaching the node directly is reported by the HX-WL rules
+			}
+			if steps := shortest(start, nodeGoal, toNode); len(steps) >= 2 {
+				report(finding.High, "root on a node", steps)
+			}
 		}
 	},
 }
 
-func directAdmin(g *graph, state string) bool {
+func directTo(g *graph, state, goal string) bool {
 	for _, e := range g.next(state) {
-		if e.to == adminState {
+		if e.to == goal {
 			return true
 		}
 	}

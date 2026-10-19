@@ -15,6 +15,7 @@ import "github.com/ManintheiCloud/Hardex/core/finding"
 const (
 	pssURL = "https://kubernetes.io/docs/concepts/security/pod-security-standards/"
 	cisURL = "https://www.cisecurity.org/benchmark/kubernetes"
+	nsaURL = "https://media.defense.gov/2022/Aug/29/2003066362/1/1/0/CTR_KUBERNETES_HARDENING_GUIDANCE_1.2_20220829.PDF"
 )
 
 // PSS cites a Pod Security Standards control, e.g. PSS("Baseline", "Privileged Containers").

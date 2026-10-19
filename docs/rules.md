@@ -27,6 +27,7 @@ Severity is the default; individual findings may be raised or lowered where the 
 | [HX-NODE-003](#hx-node-003) | medium | nodes | Kubelet read-only port enabled | baseline, restricted |
 | [HX-NODE-004](#hx-node-004) | low | nodes | Kubelet does not protect kernel defaults | restricted |
 | [HX-PATH-001](#hx-path-001) | critical | attack-paths | Privilege-escalation path from workload | baseline, minimal, restricted |
+| [HX-PATH-002](#hx-path-002) | low | attack-paths | Workload token grants a cloud identity | baseline, restricted |
 | [HX-RBAC-001](#hx-rbac-001) | high | rbac | Wildcard RBAC permission | baseline, restricted |
 | [HX-RBAC-002](#hx-rbac-002) | high | rbac | cluster-admin granted | baseline, minimal, restricted |
 | [HX-RBAC-003](#hx-rbac-003) | high | rbac | Read access to Secrets | baseline, restricted |
@@ -72,8 +73,8 @@ Severity is the default; individual findings may be raised or lowered where the 
 
 **References:**
 
-- CIS: [§1.2 API Server](https://www.cisecurity.org/benchmark/kubernetes)
-- NSA-CISA: Kubernetes Hardening Guidance v1.2 — Authentication and authorization
+- CIS: [CIS Kubernetes Benchmark v2.0 1.2.1 Ensure that the --anonymous-auth argument is set to false](https://www.cisecurity.org/benchmark/kubernetes)
+- NSA-CISA: [NSA/CISA Kubernetes Hardening Guidance v1.2 (August 2022) — Authentication and authorization › Authentication](https://media.defense.gov/2022/Aug/29/2003066362/1/1/0/CTR_KUBERNETES_HARDENING_GUIDANCE_1.2_20220829.PDF)
 
 ## HX-CP-002
 
@@ -89,8 +90,9 @@ Severity is the default; individual findings may be raised or lowered where the 
 
 **References:**
 
-- CIS: [§1.2 API Server](https://www.cisecurity.org/benchmark/kubernetes)
-- NSA-CISA: Kubernetes Hardening Guidance v1.2 — Authentication and authorization
+- CIS: [CIS Kubernetes Benchmark v2.0 1.2.6 Ensure that the --authorization-mode argument is not set to AlwaysAllow](https://www.cisecurity.org/benchmark/kubernetes)
+- CIS: [CIS Kubernetes Benchmark v2.0 1.2.8 Ensure that the --authorization-mode argument includes RBAC](https://www.cisecurity.org/benchmark/kubernetes)
+- NSA-CISA: [NSA/CISA Kubernetes Hardening Guidance v1.2 (August 2022) — Authentication and authorization › Role-based access control](https://media.defense.gov/2022/Aug/29/2003066362/1/1/0/CTR_KUBERNETES_HARDENING_GUIDANCE_1.2_20220829.PDF)
 
 ## HX-CP-003
 
@@ -104,8 +106,9 @@ Severity is the default; individual findings may be raised or lowered where the 
 
 **References:**
 
-- CIS: [§1.2 API Server](https://www.cisecurity.org/benchmark/kubernetes)
-- NSA-CISA: Kubernetes Hardening Guidance v1.2 — Audit logging and threat detection
+- CIS: [CIS Kubernetes Benchmark v2.0 1.2.16 Ensure that the --audit-log-path argument is set](https://www.cisecurity.org/benchmark/kubernetes)
+- CIS: [CIS Kubernetes Benchmark v2.0 3.2.1 Ensure that a minimal audit policy is created](https://www.cisecurity.org/benchmark/kubernetes)
+- NSA-CISA: [NSA/CISA Kubernetes Hardening Guidance v1.2 (August 2022) — Audit Logging and Threat Detection › Logging › Kubernetes native audit logging configuration](https://media.defense.gov/2022/Aug/29/2003066362/1/1/0/CTR_KUBERNETES_HARDENING_GUIDANCE_1.2_20220829.PDF)
 
 ## HX-CP-004
 
@@ -119,9 +122,10 @@ Severity is the default; individual findings may be raised or lowered where the 
 
 **References:**
 
-- CIS: [§1.2 API Server](https://www.cisecurity.org/benchmark/kubernetes)
-- CIS: [§1.3 Controller Manager](https://www.cisecurity.org/benchmark/kubernetes)
-- CIS: [§1.4 Scheduler](https://www.cisecurity.org/benchmark/kubernetes)
+- CIS: [CIS Kubernetes Benchmark v2.0 1.2.15 Ensure that the --profiling argument is set to false](https://www.cisecurity.org/benchmark/kubernetes)
+- CIS: [CIS Kubernetes Benchmark v2.0 1.3.2 Ensure that the --profiling argument is set to false](https://www.cisecurity.org/benchmark/kubernetes)
+- CIS: [CIS Kubernetes Benchmark v2.0 1.4.1 Ensure that the --profiling argument is set to false](https://www.cisecurity.org/benchmark/kubernetes)
+- NSA-CISA: [NSA/CISA Kubernetes Hardening Guidance v1.2 (August 2022) — Network separation and hardening › Control plane hardening](https://media.defense.gov/2022/Aug/29/2003066362/1/1/0/CTR_KUBERNETES_HARDENING_GUIDANCE_1.2_20220829.PDF)
 
 ## HX-CP-005
 
@@ -135,8 +139,9 @@ Severity is the default; individual findings may be raised or lowered where the 
 
 **References:**
 
-- CIS: [§1.2 API Server](https://www.cisecurity.org/benchmark/kubernetes)
-- NSA-CISA: Kubernetes Hardening Guidance v1.2 — Authentication and authorization
+- CIS: [CIS Kubernetes Benchmark v2.0 1.2.10 Ensure that the admission control plugin AlwaysAdmit is not set](https://www.cisecurity.org/benchmark/kubernetes)
+- CIS: [CIS Kubernetes Benchmark v2.0 1.2.14 Ensure that the admission control plugin NodeRestriction is set](https://www.cisecurity.org/benchmark/kubernetes)
+- NSA-CISA: [NSA/CISA Kubernetes Hardening Guidance v1.2 (August 2022) — Network separation and hardening › Control plane hardening](https://media.defense.gov/2022/Aug/29/2003066362/1/1/0/CTR_KUBERNETES_HARDENING_GUIDANCE_1.2_20220829.PDF)
 
 ## HX-CP-006
 
@@ -150,8 +155,14 @@ Severity is the default; individual findings may be raised or lowered where the 
 
 **References:**
 
-- CIS: [§2 etcd](https://www.cisecurity.org/benchmark/kubernetes)
-- NSA-CISA: Kubernetes Hardening Guidance v1.2 — Network separation and hardening — control plane
+- CIS: [CIS Kubernetes Benchmark v2.0 2.1 Ensure that the --cert-file and --key-file arguments are set as appropriate](https://www.cisecurity.org/benchmark/kubernetes)
+- CIS: [CIS Kubernetes Benchmark v2.0 2.2 Ensure that the --client-cert-auth argument is set to true](https://www.cisecurity.org/benchmark/kubernetes)
+- CIS: [CIS Kubernetes Benchmark v2.0 2.3 Ensure that the --auto-tls argument is not set to true](https://www.cisecurity.org/benchmark/kubernetes)
+- CIS: [CIS Kubernetes Benchmark v2.0 2.5 Ensure that the --peer-client-cert-auth argument is set to true](https://www.cisecurity.org/benchmark/kubernetes)
+- CIS: [CIS Kubernetes Benchmark v2.0 2.6 Ensure that the --peer-auto-tls argument is not set to true](https://www.cisecurity.org/benchmark/kubernetes)
+- CIS: [CIS Kubernetes Benchmark v2.0 1.2.23 Ensure that the --etcd-certfile and --etcd-keyfile arguments are set as appropriate](https://www.cisecurity.org/benchmark/kubernetes)
+- CIS: [CIS Kubernetes Benchmark v2.0 1.2.26 Ensure that the --etcd-cafile argument is set as appropriate](https://www.cisecurity.org/benchmark/kubernetes)
+- NSA-CISA: [NSA/CISA Kubernetes Hardening Guidance v1.2 (August 2022) — Network separation and hardening › Control plane hardening › Etcd](https://media.defense.gov/2022/Aug/29/2003066362/1/1/0/CTR_KUBERNETES_HARDENING_GUIDANCE_1.2_20220829.PDF)
 
 ## HX-CP-007
 
@@ -167,8 +178,8 @@ Severity is the default; individual findings may be raised or lowered where the 
 
 **References:**
 
-- CIS: [§1.2 API Server](https://www.cisecurity.org/benchmark/kubernetes)
-- NSA-CISA: Kubernetes Hardening Guidance v1.2 — Authentication and authorization — secrets
+- CIS: [CIS Kubernetes Benchmark v2.0 1.2.27 Ensure that the --encryption-provider-config argument is set as appropriate](https://www.cisecurity.org/benchmark/kubernetes)
+- NSA-CISA: [NSA/CISA Kubernetes Hardening Guidance v1.2 (August 2022) — Network separation and hardening › Encryption](https://media.defense.gov/2022/Aug/29/2003066362/1/1/0/CTR_KUBERNETES_HARDENING_GUIDANCE_1.2_20220829.PDF)
 
 ## HX-CP-008
 
@@ -182,8 +193,8 @@ Severity is the default; individual findings may be raised or lowered where the 
 
 **References:**
 
-- CIS: [§1.2 API Server](https://www.cisecurity.org/benchmark/kubernetes)
-- NSA-CISA: Kubernetes Hardening Guidance v1.2 — Network separation and hardening — control plane
+- CIS: [CIS Kubernetes Benchmark v2.0 1.2.5 Ensure that the --kubelet-certificate-authority argument is set as appropriate](https://www.cisecurity.org/benchmark/kubernetes)
+- NSA-CISA: [NSA/CISA Kubernetes Hardening Guidance v1.2 (August 2022) — Network separation and hardening › Control plane hardening](https://media.defense.gov/2022/Aug/29/2003066362/1/1/0/CTR_KUBERNETES_HARDENING_GUIDANCE_1.2_20220829.PDF)
 
 ## HX-CP-009
 
@@ -199,7 +210,8 @@ Severity is the default; individual findings may be raised or lowered where the 
 
 **References:**
 
-- NSA-CISA: Kubernetes Hardening Guidance v1.2 — Authentication and authorization
+- NSA-CISA: [NSA/CISA Kubernetes Hardening Guidance v1.2 (August 2022) — Kubernetes Pod security › Pod security enforcement](https://media.defense.gov/2022/Aug/29/2003066362/1/1/0/CTR_KUBERNETES_HARDENING_GUIDANCE_1.2_20220829.PDF)
+- NSA-CISA: [NSA/CISA Kubernetes Hardening Guidance v1.2 (August 2022) — Network separation and hardening › Control plane hardening](https://media.defense.gov/2022/Aug/29/2003066362/1/1/0/CTR_KUBERNETES_HARDENING_GUIDANCE_1.2_20220829.PDF)
 - Kubernetes: [Dynamic admission control: failure policy](https://kubernetes.io/docs/reference/access-authn-authz/extensible-admission-controllers/#failure-policy)
 
 ## HX-NET-001
@@ -216,8 +228,8 @@ Severity is the default; individual findings may be raised or lowered where the 
 
 **References:**
 
-- NSA-CISA: Kubernetes Hardening Guidance v1.2 — Network separation and hardening
-- CIS: [§5.3 Network Policies and CNI](https://www.cisecurity.org/benchmark/kubernetes)
+- CIS: [CIS Kubernetes Benchmark v2.0 5.3.2 Ensure that all Namespaces have NetworkPolicies defined](https://www.cisecurity.org/benchmark/kubernetes)
+- NSA-CISA: [NSA/CISA Kubernetes Hardening Guidance v1.2 (August 2022) — Network separation and hardening › Network policies](https://media.defense.gov/2022/Aug/29/2003066362/1/1/0/CTR_KUBERNETES_HARDENING_GUIDANCE_1.2_20220829.PDF)
 
 ## HX-NET-002
 
@@ -233,8 +245,8 @@ Severity is the default; individual findings may be raised or lowered where the 
 
 **References:**
 
-- NSA-CISA: Kubernetes Hardening Guidance v1.2 — Network separation and hardening
-- CIS: [§5.3 Network Policies and CNI](https://www.cisecurity.org/benchmark/kubernetes)
+- CIS: [CIS Kubernetes Benchmark v2.0 5.3.2 Ensure that all Namespaces have NetworkPolicies defined](https://www.cisecurity.org/benchmark/kubernetes)
+- NSA-CISA: [NSA/CISA Kubernetes Hardening Guidance v1.2 (August 2022) — Network separation and hardening › Network policies](https://media.defense.gov/2022/Aug/29/2003066362/1/1/0/CTR_KUBERNETES_HARDENING_GUIDANCE_1.2_20220829.PDF)
 
 ## HX-NET-003
 
@@ -250,7 +262,7 @@ Severity is the default; individual findings may be raised or lowered where the 
 
 **References:**
 
-- NSA-CISA: Kubernetes Hardening Guidance v1.2 — Network separation and hardening
+- NSA-CISA: [NSA/CISA Kubernetes Hardening Guidance v1.2 (August 2022) — Network separation and hardening](https://media.defense.gov/2022/Aug/29/2003066362/1/1/0/CTR_KUBERNETES_HARDENING_GUIDANCE_1.2_20220829.PDF)
 
 ## HX-NET-004
 
@@ -264,7 +276,8 @@ Severity is the default; individual findings may be raised or lowered where the 
 
 **References:**
 
-- NSA-CISA: Kubernetes Hardening Guidance v1.2 — Network separation and hardening
+- CIS: [CIS Kubernetes Benchmark v2.0 1.2.3 Ensure that the --DenyServiceExternalIPs is set](https://www.cisecurity.org/benchmark/kubernetes)
+- NSA-CISA: [NSA/CISA Kubernetes Hardening Guidance v1.2 (August 2022) — Network separation and hardening](https://media.defense.gov/2022/Aug/29/2003066362/1/1/0/CTR_KUBERNETES_HARDENING_GUIDANCE_1.2_20220829.PDF)
 - Kubernetes: [CVE-2020-8554](https://github.com/kubernetes/kubernetes/issues/97076)
 
 ## HX-NET-005
@@ -281,7 +294,7 @@ Severity is the default; individual findings may be raised or lowered where the 
 
 **References:**
 
-- NSA-CISA: Kubernetes Hardening Guidance v1.2 — Network separation and hardening
+- NSA-CISA: [NSA/CISA Kubernetes Hardening Guidance v1.2 (August 2022) — Network separation and hardening](https://media.defense.gov/2022/Aug/29/2003066362/1/1/0/CTR_KUBERNETES_HARDENING_GUIDANCE_1.2_20220829.PDF)
 - Kubernetes: [Ingress: TLS](https://kubernetes.io/docs/concepts/services-networking/ingress/#tls)
 
 ## HX-NET-006
@@ -298,7 +311,7 @@ Severity is the default; individual findings may be raised or lowered where the 
 
 **References:**
 
-- NSA-CISA: Kubernetes Hardening Guidance v1.2 — Network separation and hardening
+- NSA-CISA: [NSA/CISA Kubernetes Hardening Guidance v1.2 (August 2022) — Network separation and hardening](https://media.defense.gov/2022/Aug/29/2003066362/1/1/0/CTR_KUBERNETES_HARDENING_GUIDANCE_1.2_20220829.PDF)
 - Kubernetes: [CVE-2021-25742: ingress-nginx custom snippets](https://discuss.kubernetes.io/t/security-advisory-cve-2021-25742-ingress-nginx-custom-snippets-allows-retrieval-of-ingress-nginx-serviceaccount-token-and-secrets-across-all-namespaces/17860)
 
 ## HX-NET-007
@@ -315,6 +328,7 @@ Severity is the default; individual findings may be raised or lowered where the 
 
 **References:**
 
+- NSA-CISA: [NSA/CISA Kubernetes Hardening Guidance v1.2 (August 2022) — Upgrading and application security practices](https://media.defense.gov/2022/Aug/29/2003066362/1/1/0/CTR_KUBERNETES_HARDENING_GUIDANCE_1.2_20220829.PDF)
 - Kubernetes: [Ingress NGINX retirement](https://kubernetes.io/blog/2025/11/11/ingress-nginx-retirement/)
 
 ## HX-NODE-001
@@ -331,8 +345,8 @@ Severity is the default; individual findings may be raised or lowered where the 
 
 **References:**
 
-- CIS: [§4.2 Kubelet](https://www.cisecurity.org/benchmark/kubernetes)
-- NSA-CISA: Kubernetes Hardening Guidance v1.2 — Network separation and hardening — worker node
+- CIS: [CIS Kubernetes Benchmark v2.0 4.2.1 Ensure that the --anonymous-auth argument is set to false](https://www.cisecurity.org/benchmark/kubernetes)
+- NSA-CISA: [NSA/CISA Kubernetes Hardening Guidance v1.2 (August 2022) — Network separation and hardening › Worker node segmentation](https://media.defense.gov/2022/Aug/29/2003066362/1/1/0/CTR_KUBERNETES_HARDENING_GUIDANCE_1.2_20220829.PDF)
 
 ## HX-NODE-002
 
@@ -348,8 +362,8 @@ Severity is the default; individual findings may be raised or lowered where the 
 
 **References:**
 
-- CIS: [§4.2 Kubelet](https://www.cisecurity.org/benchmark/kubernetes)
-- NSA-CISA: Kubernetes Hardening Guidance v1.2 — Network separation and hardening — worker node
+- CIS: [CIS Kubernetes Benchmark v2.0 4.2.2 Ensure that the --authorization-mode argument is not set to AlwaysAllow](https://www.cisecurity.org/benchmark/kubernetes)
+- NSA-CISA: [NSA/CISA Kubernetes Hardening Guidance v1.2 (August 2022) — Network separation and hardening › Worker node segmentation](https://media.defense.gov/2022/Aug/29/2003066362/1/1/0/CTR_KUBERNETES_HARDENING_GUIDANCE_1.2_20220829.PDF)
 
 ## HX-NODE-003
 
@@ -365,8 +379,8 @@ Severity is the default; individual findings may be raised or lowered where the 
 
 **References:**
 
-- CIS: [§4.2 Kubelet](https://www.cisecurity.org/benchmark/kubernetes)
-- NSA-CISA: Kubernetes Hardening Guidance v1.2 — Network separation and hardening — worker node
+- CIS: [CIS Kubernetes Benchmark v2.0 4.2.4 Verify that if defined, the --read-only-port argument is set to 0](https://www.cisecurity.org/benchmark/kubernetes)
+- NSA-CISA: [NSA/CISA Kubernetes Hardening Guidance v1.2 (August 2022) — Network separation and hardening › Worker node segmentation](https://media.defense.gov/2022/Aug/29/2003066362/1/1/0/CTR_KUBERNETES_HARDENING_GUIDANCE_1.2_20220829.PDF)
 
 ## HX-NODE-004
 
@@ -382,24 +396,43 @@ Severity is the default; individual findings may be raised or lowered where the 
 
 **References:**
 
-- CIS: [§4.2 Kubelet](https://www.cisecurity.org/benchmark/kubernetes)
+- NSA-CISA: [NSA/CISA Kubernetes Hardening Guidance v1.2 (August 2022) — Network separation and hardening › Worker node segmentation](https://media.defense.gov/2022/Aug/29/2003066362/1/1/0/CTR_KUBERNETES_HARDENING_GUIDANCE_1.2_20220829.PDF)
 
 ## HX-PATH-001
 
 **Privilege-escalation path from workload** — critical, attack-paths
 
-**Checks:** Searches for multi-step paths from each workload to cluster administrator (critical) or, failing that, to root on a node (high), combining container escape, token theft from co-located pods, workload creation, exec, token minting and RBAC escalation. Direct grants are reported by HX-RBAC-008 and direct escapes by the HX-WL rules; this rule reports chains.
+**Checks:** Searches for multi-step paths from each workload to cluster administrator (critical), to a cloud workload identity (high) or, failing those, to root on a node (high), combining container escape, token theft from pods that can share a node, workload creation, exec, token minting, RBAC escalation and cloud workload identities. Direct grants are reported by HX-RBAC-008 and HX-PATH-002, direct escapes by the HX-WL rules; this rule reports chains.
 
-**Why it matters:** Real attacks chain weaknesses: an exploited web pod that can escape to its node can steal the token of a privileged controller scheduled on the same node. Each step alone may look acceptable; the chain is a full compromise.
+**Why it matters:** Real attacks chain weaknesses: an exploited web pod that can escape to its node can steal the token of a privileged controller scheduled on the same node. Each step alone may look acceptable; the chain is a full compromise — of the cluster, or of the cloud account behind it.
 
-**Remediation:** Break the chain at its cheapest link, listed in the finding: remove the escape vector, stop mounting powerful tokens in pods that do not need them, narrow the RBAC grant, or enforce Pod Security admission in the namespace.
+**Remediation:** Break the chain at its cheapest link, listed in the finding: remove the escape vector, keep powerful tokens off shared node pools (node selectors or dedicated pools), stop mounting tokens in pods that do not need them, narrow the RBAC grant or cloud role, or enforce Pod Security admission in the namespace.
 
-**Known limitations:** Assumes any two pods may share a node (no node affinity analysis). Namespaces without a Namespace object in the input are assumed not to enforce Pod Security. Cloud IAM, legacy token Secrets and admission policies other than Pod Security are not modelled. Workloads in kube-system are not reported as starting points unless --include-system is set, but their tokens are considered.
+**Known limitations:** Pods may share a node unless their nodeSelector or a single required node-affinity term makes their node sets provably disjoint; taints and preferred affinity are not modelled. Namespaces without a Namespace object in the input are assumed not to enforce Pod Security. Cloud identities are recognised from ServiceAccount annotations (EKS IRSA, GKE Workload Identity, Azure Workload Identity); EKS Pod Identity associations live outside Kubernetes and are not visible. Workloads in kube-system are not reported as starting points unless --include-system is set, but their tokens are considered.
 
 **References:**
 
-- NSA-CISA: Kubernetes Hardening Guidance v1.2 — Threat model
+- NSA-CISA: [NSA/CISA Kubernetes Hardening Guidance v1.2 (August 2022) — Threat model](https://media.defense.gov/2022/Aug/29/2003066362/1/1/0/CTR_KUBERNETES_HARDENING_GUIDANCE_1.2_20220829.PDF)
+- NSA-CISA: [NSA/CISA Kubernetes Hardening Guidance v1.2 (August 2022) — Authentication and authorization › Role-based access control](https://media.defense.gov/2022/Aug/29/2003066362/1/1/0/CTR_KUBERNETES_HARDENING_GUIDANCE_1.2_20220829.PDF)
+- NSA-CISA: [NSA/CISA Kubernetes Hardening Guidance v1.2 (August 2022) — Kubernetes Pod security › Pod security enforcement](https://media.defense.gov/2022/Aug/29/2003066362/1/1/0/CTR_KUBERNETES_HARDENING_GUIDANCE_1.2_20220829.PDF)
 - Kubernetes: [RBAC good practices: privilege escalation risks](https://kubernetes.io/docs/concepts/security/rbac-good-practices/#privilege-escalation-risks)
+
+## HX-PATH-002
+
+**Workload token grants a cloud identity** — low, attack-paths
+
+**Checks:** Reports workloads whose mounted service-account token is federated to a cloud identity through EKS IRSA (eks.amazonaws.com/role-arn), GKE Workload Identity (iam.gke.io/gcp-service-account) or Azure Workload Identity (azure.workload.identity/client-id plus the azure.workload.identity/use pod label).
+
+**Why it matters:** Workload identity is the right way to give pods cloud access, but it extends the pod's blast radius into the cloud account. An inventory of which workloads hold which role is what reviewers need to keep those roles least-privilege; HX-PATH-001 reports chains through these identities from other workloads.
+
+**Remediation:** Confirm the workload needs the identity, scope the cloud role to the resources it uses, and keep tokens off pods that do not need cloud access (a separate service account, or automountServiceAccountToken: false).
+
+**Known limitations:** The cloud role's own permissions are not evaluated. EKS Pod Identity associations are configured in AWS, not Kubernetes, and are not visible.
+
+**References:**
+
+- NSA-CISA: [NSA/CISA Kubernetes Hardening Guidance v1.2 (August 2022) — Network separation and hardening › Protecting sensitive cloud infrastructure](https://media.defense.gov/2022/Aug/29/2003066362/1/1/0/CTR_KUBERNETES_HARDENING_GUIDANCE_1.2_20220829.PDF)
+- NSA-CISA: [NSA/CISA Kubernetes Hardening Guidance v1.2 (August 2022) — Kubernetes Pod security › Protecting Pod service account tokens](https://media.defense.gov/2022/Aug/29/2003066362/1/1/0/CTR_KUBERNETES_HARDENING_GUIDANCE_1.2_20220829.PDF)
 
 ## HX-RBAC-001
 
@@ -415,8 +448,8 @@ Severity is the default; individual findings may be raised or lowered where the 
 
 **References:**
 
-- CIS: [§5.1 RBAC and Service Accounts](https://www.cisecurity.org/benchmark/kubernetes)
-- NSA-CISA: Kubernetes Hardening Guidance v1.2 — Authentication and authorization
+- CIS: [CIS Kubernetes Benchmark v2.0 5.1.3 Minimize wildcard use in Roles and ClusterRoles](https://www.cisecurity.org/benchmark/kubernetes)
+- NSA-CISA: [NSA/CISA Kubernetes Hardening Guidance v1.2 (August 2022) — Authentication and authorization › Role-based access control](https://media.defense.gov/2022/Aug/29/2003066362/1/1/0/CTR_KUBERNETES_HARDENING_GUIDANCE_1.2_20220829.PDF)
 
 ## HX-RBAC-002
 
@@ -430,8 +463,8 @@ Severity is the default; individual findings may be raised or lowered where the 
 
 **References:**
 
-- CIS: [§5.1 RBAC and Service Accounts](https://www.cisecurity.org/benchmark/kubernetes)
-- NSA-CISA: Kubernetes Hardening Guidance v1.2 — Authentication and authorization
+- CIS: [CIS Kubernetes Benchmark v2.0 5.1.1 Ensure that the cluster-admin role is only used where required](https://www.cisecurity.org/benchmark/kubernetes)
+- NSA-CISA: [NSA/CISA Kubernetes Hardening Guidance v1.2 (August 2022) — Authentication and authorization › Role-based access control](https://media.defense.gov/2022/Aug/29/2003066362/1/1/0/CTR_KUBERNETES_HARDENING_GUIDANCE_1.2_20220829.PDF)
 
 ## HX-RBAC-003
 
@@ -445,8 +478,8 @@ Severity is the default; individual findings may be raised or lowered where the 
 
 **References:**
 
-- CIS: [§5.1 RBAC and Service Accounts — minimize access to secrets](https://www.cisecurity.org/benchmark/kubernetes)
-- NSA-CISA: Kubernetes Hardening Guidance v1.2 — Authentication and authorization
+- CIS: [CIS Kubernetes Benchmark v2.0 5.1.2 Minimize access to secrets](https://www.cisecurity.org/benchmark/kubernetes)
+- NSA-CISA: [NSA/CISA Kubernetes Hardening Guidance v1.2 (August 2022) — Authentication and authorization › Role-based access control](https://media.defense.gov/2022/Aug/29/2003066362/1/1/0/CTR_KUBERNETES_HARDENING_GUIDANCE_1.2_20220829.PDF)
 
 ## HX-RBAC-004
 
@@ -460,8 +493,8 @@ Severity is the default; individual findings may be raised or lowered where the 
 
 **References:**
 
-- CIS: [§5.1 RBAC and Service Accounts](https://www.cisecurity.org/benchmark/kubernetes)
-- NSA-CISA: Kubernetes Hardening Guidance v1.2 — Authentication and authorization
+- CIS: [CIS Kubernetes Benchmark v2.0 5.1.8 Limit use of the Bind, Impersonate and Escalate permissions in the Kubernetes cluster](https://www.cisecurity.org/benchmark/kubernetes)
+- NSA-CISA: [NSA/CISA Kubernetes Hardening Guidance v1.2 (August 2022) — Authentication and authorization › Role-based access control](https://media.defense.gov/2022/Aug/29/2003066362/1/1/0/CTR_KUBERNETES_HARDENING_GUIDANCE_1.2_20220829.PDF)
 - Kubernetes: [RBAC: privilege escalation prevention](https://kubernetes.io/docs/reference/access-authn-authz/rbac/#privilege-escalation-prevention-and-bootstrapping)
 
 ## HX-RBAC-005
@@ -476,8 +509,9 @@ Severity is the default; individual findings may be raised or lowered where the 
 
 **References:**
 
-- CIS: [§5.1 RBAC and Service Accounts](https://www.cisecurity.org/benchmark/kubernetes)
-- NSA-CISA: Kubernetes Hardening Guidance v1.2 — Authentication and authorization
+- CIS: [CIS Kubernetes Benchmark v2.0 5.1.10 Minimize access to the proxy sub-resource of nodes](https://www.cisecurity.org/benchmark/kubernetes)
+- CIS: [CIS Kubernetes Benchmark v2.0 5.1.13 Minimize access to the service account token creation](https://www.cisecurity.org/benchmark/kubernetes)
+- NSA-CISA: [NSA/CISA Kubernetes Hardening Guidance v1.2 (August 2022) — Authentication and authorization › Role-based access control](https://media.defense.gov/2022/Aug/29/2003066362/1/1/0/CTR_KUBERNETES_HARDENING_GUIDANCE_1.2_20220829.PDF)
 
 ## HX-RBAC-006
 
@@ -491,7 +525,8 @@ Severity is the default; individual findings may be raised or lowered where the 
 
 **References:**
 
-- CIS: [§5.1 RBAC and Service Accounts](https://www.cisecurity.org/benchmark/kubernetes)
+- CIS: [CIS Kubernetes Benchmark v2.0 5.1.4 Minimize access to create pods](https://www.cisecurity.org/benchmark/kubernetes)
+- NSA-CISA: [NSA/CISA Kubernetes Hardening Guidance v1.2 (August 2022) — Authentication and authorization › Role-based access control](https://media.defense.gov/2022/Aug/29/2003066362/1/1/0/CTR_KUBERNETES_HARDENING_GUIDANCE_1.2_20220829.PDF)
 - Kubernetes: [RBAC good practices: workload creation](https://kubernetes.io/docs/concepts/security/rbac-good-practices/)
 
 ## HX-RBAC-007
@@ -506,8 +541,8 @@ Severity is the default; individual findings may be raised or lowered where the 
 
 **References:**
 
-- CIS: [§5.1 RBAC and Service Accounts](https://www.cisecurity.org/benchmark/kubernetes)
-- NSA-CISA: Kubernetes Hardening Guidance v1.2 — Authentication and authorization
+- NSA-CISA: [NSA/CISA Kubernetes Hardening Guidance v1.2 (August 2022) — Authentication and authorization › Authentication](https://media.defense.gov/2022/Aug/29/2003066362/1/1/0/CTR_KUBERNETES_HARDENING_GUIDANCE_1.2_20220829.PDF)
+- NSA-CISA: [NSA/CISA Kubernetes Hardening Guidance v1.2 (August 2022) — Authentication and authorization › Role-based access control](https://media.defense.gov/2022/Aug/29/2003066362/1/1/0/CTR_KUBERNETES_HARDENING_GUIDANCE_1.2_20220829.PDF)
 
 ## HX-RBAC-008
 
@@ -523,8 +558,9 @@ Severity is the default; individual findings may be raised or lowered where the 
 
 **References:**
 
-- CIS: [§5.1 RBAC and Service Accounts](https://www.cisecurity.org/benchmark/kubernetes)
-- NSA-CISA: Kubernetes Hardening Guidance v1.2 — Authentication and authorization
+- CIS: [CIS Kubernetes Benchmark v2.0 5.1.6 Ensure that Service Account Tokens are only mounted where necessary](https://www.cisecurity.org/benchmark/kubernetes)
+- NSA-CISA: [NSA/CISA Kubernetes Hardening Guidance v1.2 (August 2022) — Authentication and authorization › Role-based access control](https://media.defense.gov/2022/Aug/29/2003066362/1/1/0/CTR_KUBERNETES_HARDENING_GUIDANCE_1.2_20220829.PDF)
+- NSA-CISA: [NSA/CISA Kubernetes Hardening Guidance v1.2 (August 2022) — Kubernetes Pod security › Protecting Pod service account tokens](https://media.defense.gov/2022/Aug/29/2003066362/1/1/0/CTR_KUBERNETES_HARDENING_GUIDANCE_1.2_20220829.PDF)
 - Kubernetes: [RBAC good practices](https://kubernetes.io/docs/concepts/security/rbac-good-practices/)
 
 ## HX-SEC-001
@@ -541,8 +577,8 @@ Severity is the default; individual findings may be raised or lowered where the 
 
 **References:**
 
-- NSA-CISA: Kubernetes Hardening Guidance v1.2 — Authentication and authorization — secrets
-- CIS: [§5.4 Secrets Management](https://www.cisecurity.org/benchmark/kubernetes)
+- CIS: [CIS Kubernetes Benchmark v2.0 5.4.2 Consider external secret storage](https://www.cisecurity.org/benchmark/kubernetes)
+- NSA-CISA: [NSA/CISA Kubernetes Hardening Guidance v1.2 (August 2022) — Network separation and hardening › Secrets](https://media.defense.gov/2022/Aug/29/2003066362/1/1/0/CTR_KUBERNETES_HARDENING_GUIDANCE_1.2_20220829.PDF)
 
 ## HX-SEC-002
 
@@ -558,8 +594,8 @@ Severity is the default; individual findings may be raised or lowered where the 
 
 **References:**
 
-- NSA-CISA: Kubernetes Hardening Guidance v1.2 — Authentication and authorization — secrets
-- CIS: [§5.4 Secrets Management](https://www.cisecurity.org/benchmark/kubernetes)
+- CIS: [CIS Kubernetes Benchmark v2.0 5.4.1 Prefer using Secrets as files over Secrets as environment variables](https://www.cisecurity.org/benchmark/kubernetes)
+- NSA-CISA: [NSA/CISA Kubernetes Hardening Guidance v1.2 (August 2022) — Network separation and hardening › Secrets](https://media.defense.gov/2022/Aug/29/2003066362/1/1/0/CTR_KUBERNETES_HARDENING_GUIDANCE_1.2_20220829.PDF)
 
 ## HX-WL-001
 
@@ -573,9 +609,9 @@ Severity is the default; individual findings may be raised or lowered where the 
 
 **References:**
 
+- CIS: [CIS Kubernetes Benchmark v2.0 5.2.2 Minimize the admission of privileged containers](https://www.cisecurity.org/benchmark/kubernetes)
+- NSA-CISA: [NSA/CISA Kubernetes Hardening Guidance v1.2 (August 2022) — Kubernetes Pod security › Pod security enforcement](https://media.defense.gov/2022/Aug/29/2003066362/1/1/0/CTR_KUBERNETES_HARDENING_GUIDANCE_1.2_20220829.PDF)
 - PSS: [Baseline: Privileged Containers](https://kubernetes.io/docs/concepts/security/pod-security-standards/)
-- NSA-CISA: Kubernetes Hardening Guidance v1.2 — Kubernetes Pod security
-- CIS: [§5.2 Pod Security Standards](https://www.cisecurity.org/benchmark/kubernetes)
 
 ## HX-WL-002
 
@@ -589,9 +625,11 @@ Severity is the default; individual findings may be raised or lowered where the 
 
 **References:**
 
+- CIS: [CIS Kubernetes Benchmark v2.0 5.2.3 Minimize the admission of containers wishing to share the host process ID namespace](https://www.cisecurity.org/benchmark/kubernetes)
+- CIS: [CIS Kubernetes Benchmark v2.0 5.2.4 Minimize the admission of containers wishing to share the host IPC namespace](https://www.cisecurity.org/benchmark/kubernetes)
+- CIS: [CIS Kubernetes Benchmark v2.0 5.2.5 Minimize the admission of containers wishing to share the host network namespace](https://www.cisecurity.org/benchmark/kubernetes)
+- NSA-CISA: [NSA/CISA Kubernetes Hardening Guidance v1.2 (August 2022) — Kubernetes Pod security › Pod security enforcement](https://media.defense.gov/2022/Aug/29/2003066362/1/1/0/CTR_KUBERNETES_HARDENING_GUIDANCE_1.2_20220829.PDF)
 - PSS: [Baseline: Host Namespaces](https://kubernetes.io/docs/concepts/security/pod-security-standards/)
-- NSA-CISA: Kubernetes Hardening Guidance v1.2 — Kubernetes Pod security
-- CIS: [§5.2 Pod Security Standards](https://www.cisecurity.org/benchmark/kubernetes)
 
 ## HX-WL-003
 
@@ -605,9 +643,9 @@ Severity is the default; individual findings may be raised or lowered where the 
 
 **References:**
 
+- CIS: [CIS Kubernetes Benchmark v2.0 5.2.11 Minimize the admission of HostPath volumes](https://www.cisecurity.org/benchmark/kubernetes)
+- NSA-CISA: [NSA/CISA Kubernetes Hardening Guidance v1.2 (August 2022) — Kubernetes Pod security › Pod security enforcement](https://media.defense.gov/2022/Aug/29/2003066362/1/1/0/CTR_KUBERNETES_HARDENING_GUIDANCE_1.2_20220829.PDF)
 - PSS: [Baseline: HostPath Volumes](https://kubernetes.io/docs/concepts/security/pod-security-standards/)
-- NSA-CISA: Kubernetes Hardening Guidance v1.2 — Kubernetes Pod security
-- CIS: [§5.2 Pod Security Standards](https://www.cisecurity.org/benchmark/kubernetes)
 
 ## HX-WL-004
 
@@ -621,9 +659,9 @@ Severity is the default; individual findings may be raised or lowered where the 
 
 **References:**
 
+- CIS: [CIS Kubernetes Benchmark v2.0 5.2.6 Minimize the admission of containers with allowPrivilegeEscalation](https://www.cisecurity.org/benchmark/kubernetes)
+- NSA-CISA: [NSA/CISA Kubernetes Hardening Guidance v1.2 (August 2022) — Kubernetes Pod security › Pod security enforcement](https://media.defense.gov/2022/Aug/29/2003066362/1/1/0/CTR_KUBERNETES_HARDENING_GUIDANCE_1.2_20220829.PDF)
 - PSS: [Restricted: Privilege Escalation](https://kubernetes.io/docs/concepts/security/pod-security-standards/)
-- NSA-CISA: Kubernetes Hardening Guidance v1.2 — Kubernetes Pod security
-- CIS: [§5.2 Pod Security Standards](https://www.cisecurity.org/benchmark/kubernetes)
 
 ## HX-WL-005
 
@@ -639,10 +677,10 @@ Severity is the default; individual findings may be raised or lowered where the 
 
 **References:**
 
+- CIS: [CIS Kubernetes Benchmark v2.0 5.2.7 Minimize the admission of root containers](https://www.cisecurity.org/benchmark/kubernetes)
+- NSA-CISA: [NSA/CISA Kubernetes Hardening Guidance v1.2 (August 2022) — Kubernetes Pod security › "Non-root" containers and "rootless" container engines](https://media.defense.gov/2022/Aug/29/2003066362/1/1/0/CTR_KUBERNETES_HARDENING_GUIDANCE_1.2_20220829.PDF)
 - PSS: [Restricted: Running as Non-root](https://kubernetes.io/docs/concepts/security/pod-security-standards/)
 - PSS: [Restricted: Running as Non-root user](https://kubernetes.io/docs/concepts/security/pod-security-standards/)
-- NSA-CISA: Kubernetes Hardening Guidance v1.2 — Kubernetes Pod security
-- CIS: [§5.2 Pod Security Standards](https://www.cisecurity.org/benchmark/kubernetes)
 
 ## HX-WL-006
 
@@ -656,9 +694,10 @@ Severity is the default; individual findings may be raised or lowered where the 
 
 **References:**
 
+- CIS: [CIS Kubernetes Benchmark v2.0 5.2.8 Minimize the admission of containers with the NET_RAW capability](https://www.cisecurity.org/benchmark/kubernetes)
+- CIS: [CIS Kubernetes Benchmark v2.0 5.2.9 Minimize the admission of containers with capabilities assigned](https://www.cisecurity.org/benchmark/kubernetes)
+- NSA-CISA: [NSA/CISA Kubernetes Hardening Guidance v1.2 (August 2022) — Kubernetes Pod security › Pod security enforcement](https://media.defense.gov/2022/Aug/29/2003066362/1/1/0/CTR_KUBERNETES_HARDENING_GUIDANCE_1.2_20220829.PDF)
 - PSS: [Baseline: Capabilities](https://kubernetes.io/docs/concepts/security/pod-security-standards/)
-- NSA-CISA: Kubernetes Hardening Guidance v1.2 — Kubernetes Pod security
-- CIS: [§5.2 Pod Security Standards](https://www.cisecurity.org/benchmark/kubernetes)
 
 ## HX-WL-007
 
@@ -672,9 +711,9 @@ Severity is the default; individual findings may be raised or lowered where the 
 
 **References:**
 
+- CIS: [CIS Kubernetes Benchmark v2.0 5.2.9 Minimize the admission of containers with capabilities assigned](https://www.cisecurity.org/benchmark/kubernetes)
+- NSA-CISA: [NSA/CISA Kubernetes Hardening Guidance v1.2 (August 2022) — Kubernetes Pod security › Pod security enforcement](https://media.defense.gov/2022/Aug/29/2003066362/1/1/0/CTR_KUBERNETES_HARDENING_GUIDANCE_1.2_20220829.PDF)
 - PSS: [Restricted: Capabilities](https://kubernetes.io/docs/concepts/security/pod-security-standards/)
-- NSA-CISA: Kubernetes Hardening Guidance v1.2 — Kubernetes Pod security
-- CIS: [§5.2 Pod Security Standards](https://www.cisecurity.org/benchmark/kubernetes)
 
 ## HX-WL-008
 
@@ -690,10 +729,10 @@ Severity is the default; individual findings may be raised or lowered where the 
 
 **References:**
 
+- CIS: [CIS Kubernetes Benchmark v2.0 5.6.2 Ensure that the seccomp profile is set to docker/default in your Pod definitions](https://www.cisecurity.org/benchmark/kubernetes)
+- NSA-CISA: [NSA/CISA Kubernetes Hardening Guidance v1.2 (August 2022) — Kubernetes Pod security › Hardening container environments](https://media.defense.gov/2022/Aug/29/2003066362/1/1/0/CTR_KUBERNETES_HARDENING_GUIDANCE_1.2_20220829.PDF)
 - PSS: [Baseline: Seccomp](https://kubernetes.io/docs/concepts/security/pod-security-standards/)
 - PSS: [Restricted: Seccomp](https://kubernetes.io/docs/concepts/security/pod-security-standards/)
-- NSA-CISA: Kubernetes Hardening Guidance v1.2 — Kubernetes Pod security
-- CIS: [§5.2 Pod Security Standards](https://www.cisecurity.org/benchmark/kubernetes)
 
 ## HX-WL-009
 
@@ -707,7 +746,8 @@ Severity is the default; individual findings may be raised or lowered where the 
 
 **References:**
 
-- NSA-CISA: Kubernetes Hardening Guidance v1.2 — Kubernetes Pod security
+- CIS: [CIS Kubernetes Benchmark v2.0 5.6.3 Apply SecurityContext to your Pods and Containers](https://www.cisecurity.org/benchmark/kubernetes)
+- NSA-CISA: [NSA/CISA Kubernetes Hardening Guidance v1.2 (August 2022) — Kubernetes Pod security › Immutable container file systems](https://media.defense.gov/2022/Aug/29/2003066362/1/1/0/CTR_KUBERNETES_HARDENING_GUIDANCE_1.2_20220829.PDF)
 
 ## HX-WL-010
 
@@ -723,7 +763,7 @@ Severity is the default; individual findings may be raised or lowered where the 
 
 **References:**
 
-- NSA-CISA: Kubernetes Hardening Guidance v1.2 — Kubernetes Pod security — resource policies
+- NSA-CISA: [NSA/CISA Kubernetes Hardening Guidance v1.2 (August 2022) — Network separation and hardening › Resource policies](https://media.defense.gov/2022/Aug/29/2003066362/1/1/0/CTR_KUBERNETES_HARDENING_GUIDANCE_1.2_20220829.PDF)
 
 ## HX-WL-011
 
@@ -737,7 +777,7 @@ Severity is the default; individual findings may be raised or lowered where the 
 
 **References:**
 
-- NSA-CISA: Kubernetes Hardening Guidance v1.2 — Kubernetes Pod security — image scanning and integrity
+- NSA-CISA: [NSA/CISA Kubernetes Hardening Guidance v1.2 (August 2022) — Kubernetes Pod security › Building secure container images](https://media.defense.gov/2022/Aug/29/2003066362/1/1/0/CTR_KUBERNETES_HARDENING_GUIDANCE_1.2_20220829.PDF)
 - Kubernetes: [Images: image names](https://kubernetes.io/docs/concepts/containers/images/)
 
 ## HX-WL-012
@@ -752,7 +792,7 @@ Severity is the default; individual findings may be raised or lowered where the 
 
 **References:**
 
-- NSA-CISA: Kubernetes Hardening Guidance v1.2 — Kubernetes Pod security — image scanning and integrity
+- NSA-CISA: [NSA/CISA Kubernetes Hardening Guidance v1.2 (August 2022) — Kubernetes Pod security › Building secure container images](https://media.defense.gov/2022/Aug/29/2003066362/1/1/0/CTR_KUBERNETES_HARDENING_GUIDANCE_1.2_20220829.PDF)
 
 ## HX-WL-013
 
@@ -768,8 +808,8 @@ Severity is the default; individual findings may be raised or lowered where the 
 
 **References:**
 
-- NSA-CISA: Kubernetes Hardening Guidance v1.2 — Authentication and authorization
-- CIS: [§5.1 RBAC and Service Accounts](https://www.cisecurity.org/benchmark/kubernetes)
+- CIS: [CIS Kubernetes Benchmark v2.0 5.1.6 Ensure that Service Account Tokens are only mounted where necessary](https://www.cisecurity.org/benchmark/kubernetes)
+- NSA-CISA: [NSA/CISA Kubernetes Hardening Guidance v1.2 (August 2022) — Kubernetes Pod security › Protecting Pod service account tokens](https://media.defense.gov/2022/Aug/29/2003066362/1/1/0/CTR_KUBERNETES_HARDENING_GUIDANCE_1.2_20220829.PDF)
 
 ## HX-WL-014
 
@@ -783,9 +823,9 @@ Severity is the default; individual findings may be raised or lowered where the 
 
 **References:**
 
+- CIS: [CIS Kubernetes Benchmark v2.0 5.2.12 Minimize the admission of containers which use HostPorts](https://www.cisecurity.org/benchmark/kubernetes)
+- NSA-CISA: [NSA/CISA Kubernetes Hardening Guidance v1.2 (August 2022) — Kubernetes Pod security › Pod security enforcement](https://media.defense.gov/2022/Aug/29/2003066362/1/1/0/CTR_KUBERNETES_HARDENING_GUIDANCE_1.2_20220829.PDF)
 - PSS: [Baseline: Host Ports](https://kubernetes.io/docs/concepts/security/pod-security-standards/)
-- NSA-CISA: Kubernetes Hardening Guidance v1.2 — Kubernetes Pod security
-- CIS: [§5.2 Pod Security Standards](https://www.cisecurity.org/benchmark/kubernetes)
 
 ## HX-WL-015
 
@@ -799,9 +839,9 @@ Severity is the default; individual findings may be raised or lowered where the 
 
 **References:**
 
+- CIS: [CIS Kubernetes Benchmark v2.0 5.6.3 Apply SecurityContext to your Pods and Containers](https://www.cisecurity.org/benchmark/kubernetes)
+- NSA-CISA: [NSA/CISA Kubernetes Hardening Guidance v1.2 (August 2022) — Kubernetes Pod security › Hardening container environments](https://media.defense.gov/2022/Aug/29/2003066362/1/1/0/CTR_KUBERNETES_HARDENING_GUIDANCE_1.2_20220829.PDF)
 - PSS: [Baseline: AppArmor](https://kubernetes.io/docs/concepts/security/pod-security-standards/)
-- NSA-CISA: Kubernetes Hardening Guidance v1.2 — Kubernetes Pod security
-- CIS: [§5.2 Pod Security Standards](https://www.cisecurity.org/benchmark/kubernetes)
 
 ## HX-WL-016
 
@@ -815,9 +855,9 @@ Severity is the default; individual findings may be raised or lowered where the 
 
 **References:**
 
+- CIS: [CIS Kubernetes Benchmark v2.0 5.6.3 Apply SecurityContext to your Pods and Containers](https://www.cisecurity.org/benchmark/kubernetes)
+- NSA-CISA: [NSA/CISA Kubernetes Hardening Guidance v1.2 (August 2022) — Kubernetes Pod security › Hardening container environments](https://media.defense.gov/2022/Aug/29/2003066362/1/1/0/CTR_KUBERNETES_HARDENING_GUIDANCE_1.2_20220829.PDF)
 - PSS: [Baseline: SELinux](https://kubernetes.io/docs/concepts/security/pod-security-standards/)
-- NSA-CISA: Kubernetes Hardening Guidance v1.2 — Kubernetes Pod security
-- CIS: [§5.2 Pod Security Standards](https://www.cisecurity.org/benchmark/kubernetes)
 
 ## HX-WL-017
 
@@ -831,8 +871,9 @@ Severity is the default; individual findings may be raised or lowered where the 
 
 **References:**
 
+- CIS: [CIS Kubernetes Benchmark v2.0 5.6.3 Apply SecurityContext to your Pods and Containers](https://www.cisecurity.org/benchmark/kubernetes)
+- NSA-CISA: [NSA/CISA Kubernetes Hardening Guidance v1.2 (August 2022) — Kubernetes Pod security › Pod security enforcement](https://media.defense.gov/2022/Aug/29/2003066362/1/1/0/CTR_KUBERNETES_HARDENING_GUIDANCE_1.2_20220829.PDF)
 - PSS: [Baseline: /proc Mount Type](https://kubernetes.io/docs/concepts/security/pod-security-standards/)
-- CIS: [§5.2 Pod Security Standards](https://www.cisecurity.org/benchmark/kubernetes)
 
 ## HX-WL-018
 
@@ -846,8 +887,9 @@ Severity is the default; individual findings may be raised or lowered where the 
 
 **References:**
 
+- CIS: [CIS Kubernetes Benchmark v2.0 5.6.3 Apply SecurityContext to your Pods and Containers](https://www.cisecurity.org/benchmark/kubernetes)
+- NSA-CISA: [NSA/CISA Kubernetes Hardening Guidance v1.2 (August 2022) — Kubernetes Pod security › Pod security enforcement](https://media.defense.gov/2022/Aug/29/2003066362/1/1/0/CTR_KUBERNETES_HARDENING_GUIDANCE_1.2_20220829.PDF)
 - PSS: [Baseline: Sysctls](https://kubernetes.io/docs/concepts/security/pod-security-standards/)
-- CIS: [§5.2 Pod Security Standards](https://www.cisecurity.org/benchmark/kubernetes)
 
 ## HX-WL-019
 
@@ -861,8 +903,8 @@ Severity is the default; individual findings may be raised or lowered where the 
 
 **References:**
 
+- NSA-CISA: [NSA/CISA Kubernetes Hardening Guidance v1.2 (August 2022) — Kubernetes Pod security › Pod security enforcement](https://media.defense.gov/2022/Aug/29/2003066362/1/1/0/CTR_KUBERNETES_HARDENING_GUIDANCE_1.2_20220829.PDF)
 - PSS: [Restricted: Volume Types](https://kubernetes.io/docs/concepts/security/pod-security-standards/)
-- CIS: [§5.2 Pod Security Standards](https://www.cisecurity.org/benchmark/kubernetes)
 
 ## HX-WL-020
 
@@ -876,5 +918,6 @@ Severity is the default; individual findings may be raised or lowered where the 
 
 **References:**
 
+- CIS: [CIS Kubernetes Benchmark v2.0 5.2.10 Minimize the admission of Windows HostProcess containers](https://www.cisecurity.org/benchmark/kubernetes)
+- NSA-CISA: [NSA/CISA Kubernetes Hardening Guidance v1.2 (August 2022) — Kubernetes Pod security › Pod security enforcement](https://media.defense.gov/2022/Aug/29/2003066362/1/1/0/CTR_KUBERNETES_HARDENING_GUIDANCE_1.2_20220829.PDF)
 - PSS: [Baseline: HostProcess](https://kubernetes.io/docs/concepts/security/pod-security-standards/)
-- CIS: [§5.2 Pod Security Standards](https://www.cisecurity.org/benchmark/kubernetes)

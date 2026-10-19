@@ -20,6 +20,7 @@ rules:
   - HX-RBAC-007
   - HX-RBAC-008
   - HX-PATH-001
+  - HX-PATH-002
   - HX-CP-002
   - HX-CP-006
   - HX-NODE-001

@@ -2,6 +2,7 @@
 package kubernetes
 
 import (
+	"github.com/ManintheiCloud/Hardex/baselines"
 	"github.com/ManintheiCloud/Hardex/core/assessment"
 	"github.com/ManintheiCloud/Hardex/kubernetes/controlplane"
 	"github.com/ManintheiCloud/Hardex/kubernetes/networking"
@@ -21,5 +22,21 @@ func Registry(extra ...assessment.Rule) (*assessment.Registry, error) {
 	} {
 		all = append(all, group...)
 	}
+	for i, r := range all {
+		if _, mapped := baselines.Mappings[r.Metadata().ID]; mapped {
+			all[i] = mappedRule{r}
+		}
+	}
 	return assessment.NewRegistry(all...)
+}
+
+// mappedRule decorates a built-in rule with its item-level CIS and NSA/CISA
+// references (baselines.Mappings), keeping guidance mappings in one
+// reviewable table instead of scattered across rule definitions.
+type mappedRule struct{ assessment.Rule }
+
+func (m mappedRule) Metadata() assessment.Metadata {
+	meta := m.Rule.Metadata()
+	meta.References = baselines.MappedReferences(meta.ID, meta.References)
+	return meta
 }

@@ -1,0 +1,23 @@
+# A workload whose token is federated to an AWS IAM role (EKS IRSA).
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: uploader
+  namespace: data
+  annotations:
+    eks.amazonaws.com/role-arn: arn:aws:iam::111122223333:role/s3-writer
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: uploader
+  namespace: data
+spec:
+  selector: {matchLabels: {app: uploader}}
+  template:
+    metadata: {labels: {app: uploader}}
+    spec:
+      serviceAccountName: uploader
+      containers:
+        - name: uploader
+          image: registry.example.com/uploader@sha256:0000000000000000000000000000000000000000000000000000000000000000
