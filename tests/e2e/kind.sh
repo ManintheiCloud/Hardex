@@ -77,12 +77,16 @@ fi
 pass "live scan complete; $(jq '.objectsEvaluated' "$WORK/live.json") objects, $(jq '.summary.total' "$WORK/live.json") findings"
 
 # The reader must not be able to read Secrets or exec.
-for verb in "get secrets -A" "create pods/exec -n shop" "get nodes/proxy"; do
-  if kubectl --kubeconfig "$WORK/reader.kubeconfig" auth can-i $verb >/dev/null 2>&1; then
-    fail "reader can $verb"
+# (Subresources need --subresource: "nodes/proxy" alone means a node named proxy.)
+for check in "get secrets -A" "create pods --subresource=exec -n shop" "get nodes --subresource=proxy" \
+             "create serviceaccounts --subresource=token -A" "patch deployments -A"; do
+  if kubectl --kubeconfig "$WORK/reader.kubeconfig" auth can-i $check >/dev/null 2>&1; then
+    fail "reader can: $check"
   fi
 done
-pass "reader cannot read Secrets, exec, or use nodes/proxy"
+# ...and the checks themselves must work: the admin can.
+kubectl auth can-i get nodes --subresource=proxy >/dev/null || fail "can-i self-check failed"
+pass "reader cannot read Secrets, exec, use nodes/proxy, mint tokens or write"
 
 step "remediation apply and rollback"
 ./bin/hardex fix --cluster --rules HX-WL-001 --max-risk high --apply --yes --backup-dir "$WORK/backups" --fail-on none | tee "$WORK/fix.txt"
