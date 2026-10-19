@@ -2,10 +2,10 @@
 
 All notable changes are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow [Semantic Versioning](https://semver.org/). Before 1.0, minor versions may contain breaking changes.
 
-## Unreleased
+## 0.8.4 — 2026-10-19
 
 ### Added
-- GitHub Action (`uses: ManintheiCloud/Hardex@v0.8.3`): downloads the release for the runner (Linux, macOS, Windows; x64, ARM64), verifies it against `SHA256SUMS` and its SLSA build provenance, scans, and writes SARIF for code scanning. Tested on every hosted runner type.
+- GitHub Action (`uses: ManintheiCloud/Hardex@v0.8.4`): downloads the release for the runner (Linux, macOS, Windows; x64, ARM64), verifies it against `SHA256SUMS` and its SLSA build provenance, scans, and writes SARIF for code scanning. Tested on every hosted runner type.
 
 ### Removed
 - A test binary (`tests.test`) that had been committed by mistake; `*.test` is ignored.
