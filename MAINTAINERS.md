@@ -2,4 +2,4 @@
 
 | Name | GitHub | Areas |
 |---|---|---|
-| _founding maintainer_ | _@handle_ | all |
+| Christopher Chick | [@ManintheiCloud](https://github.com/ManintheiCloud) | all |
