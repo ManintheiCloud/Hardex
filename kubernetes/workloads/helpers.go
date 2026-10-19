@@ -36,27 +36,16 @@ func eachPod(meta assessment.Metadata, fn func(ctx *assessment.Context, obj *res
 			if pod == nil {
 				return
 			}
-			if !ctx.Options.IncludeSystem && isControlPlaneStaticPod(obj) {
-				// Assessed by the control-plane rules, which understand
-				// that these components legitimately need host access.
+			if !ctx.Options.IncludeSystem && obj.EffectiveNamespace() == "kube-system" {
+				// Platform components (kube-proxy, the CNI, CoreDNS, and the
+				// control-plane static pods, which the control-plane rules
+				// assess) legitimately need host access and are not changed
+				// by cluster users. --include-system assesses them too.
 				return
 			}
 			fn(ctx, obj, pod, prefix)
 		},
 	}
-}
-
-var controlPlaneComponents = map[string]bool{
-	"kube-apiserver": true, "kube-controller-manager": true, "kube-scheduler": true, "etcd": true,
-}
-
-func isControlPlaneStaticPod(obj *resource.Object) bool {
-	if obj.Kind != "Pod" || obj.EffectiveNamespace() != "kube-system" {
-		return false
-	}
-	labels := resource.Map(obj.Raw, "metadata", "labels")
-	comp, _ := labels["component"].(string)
-	return controlPlaneComponents[comp]
 }
 
 // effective resolves a security context field that may be set at the pod

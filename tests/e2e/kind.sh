@@ -145,5 +145,16 @@ echo "$out"
 echo "$out" | grep -qi 'warning.*HX-WL-001' || fail "admission webhook (warn mode) did not warn about a privileged pod"
 pass "admission webhook warns through the real API server"
 
+step "Hardex's own deployments, as deployed"
+./bin/hardex scan --cluster --kubeconfig "$WORK/reader.kubeconfig" --profile restricted --format json --fail-on none -o "$WORK/final.json"
+jq -r '.findings[] | select(.resource.namespace as $n | ["hardex","hardex-node","cert-manager"] | index($n))
+  | "\(.ruleId) \(.severity) \(.resource.kind) \(.resource.namespace)/\(.resource.name)\(if .resource.container then "["+.resource.container+"]" else "" end)"' \
+  "$WORK/final.json" | sort | uniq > "$WORK/own.txt"
+echo "Findings on Hardex and cert-manager ($(wc -l < "$WORK/own.txt")):"; cat "$WORK/own.txt"
+if [ -n "${GITHUB_ACTIONS:-}" ]; then
+  split -l 12 "$WORK/own.txt" "$WORK/own."
+  for f in "$WORK"/own.??; do [ -e "$f" ] && annotate notice "REVIEW-OWN: $(paste -sd ';' "$f")"; done
+fi
+
 echo
 echo "All end-to-end checks passed."

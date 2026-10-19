@@ -47,7 +47,7 @@ Differences from the in-cluster `PodSecurity` admission controller, by design:
 
 - Hardex places some Restricted controls in its `baseline` profile (e.g. seccomp) because NSA/CISA and CIS recommend them broadly.
 - Hardex additionally reports controls outside PSS (read-only root filesystem, resource limits, image references, token automount).
-- Hardex skips control-plane static pods in workload rules unless `--include-system` is given; those pods are assessed by HX-CP rules instead.
+- Hardex skips workloads in `kube-system` (kube-proxy, the CNI, CoreDNS, control-plane static pods) in workload rules unless `--include-system` is given: they need host access by design and are not changed by cluster users. Control-plane static pods are assessed by the HX-CP rules either way. RBAC objects created by Kubernetes (`system:`) and kubeadm (`kubeadm:`) are likewise skipped.
 
 Mappings live in one table, [`baselines/mappings.go`](../baselines/mappings.go), rather than in each rule, so they can be reviewed together whenever a benchmark version changes.
 

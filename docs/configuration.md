@@ -14,8 +14,8 @@ kind: HardexConfig
 # The --profile flag overrides this.
 profile: baseline
 
-# Also assess Kubernetes-managed objects: system:* RBAC, kube-system
-# network isolation, and control-plane static pods under workload rules.
+# Also assess Kubernetes- and kubeadm-managed objects: system: and kubeadm:
+# RBAC, and kube-system workloads and network isolation.
 includeSystem: false
 
 # Turn rules off entirely. A justification is required and is printed in

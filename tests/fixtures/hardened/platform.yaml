@@ -1,0 +1,52 @@
+# Kubernetes- and kubeadm-managed platform objects as a kubeadm cluster
+# ships them. They need host access or anonymous access by design and are
+# not changed by cluster users, so they are not reported unless
+# --include-system is set (see tests/system_test.go).
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: kube-proxy
+  namespace: kube-system
+spec:
+  selector: {matchLabels: {k8s-app: kube-proxy}}
+  template:
+    metadata: {labels: {k8s-app: kube-proxy}}
+    spec:
+      hostNetwork: true
+      serviceAccountName: kube-proxy
+      containers:
+        - name: kube-proxy
+          image: registry.k8s.io/kube-proxy:v1.37.0
+          securityContext: {privileged: true}
+          volumeMounts: [{name: modules, mountPath: /lib/modules, readOnly: true}]
+      volumes:
+        - name: modules
+          hostPath: {path: /lib/modules}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: kubeadm:bootstrap-signer-clusterinfo
+  namespace: kube-public
+rules:
+  - apiGroups: [""]
+    resources: [configmaps]
+    resourceNames: [cluster-info]
+    verbs: [get]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: kubeadm:bootstrap-signer-clusterinfo
+  namespace: kube-public
+roleRef: {apiGroup: rbac.authorization.k8s.io, kind: Role, name: "kubeadm:bootstrap-signer-clusterinfo"}
+subjects:
+  - {apiGroup: rbac.authorization.k8s.io, kind: User, name: "system:anonymous"}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: kubeadm:cluster-admins
+roleRef: {apiGroup: rbac.authorization.k8s.io, kind: ClusterRole, name: cluster-admin}
+subjects:
+  - {apiGroup: rbac.authorization.k8s.io, kind: Group, name: "kubeadm:cluster-admins"}

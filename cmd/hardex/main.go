@@ -151,7 +151,7 @@ func cmdScan(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 	format := fs.String("format", "text", "output format: "+strings.Join(reporting.Formats, ", "))
 	output := fs.String("o", "", "write report to this file instead of stdout")
 	failOn := fs.String("fail-on", "high", "exit 1 if any active finding is at or above this severity (info..critical, or none)")
-	includeSystem := fs.Bool("include-system", false, "also assess Kubernetes-managed objects (system:* RBAC, kube-system networking, control-plane pods as workloads)")
+	includeSystem := fs.Bool("include-system", false, "also assess Kubernetes-managed objects (system: and kubeadm: RBAC, kube-system workloads and networking)")
 	var mods multiFlag
 	fs.Var(&mods, "module", "declarative rule module file (repeatable; never loaded implicitly)")
 	var cloudIAM multiFlag
