@@ -43,6 +43,26 @@ jobs:
         run: go run ./tools/gendocs && git diff --exit-code docs/rules.md
       - run: make vuln
 
+  # Release binaries ship for macOS and Windows too; their unit tests run
+  # there, not only on Linux. (The Action job runs the released binary on
+  # four runner types; this runs the code under test.)
+  test-platforms:
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: [macos-15, windows-2025]
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: stable
+          check-latest: true
+      - run: go vet ./...
+      - run: go test -count=1 ./...
+
   supply-chain:
     # Verifies the latest published release with the code under test, against
     # the real registry, Sigstore and OSV: keyless image signature discovery
