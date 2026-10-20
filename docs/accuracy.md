@@ -3,7 +3,7 @@
 Findings on software that thousands of clusters run unchanged are the best test of a rule set: every false positive there is noise for everyone. Hardex is reviewed against:
 
 - a fresh **kind** cluster (Kubernetes 1.37) with cert-manager and Hardex's own deployments, on every push (`tests/e2e/kind.sh` publishes every finding outside the deliberately insecure fixtures for review, and fails if Hardex's own deployments have a critical finding);
-- the published install manifests of widely used components, at pinned releases, scanned with `--profile baseline` on every push (`tests/corpus`, `make corpus`). Every finding is compared with a reviewed golden file, so a rule change that alters what Hardex says about real-world software fails CI until the new findings are reviewed and the golden files updated in the same change.
+- the published install manifests of widely used components, at pinned releases, scanned with `--profile baseline` on every push (`tests/corpus`, `make corpus`). Every finding is compared with a reviewed golden file, so a rule change that alters what Hardex says about real-world software fails CI until the new findings are reviewed and the golden files updated in the same change. Each manifest is also pinned by SHA-256 (`corpus.sha256`), so an upstream file that changes under the same tag is reported as an upstream change, never mistaken for a change in Hardex.
 
 ## Review of October 2026 (v0.8.5)
 
