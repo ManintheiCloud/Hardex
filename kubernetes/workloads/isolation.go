@@ -2,6 +2,7 @@ package workloads
 
 import (
 	"fmt"
+	"net"
 	"strings"
 
 	"github.com/ManintheiCloud/Hardex/baselines"
@@ -110,24 +111,35 @@ var procMount = eachContainer(assessment.Metadata{
 	Title:       "Unmasked /proc mount",
 	Severity:    finding.High,
 	Category:    assessment.CategoryWorkloads,
-	Description: "Detects containers with securityContext.procMount set to Unmasked.",
-	Rationale:   "The default /proc mount masks paths that leak host information or allow kernel tuning. Unmasking them exposes the host to the container.",
+	Description: "Detects containers with securityContext.procMount set to Unmasked. In a pod with its own user namespace (hostUsers: false), which the Pod Security Standards Baseline allows since Kubernetes 1.35 but Restricted does not, it is reported as low.",
+	Rationale:   "The default /proc mount masks paths that leak host information or allow kernel tuning. Unmasking them exposes the host to the container. In a user namespace the container's root is unprivileged on the node, which is why Baseline allows it there.",
 	Remediation: "Remove procMount or set it to Default.",
 	References:  []finding.Reference{baselines.PSS("Baseline", "/proc Mount Type"), refCISPods},
-}, func(ctx *assessment.Context, obj *resource.Object, _ map[string]any, prefix string, c resource.Container) {
-	if v := resource.String(c.Spec, "securityContext", "procMount"); v != "" && v != "Default" {
-		ctx.Report(assessment.Hit{Object: obj, Container: c.Name, Path: c.Path(prefix) + ".securityContext.procMount", Observed: v,
-			Message: fmt.Sprintf("container %q uses procMount %s", c.Name, v)})
+}, func(ctx *assessment.Context, obj *resource.Object, pod map[string]any, prefix string, c resource.Container) {
+	v := resource.String(c.Spec, "securityContext", "procMount")
+	if v == "" || v == "Default" {
+		return
 	}
+	hit := assessment.Hit{Object: obj, Container: c.Name, Path: c.Path(prefix) + ".securityContext.procMount", Observed: v,
+		Message: fmt.Sprintf("container %q uses procMount %s", c.Name, v)}
+	if userNamespaced(pod) {
+		hit.Severity = sevLow
+		hit.Message += " in a user namespace (hostUsers: false); Baseline allows this, Restricted does not"
+	}
+	ctx.Report(hit)
 })
 
-// The "safe" sysctl set from the Pod Security Standards.
-var safeSysctls = map[string]bool{
-	"kernel.shm_rmid_forced": true, "net.ipv4.ip_local_port_range": true,
-	"net.ipv4.ip_unprivileged_port_start": true, "net.ipv4.tcp_syncookies": true,
-	"net.ipv4.ping_group_range": true, "net.ipv4.ip_local_reserved_ports": true,
-	"net.ipv4.tcp_keepalive_time": true, "net.ipv4.tcp_fin_timeout": true,
-	"net.ipv4.tcp_keepalive_intvl": true, "net.ipv4.tcp_keepalive_probes": true,
+// The "safe" sysctl set from the Pod Security Standards, as of Kubernetes
+// 1.37 (pod-security-admission policy/check_sysctls.go). The value is the
+// first Kubernetes minor version whose PodSecurity admission allows it.
+var safeSysctls = map[string]int{
+	"kernel.shm_rmid_forced": 0, "net.ipv4.ip_local_port_range": 0,
+	"net.ipv4.ip_unprivileged_port_start": 0, "net.ipv4.tcp_syncookies": 0,
+	"net.ipv4.ping_group_range": 0, "net.ipv4.ip_local_reserved_ports": 27,
+	"net.ipv4.tcp_keepalive_time": 29, "net.ipv4.tcp_fin_timeout": 29,
+	"net.ipv4.tcp_keepalive_intvl": 29, "net.ipv4.tcp_keepalive_probes": 29,
+	"net.ipv4.tcp_rmem": 32, "net.ipv4.tcp_wmem": 32,
+	"net.ipv4.tcp_slow_start_after_idle": 37, "net.ipv4.tcp_notsent_lowat": 37,
 }
 
 var unsafeSysctls = eachPod(assessment.Metadata{
@@ -139,10 +151,11 @@ var unsafeSysctls = eachPod(assessment.Metadata{
 	Rationale:   "Unsafe sysctls are not namespaced or not isolated between pods; setting them can affect the node and every other workload on it.",
 	Remediation: "Remove the sysctl, or run the workload on dedicated nodes where the kubelet explicitly allows it.",
 	References:  []finding.Reference{baselines.PSS("Baseline", "Sysctls"), refCISPods},
+	Limitations: "The safe set is the one in Kubernetes 1.37. net.ipv4.tcp_slow_start_after_idle and net.ipv4.tcp_notsent_lowat were added in 1.37; PodSecurity admission on older clusters still rejects them, though they are namespaced and safe.",
 }, func(ctx *assessment.Context, obj *resource.Object, pod map[string]any, prefix string) {
 	for i, s := range resource.Maps(pod, "securityContext", "sysctls") {
 		name := resource.String(s, "name")
-		if !safeSysctls[name] {
+		if _, safe := safeSysctls[name]; !safe {
 			ctx.Report(assessment.Hit{Object: obj, Path: fmt.Sprintf("%s.securityContext.sysctls[%d].name", prefix, i), Observed: name,
 				Message: fmt.Sprintf("pod sets unsafe sysctl %s", name)})
 		}
@@ -174,3 +187,50 @@ var volumeTypes = eachPod(assessment.Metadata{
 		}
 	}
 })
+
+// probeHandlers are the container fields whose httpGet or tcpSocket handler
+// the kubelet runs from the node; their host field is restricted by the Pod
+// Security Standards Baseline since Kubernetes 1.34.
+var probeHandlers = [][]string{
+	{"livenessProbe"}, {"readinessProbe"}, {"startupProbe"},
+	{"lifecycle", "postStart"}, {"lifecycle", "preStop"},
+}
+
+var probeHost = eachContainer(assessment.Metadata{
+	ID:          "HX-WL-021",
+	Title:       "Probe or lifecycle hook targets another host",
+	Severity:    finding.Medium,
+	Category:    assessment.CategoryWorkloads,
+	Description: "Detects httpGet and tcpSocket probes and lifecycle hooks that set host, which the Pod Security Standards Baseline forbids since Kubernetes 1.34.",
+	Rationale:   "The kubelet runs these handlers from the node's network namespace. With host set, anyone who can create a pod can make the kubelet connect to any address it can reach: services bound to the node's loopback, the cloud metadata endpoint, or other internal hosts. Probe failures are recorded in events, so responses can leak back.",
+	Remediation: "Remove the host field so the handler targets the pod's own IP. To check an external dependency, do it from inside the container (an exec probe) or not in a probe at all.",
+	References:  []finding.Reference{baselines.PSS("Baseline", "Host Probes / Lifecycle Hooks"), refNSAPod},
+	Limitations: "A loopback host in a hostNetwork pod is reported as low: the kubelet then reaches only the pod's own network namespace, which is the node's. Baseline forbids it regardless.",
+}, func(ctx *assessment.Context, obj *resource.Object, pod map[string]any, prefix string, c resource.Container) {
+	hostNet, _ := resource.Lookup(pod, "hostNetwork")
+	for _, h := range probeHandlers {
+		for _, kind := range []string{"httpGet", "tcpSocket"} {
+			field := append(append([]string{}, h...), kind, "host")
+			host := resource.String(c.Spec, field...)
+			if host == "" {
+				continue
+			}
+			hit := assessment.Hit{Object: obj, Container: c.Name, Path: c.Path(prefix) + "." + strings.Join(field, "."), Observed: host,
+				Message: fmt.Sprintf("container %q %s %s targets host %s", c.Name, strings.Join(h, "."), kind, host)}
+			if b, _ := hostNet.(bool); b && loopback(host) {
+				hit.Severity = sevLow
+				hit.Message += " (the pod uses the host network, so this is its own loopback)"
+			}
+			ctx.Report(hit)
+		}
+	}
+})
+
+func loopback(host string) bool {
+	h := strings.ToLower(strings.Trim(host, "[]"))
+	if h == "localhost" || h == "::1" {
+		return true
+	}
+	ip := net.ParseIP(h)
+	return ip != nil && ip.IsLoopback()
+}

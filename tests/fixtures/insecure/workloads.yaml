@@ -25,6 +25,11 @@ spec:
           ports:
             - containerPort: 80
               hostPort: 8080
+          livenessProbe:
+            httpGet:
+              host: 169.254.169.254
+              path: /latest/meta-data/
+              port: 80
           env:
             - name: DB_PASSWORD
               value: hunter2

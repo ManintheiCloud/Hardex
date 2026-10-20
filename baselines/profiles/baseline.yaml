@@ -30,6 +30,7 @@ rules:
   - HX-WL-008 # seccomp
   - HX-WL-011 # mutable image tag
   - HX-WL-014 # hostPort
+  - HX-WL-021 # probe or lifecycle hook host
   - HX-WL-018 # unsafe sysctls
   - HX-SEC-001 # secret values in manifests
   - HX-SEC-002 # credentials in env literals
