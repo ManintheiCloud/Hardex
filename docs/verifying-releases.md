@@ -21,7 +21,7 @@ cosign verify-blob SHA256SUMS \
 sha256sum --ignore-missing -c SHA256SUMS
 
 # 3. (optional) Provenance: built from this repository by GitHub Actions
-gh attestation verify hardex_0.8.5_linux_amd64.tar.gz --repo ManintheiCloud/Hardex
+gh attestation verify hardex_0.8.6_linux_amd64.tar.gz --repo ManintheiCloud/Hardex
 ```
 
 Upgrading from an earlier Hardex? It can check step 1 itself, offline, without cosign — but use a Hardex you already trust to verify a new one:
@@ -35,14 +35,14 @@ hardex verify-blob SHA256SUMS --bundle SHA256SUMS.sigstore.json \
 ## Container image
 
 ```sh
-cosign verify ghcr.io/manintheicloud/hardex:0.8.5 \
+cosign verify ghcr.io/manintheicloud/hardex:0.8.6 \
   --certificate-identity-regexp '^https://github.com/ManintheiCloud/Hardex/\.github/workflows/release\.yml@refs/(tags/v|heads/main)' \
   --certificate-oidc-issuer https://token.actions.githubusercontent.com
 
-gh attestation verify oci://ghcr.io/manintheicloud/hardex:0.8.5 --repo ManintheiCloud/Hardex
+gh attestation verify oci://ghcr.io/manintheicloud/hardex:0.8.6 --repo ManintheiCloud/Hardex
 
 # or with Hardex itself (plus known vulnerabilities from the image's SBOM)
-hardex images --image ghcr.io/manintheicloud/hardex:0.8.5 --require-signature --vulns \
+hardex images --image ghcr.io/manintheicloud/hardex:0.8.6 --require-signature --vulns \
   --certificate-identity-regexp '^https://github.com/ManintheiCloud/Hardex/\.github/workflows/release\.yml@refs/(tags/v|heads/main)' \
   --certificate-oidc-issuer https://token.actions.githubusercontent.com
 ```
