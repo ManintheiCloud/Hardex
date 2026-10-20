@@ -21,6 +21,8 @@ Profiles are nested (`minimal ⊂ baseline ⊂ restricted`); a test enforces thi
 | NSA/CISA Kubernetes Hardening Guidance **v1.2** (August 2022) | Exact section heading (e.g. "Kubernetes Pod security › Pod security enforcement") | Section-level, using the document's own table of contents; the guidance has no numbered items. |
 | NIST SP 800-190 | Not yet cited | Planned. |
 
+**Newer CIS versions.** CIS has since published Kubernetes Benchmark v2.0.1 (June 2026, Kubernetes 1.34–1.35) and v2.1.0 (by October 2026). Hardex's mappings have not been reviewed against either: their text is available only through CIS WorkBench, and kube-bench has no encoding of them yet. Item numbers usually carry over between point releases, but treat the v2.0 citations as exactly that until a review lands. (Re-checked 2026-10-20: all 42 cited v2.0 items and titles still match kube-bench's `cfg/cis-2.0`.)
+
 ## Pod Security Standards coverage
 
 | PSS level | Control | Hardex rule |
