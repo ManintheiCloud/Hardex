@@ -6,12 +6,18 @@ on:
   push:
     branches: [main]
   pull_request:
+  # After a release is published (which waits for a reviewer's approval),
+  # test the action with the release it now defaults to.
+  workflow_run:
+    workflows: [release]
+    types: [completed]
 
 permissions:
   contents: read
 
 jobs:
   test:
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
     strategy:
       fail-fast: false
       matrix:
@@ -27,15 +33,15 @@ jobs:
         env:
           EVENT: ${{ github.event_name }}
         run: |
-          # The action's default release. A pull request that bumps it (a
-          # release PR) cannot see it yet: the release is built after the
-          # merge. Such a PR tests the action with the latest published
-          # release instead; pushes to main wait for the new one.
+          # The action's default release. Until it is published (a release
+          # pull request, or main before a reviewer approves the release),
+          # pull requests and pushes test with the latest published release.
+          # After the release workflow, the default itself must be there.
           v="$(sed -n 's/^    default: "\([0-9][0-9.]*\)"$/\1/p' action.yml | head -1)"
           published() { curl -sfIL -o /dev/null "https://github.com/ManintheiCloud/Hardex/releases/download/v$1/SHA256SUMS"; }
-          if [ "$EVENT" = pull_request ] && ! published "$v"; then
+          if [ "$EVENT" != workflow_run ] && ! published "$v"; then
             latest="$(curl -sfIL -o /dev/null -w '%{url_effective}' https://github.com/ManintheiCloud/Hardex/releases/latest | sed 's#.*/tag/v##')"
-            echo "v$v is not published yet (release pull request); testing with v$latest"
+            echo "v$v is not published yet; testing with v$latest (the release itself is tested after it is published)"
             v="$latest"
           fi
           for i in $(seq 1 40); do
