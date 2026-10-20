@@ -2,6 +2,14 @@
 
 All notable changes are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow [Semantic Versioning](https://semver.org/). Before 1.0, minor versions may contain breaking changes.
 
+## Unreleased
+
+### Fixed
+- The API server's structured configuration files were trusted without being read: with `--authentication-config`, `--authorization-config` or `--encryption-provider-config` set, HX-CP-001, HX-CP-002 and HX-CP-007 reported nothing whatever the files said. When the files are part of the input (e.g. scan `/etc/kubernetes` with the static pod manifests), Hardex now reports:
+  - HX-CP-001: an `AuthenticationConfiguration` whose anonymous authenticator is enabled without conditions, or for paths other than `/livez`, `/readyz` and `/healthz`. A file without an `anonymous` section no longer hides `--anonymous-auth`, which then still applies (default true).
+  - HX-CP-002: an `AuthorizationConfiguration` that includes `AlwaysAllow` (critical) or no `RBAC` authorizer (medium).
+  - HX-CP-007: an `EncryptionConfiguration` under which Secrets are still written unencrypted: no entry covers them, or the first matching entry (`secrets`, `*.` or `*.*`, in order) lists `identity` first.
+
 ## 0.9.1 — 2026-10-20
 
 ### Added

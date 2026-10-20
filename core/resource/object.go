@@ -100,6 +100,10 @@ var clusterScoped = map[string]bool{
 	// Node-local configuration files, not API objects, but they have no
 	// namespace either.
 	"KubeletConfiguration": true,
+	// The API server's configuration files (apiserver.config.k8s.io).
+	"AuthenticationConfiguration": true,
+	"AuthorizationConfiguration":  true,
+	"EncryptionConfiguration":     true,
 }
 
 // IsClusterScopedKind reports whether Hardex treats the kind as cluster-scoped.
