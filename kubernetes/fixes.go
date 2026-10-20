@@ -28,6 +28,7 @@ func Fixers() map[string]remediation.Fixer {
 		"HX-WL-014":  removeAtFindingPath(remediation.High, "remove hostPort"),
 		"HX-WL-015":  fixAppArmor,
 		"HX-WL-017":  setAtFindingPath("Default", remediation.Low, "set procMount: Default"),
+		"HX-WL-021":  removeAtFindingPath(remediation.Medium, "remove host so the handler targets the pod"),
 		"HX-NET-001": defaultDeny("Ingress"),
 		"HX-NET-002": defaultDeny("Egress"),
 	}

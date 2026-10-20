@@ -61,6 +61,7 @@ Severity is the default; individual findings may be raised or lowered where the 
 | [HX-WL-018](#hx-wl-018) | medium | workloads | Unsafe sysctl | baseline, restricted |
 | [HX-WL-019](#hx-wl-019) | low | workloads | Non-standard volume type | restricted |
 | [HX-WL-020](#hx-wl-020) | critical | workloads | Windows HostProcess container | baseline, minimal, restricted |
+| [HX-WL-021](#hx-wl-021) | medium | workloads | Probe or lifecycle hook targets another host | baseline, restricted |
 
 ## HX-CP-001
 
@@ -725,7 +726,7 @@ Severity is the default; individual findings may be raised or lowered where the 
 
 **Container may run as root** — medium, workloads
 
-**Checks:** Detects containers that are not required to run as a non-root user (runAsNonRoot is not true at container or pod level), and containers explicitly configured to run as UID 0.
+**Checks:** Detects containers that are not required to run as a non-root user (runAsNonRoot is not true at container or pod level), and containers explicitly configured to run as UID 0. Pods with their own user namespace (hostUsers: false) are exempt, as in the Pod Security Standards since Kubernetes 1.35.
 
 **Why it matters:** Root inside a container is root on the node's kernel interfaces. Combined with any container escape, misconfigured mount or kernel vulnerability, it maximises the attacker's starting privilege.
 
@@ -921,9 +922,9 @@ Severity is the default; individual findings may be raised or lowered where the 
 
 **Unmasked /proc mount** — high, workloads
 
-**Checks:** Detects containers with securityContext.procMount set to Unmasked.
+**Checks:** Detects containers with securityContext.procMount set to Unmasked. In a pod with its own user namespace (hostUsers: false), which the Pod Security Standards Baseline allows since Kubernetes 1.35 but Restricted does not, it is reported as low.
 
-**Why it matters:** The default /proc mount masks paths that leak host information or allow kernel tuning. Unmasking them exposes the host to the container.
+**Why it matters:** The default /proc mount masks paths that leak host information or allow kernel tuning. Unmasking them exposes the host to the container. In a user namespace the container's root is unprivileged on the node, which is why Baseline allows it there.
 
 **Remediation:** Remove procMount or set it to Default.
 
@@ -942,6 +943,8 @@ Severity is the default; individual findings may be raised or lowered where the 
 **Why it matters:** Unsafe sysctls are not namespaced or not isolated between pods; setting them can affect the node and every other workload on it.
 
 **Remediation:** Remove the sysctl, or run the workload on dedicated nodes where the kubelet explicitly allows it.
+
+**Known limitations:** The safe set is the one in Kubernetes 1.37. net.ipv4.tcp_slow_start_after_idle and net.ipv4.tcp_notsent_lowat were added in 1.37; PodSecurity admission on older clusters still rejects them, though they are namespaced and safe.
 
 **References:**
 
@@ -979,3 +982,20 @@ Severity is the default; individual findings may be raised or lowered where the 
 - CIS: [CIS Kubernetes Benchmark v2.0 5.2.10 Minimize the admission of Windows HostProcess containers](https://www.cisecurity.org/benchmark/kubernetes)
 - NSA-CISA: [NSA/CISA Kubernetes Hardening Guidance v1.2 (August 2022) — Kubernetes Pod security › Pod security enforcement](https://media.defense.gov/2022/Aug/29/2003066362/1/1/0/CTR_KUBERNETES_HARDENING_GUIDANCE_1.2_20220829.PDF)
 - PSS: [Baseline: HostProcess](https://kubernetes.io/docs/concepts/security/pod-security-standards/)
+
+## HX-WL-021
+
+**Probe or lifecycle hook targets another host** — medium, workloads
+
+**Checks:** Detects httpGet and tcpSocket probes and lifecycle hooks that set host, which the Pod Security Standards Baseline forbids since Kubernetes 1.34.
+
+**Why it matters:** The kubelet runs these handlers from the node's network namespace. With host set, anyone who can create a pod can make the kubelet connect to any address it can reach: services bound to the node's loopback, the cloud metadata endpoint, or other internal hosts. Probe failures are recorded in events, so responses can leak back.
+
+**Remediation:** Remove the host field so the handler targets the pod's own IP. To check an external dependency, do it from inside the container (an exec probe) or not in a probe at all.
+
+**Known limitations:** A loopback host in a hostNetwork pod is reported as low: the kubelet then reaches only the pod's own network namespace, which is the node's. Baseline forbids it regardless.
+
+**References:**
+
+- NSA-CISA: [NSA/CISA Kubernetes Hardening Guidance v1.2 (August 2022) — Kubernetes Pod security › Pod security enforcement](https://media.defense.gov/2022/Aug/29/2003066362/1/1/0/CTR_KUBERNETES_HARDENING_GUIDANCE_1.2_20220829.PDF)
+- PSS: [Baseline: Host Probes / Lifecycle Hooks](https://kubernetes.io/docs/concepts/security/pod-security-standards/)

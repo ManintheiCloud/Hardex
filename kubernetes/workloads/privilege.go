@@ -212,13 +212,13 @@ var runAsNonRoot = eachContainer(assessment.Metadata{
 	Title:       "Container may run as root",
 	Severity:    finding.Medium,
 	Category:    assessment.CategoryWorkloads,
-	Description: "Detects containers that are not required to run as a non-root user (runAsNonRoot is not true at container or pod level), and containers explicitly configured to run as UID 0.",
+	Description: "Detects containers that are not required to run as a non-root user (runAsNonRoot is not true at container or pod level), and containers explicitly configured to run as UID 0. Pods with their own user namespace (hostUsers: false) are exempt, as in the Pod Security Standards since Kubernetes 1.35.",
 	Rationale:   "Root inside a container is root on the node's kernel interfaces. Combined with any container escape, misconfigured mount or kernel vulnerability, it maximises the attacker's starting privilege.",
 	Remediation: "Set securityContext.runAsNonRoot: true (pod or container level) and a non-zero runAsUser, and build images that run as a non-root USER.",
 	References:  []finding.Reference{baselines.PSS("Restricted", "Running as Non-root"), baselines.PSS("Restricted", "Running as Non-root user"), refNSAPod, refCISPods},
 	Limitations: "If runAsNonRoot is unset, the effective user depends on the image's USER directive, which Hardex does not inspect.",
 }, func(ctx *assessment.Context, obj *resource.Object, pod map[string]any, prefix string, c resource.Container) {
-	if isWindows(pod) {
+	if isWindows(pod) || userNamespaced(pod) {
 		return
 	}
 	uid, uidPath, uidSet := effective(pod, prefix, c, "runAsUser")

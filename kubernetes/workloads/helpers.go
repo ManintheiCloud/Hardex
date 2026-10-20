@@ -68,6 +68,16 @@ func isWindows(pod map[string]any) bool {
 	return resource.String(pod, "os", "name") == "windows"
 }
 
+// userNamespaced reports whether the pod runs in its own user namespace
+// (hostUsers: false). Since Kubernetes 1.35 the Pod Security Standards relax
+// the root-user and /proc controls for such pods: UID 0 inside the pod maps
+// to an unprivileged UID on the node.
+func userNamespaced(pod map[string]any) bool {
+	v, ok := resource.Lookup(pod, "hostUsers")
+	b, isBool := v.(bool)
+	return ok && isBool && !b
+}
+
 func show(v any) string {
 	if v == nil {
 		return "<unset>"

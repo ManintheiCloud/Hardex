@@ -47,6 +47,7 @@ var insecureExpectations = []expectation{
 	{"HX-WL-018", "Deployment shop/insecure-web", finding.Medium},
 	{"HX-WL-019", "Deployment shop/insecure-web", finding.Low},
 	{"HX-WL-020", "Pod shop/windows-host [agent]", finding.Critical},
+	{"HX-WL-021", "Deployment shop/insecure-web [web]", finding.Medium},
 	{"HX-SEC-001", "Secret shop/db-credentials", finding.Medium},
 	{"HX-SEC-002", "Deployment shop/insecure-web [web]", finding.Medium},
 	{"HX-RBAC-001", "ClusterRole god-mode", finding.High},

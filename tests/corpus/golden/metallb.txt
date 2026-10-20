@@ -9,3 +9,5 @@ HX-WL-002 high DaemonSet metallb-system/speaker | pod shares the node's Network 
 HX-WL-006 high DaemonSet metallb-system/speaker[speaker] | container "speaker" adds capability NET_RAW
 HX-WL-008 medium DaemonSet metallb-system/speaker[speaker] | container "speaker" has no seccomp profile
 HX-WL-008 medium Deployment metallb-system/controller[controller] | container "controller" has no seccomp profile
+HX-WL-021 low DaemonSet metallb-system/speaker[speaker] | container "speaker" livenessProbe httpGet targets host 127.0.0.1 (the pod uses the host network, so this is its own loopback)
+HX-WL-021 low DaemonSet metallb-system/speaker[speaker] | container "speaker" readinessProbe httpGet targets host 127.0.0.1 (the pod uses the host network, so this is its own loopback)

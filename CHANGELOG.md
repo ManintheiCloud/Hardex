@@ -2,6 +2,18 @@
 
 All notable changes are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow [Semantic Versioning](https://semver.org/). Before 1.0, minor versions may contain breaking changes.
 
+## Unreleased
+
+### Added
+- HX-WL-021: `host` in httpGet/tcpSocket probes and lifecycle hooks, which the Pod Security Standards Baseline forbids since Kubernetes 1.34 (the kubelet runs these from the node, so `host` lets any pod author make it connect to node-local services or the metadata endpoint). Medium; a loopback host in a `hostNetwork` pod is low. In the `baseline` and `restricted` profiles, with a fix that removes the field.
+
+### Changed
+- Brought the workload rules up to the Pod Security Standards of Kubernetes 1.37, checked against the `PodSecurity` admission controller's policy package:
+  - HX-WL-005 no longer reports pods with their own user namespace (`hostUsers: false`): root there is unprivileged on the node, and the standard allows it since 1.35.
+  - HX-WL-017 reports an unmasked `/proc` in such pods as low (Baseline allows it since 1.35; Restricted does not).
+  - HX-WL-018 accepts the sysctls added to the safe set in 1.32 (`net.ipv4.tcp_rmem`, `tcp_wmem`) and 1.37 (`tcp_slow_start_after_idle`, `tcp_notsent_lowat`); they were false positives.
+- Accuracy corpus: MetalLB's speaker gains two low HX-WL-021 findings (loopback probes in a host-network pod).
+
 ## 0.8.10 — 2026-10-20
 
 ### Fixed
