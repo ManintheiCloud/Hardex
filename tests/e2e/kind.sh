@@ -135,10 +135,15 @@ pass "after a simulated crash, rollback undoes a landed patch and leaves an unla
 step "node scanner DaemonSet"
 sed "s#image: ghcr.io/manintheicloud/hardex:[^ ]*#image: $IMAGE#" deploy/hardex-node.yaml | kubectl apply -f -
 kubectl -n hardex-node rollout status daemonset/hardex-node --timeout 120s
-sleep 5
-node_logs="$(kubectl -n hardex-node logs daemonset/hardex-node --all-containers)"
+# Wait for a complete report rather than a fixed time: the scan's JSON
+# may still be being written when the pod is Ready.
+for i in $(seq 1 24); do
+  node_logs="$(kubectl -n hardex-node logs daemonset/hardex-node --all-containers 2>/dev/null || true)"
+  report="$(echo "$node_logs" | awk '/^\{/{p=1} p{print} p&&/^\}/{exit}')"
+  echo "$report" | jq -e . >/dev/null 2>&1 && break
+  sleep 5
+done
 echo "$node_logs" | grep '^node:' || true
-report="$(echo "$node_logs" | awk '/^\{/{p=1} p{print} p&&/^\}/{exit}')"
 echo "$node_logs" | grep -q 'kubelet configuration: /var/lib/kubelet/config.yaml' || fail "node scan did not read the kubelet configuration"
 echo "$node_logs" | grep -q 'static pod manifests: /etc/kubernetes/manifests' || fail "node scan did not read static pod manifests"
 echo "$report" | jq -e '.objectsEvaluated >= 2 and (.inputs | map(select(test("kube-apiserver"))) | length == 1)' >/dev/null \

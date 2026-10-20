@@ -19,6 +19,7 @@ import (
 
 	"github.com/ManintheiCloud/Hardex/core/finding"
 	"github.com/ManintheiCloud/Hardex/core/verification"
+	"github.com/ManintheiCloud/Hardex/internal/durable"
 )
 
 // Store is a directory of reports.
@@ -78,7 +79,7 @@ func (s *Store) Save(r *finding.Report) (string, error) {
 			os.Remove(path + ".tmp")
 			return "", err
 		}
-		return path, os.Rename(path+".tmp", path)
+		return path, durable.Rename(path+".tmp", path, s.dir)
 	}
 }
 
