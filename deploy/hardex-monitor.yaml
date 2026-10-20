@@ -48,6 +48,9 @@ spec:
                 - --history=/var/lib/hardex/history
                 - --keep=720
                 - --notify-min=high
+                # Findings are reported through the webhook; the Job fails only if the
+                # assessment or the delivery does (exit 3).
+                - --fail-on=none
                 - --webhook=$(WEBHOOK_URL)
               env:
                 - name: WEBHOOK_URL

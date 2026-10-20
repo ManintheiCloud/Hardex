@@ -145,6 +145,58 @@ echo "$out"
 echo "$out" | grep -qi 'warning.*HX-WL-001' || fail "admission webhook (warn mode) did not warn about a privileged pod"
 pass "admission webhook warns through the real API server"
 
+step "admission webhook in enforce mode"
+kubectl -n hardex patch deployment hardex-admission --type json \
+  -p '[{"op":"replace","path":"/spec/template/spec/containers/0/args/1","value":"--mode=enforce"}]'
+kubectl -n hardex rollout status deployment/hardex-admission --timeout 180s
+for i in $(seq 1 12); do
+  out="$(kubectl apply --dry-run=server -f "$WORK/bad-pod.yaml" 2>&1 || true)"
+  echo "$out" | grep -qi 'denied' && break
+  sleep 5
+done
+echo "$out"
+echo "$out" | grep -qi 'denied' || fail "enforce mode did not reject a privileged pod"
+echo "$out" | grep -q 'HX-WL-001' || fail "enforce mode rejection does not name the rule"
+cat > "$WORK/good-pod.yaml" <<'POD'
+apiVersion: v1
+kind: Pod
+metadata: {name: good, namespace: e2e-admission}
+spec:
+  automountServiceAccountToken: false
+  securityContext: {runAsNonRoot: true, runAsUser: 65532, seccompProfile: {type: RuntimeDefault}}
+  containers:
+    - name: c
+      image: registry.k8s.io/pause:3.10@sha256:ee6521f290b2168b6e0935a181d4cff9be1ac3f505666ef0e3c98fae8199917a
+      securityContext: {allowPrivilegeEscalation: false, readOnlyRootFilesystem: true, capabilities: {drop: ["ALL"]}}
+      resources: {requests: {cpu: 10m, memory: 16Mi}, limits: {cpu: 100m, memory: 32Mi}}
+POD
+kubectl apply --dry-run=server -f "$WORK/good-pod.yaml" || fail "enforce mode rejected a hardened pod"
+pass "enforce mode rejects a privileged pod and admits a hardened one"
+
+step "scheduled scan and monitor CronJobs, run in the cluster"
+sed "s#image: ghcr.io/manintheicloud/hardex:[^ ]*#image: $IMAGE#" deploy/hardex-cronjob.yaml | kubectl apply -f -
+# No webhook receiver in the test cluster: events go to the job log only.
+sed -e "s#image: ghcr.io/manintheicloud/hardex:[^ ]*#image: $IMAGE#" -e '/--webhook=/d' \
+    -e '/^              env:$/,/key: signing-secret}$/d' deploy/hardex-monitor.yaml > "$WORK/monitor.yaml"
+grep -q WEBHOOK "$WORK/monitor.yaml" && fail "could not strip the webhook from the monitor manifest"
+kubectl apply -f "$WORK/monitor.yaml"
+kubectl -n hardex create job scan-1 --from=cronjob/hardex-scan
+kubectl -n hardex wait --for=condition=complete job/scan-1 --timeout 180s \
+  || { kubectl -n hardex logs job/scan-1 | tail -20; fail "scan CronJob did not complete"; }
+kubectl -n hardex logs job/scan-1 > "$WORK/scan-1.json"
+jq -e '.objectsEvaluated > 20 and ((.errors // []) | length) == 0' "$WORK/scan-1.json" >/dev/null \
+  || fail "in-cluster scan report is incomplete: $(jq -c '{objectsEvaluated, errors}' "$WORK/scan-1.json")"
+for run in 1 2; do
+  kubectl -n hardex create job "monitor-$run" --from=cronjob/hardex-monitor
+  kubectl -n hardex wait --for=condition=complete "job/monitor-$run" --timeout 240s \
+    || { kubectl -n hardex logs "job/monitor-$run" | tail -20; fail "monitor run $run did not complete"; }
+  kubectl -n hardex logs "job/monitor-$run" > "$WORK/monitor-$run.log" 2>&1
+done
+head -3 "$WORK/monitor-1.log"
+grep '^{' "$WORK/monitor-1.log" | head -1 | jq -e . >/dev/null || fail "monitor emitted no JSON events"
+grep -q 'since the previous assessment' "$WORK/monitor-2.log" || fail "second monitor run did not use the history volume: $(head -5 "$WORK/monitor-2.log")"
+pass "scan and monitor CronJobs run in-cluster with the reader role; history persists between runs"
+
 step "Hardex's own deployments, as deployed"
 ./bin/hardex scan --cluster --kubeconfig "$WORK/reader.kubeconfig" --profile restricted --format json --fail-on none -o "$WORK/final.json"
 jq -r '.findings[] | select(.resource.namespace as $n | ["hardex","hardex-node","cert-manager"] | index($n))
