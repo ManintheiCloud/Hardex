@@ -26,11 +26,20 @@ jobs:
         with:
           go-version: stable
       - run: make build
+      # The pinned manifests, keyed by their checksums: downloads happen
+      # once per corpus change, not on every run. run.sh verifies every file
+      # against corpus.sha256 either way.
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/corpus-cache
+          key: corpus-${{ hashFiles('tests/corpus/corpus.txt', 'tests/corpus/corpus.sha256') }}
       - name: Compare findings with the reviewed golden files
         run: |
+          export CORPUS_CACHE="$HOME/corpus-cache"
           if ! tests/corpus/run.sh > corpus.txt 2>&1; then
             cat corpus.txt
             grep '^CHANGED' corpus.txt | while read -r _ name; do echo "::error title=corpus::findings changed for $name; review the diff and run tests/corpus/run.sh --update"; done
+            grep '^UPSTREAM CHANGED' corpus.txt | while read -r _ _ key _; do echo "::error title=corpus::upstream file $key differs from the pinned checksum; re-pin deliberately (new version in corpus.txt, delete its corpus.sha256 lines, run.sh --update, review the golden diff)"; done
             exit 1
           fi
           cat corpus.txt
