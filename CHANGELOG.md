@@ -11,6 +11,9 @@ Remediation (`hardex fix --apply`, `hardex rollback`) could leave changes in a c
 - **Interrupted runs.** Ctrl-C killed the process mid-apply; when the context was cancelled, the automatic rollback reused it and every undo request failed. `fix --apply` now handles SIGINT/SIGTERM by stopping cleanly, and rollback runs on its own context (bounded at two minutes), saving the backup after each object.
 - **Failed verification.** When the re-assessment after applying found new problems, still-present targets, or could not run, `fix --apply` only printed how to undo. It now rolls the changes back automatically (ADR 0003: success is defined by the re-assessment); `--keep-unverified` keeps them.
 
+### Changed
+- Releases need a person's approval: after a version change reaches `main`, the release is built and tested automatically, then waits for a reviewer to approve it in GitHub (the protected `release` environment) before anything is signed, tagged or published. The release-time protection check also verifies the environment.
+
 ## 0.9.2 — 2026-10-20
 
 ### Fixed

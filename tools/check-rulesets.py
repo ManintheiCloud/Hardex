@@ -1,5 +1,8 @@
 #!/usr/bin/env python3
-"""Check that the repository's live rulesets match .github/rulesets/*.json.
+"""Check that the repository's live rulesets match .github/rulesets/*.json,
+and that the deployment environments in .github/rulesets/environments.json
+are protected as described (a required reviewer, deployments only from the
+listed branches and tags).
 
 Release signatures name release.yml on refs/heads/main, so they are only as
 trustworthy as main's protection (SECURITY.md, "Release integrity"). This
@@ -70,12 +73,61 @@ def diff(path, live, want, out):
         out.append(f"{path}: expected {json.dumps(canon(want))}, live {json.dumps(canon(live))}")
 
 
+def check_environments(repo, path):
+    """The release environment must require a reviewer and deploy only from
+    the listed refs; otherwise approval can be skipped. Returns failure."""
+    if not path.exists():
+        return False
+    failed = False
+    for name, want in sorted(json.loads(path.read_text()).items()):
+        r = subprocess.run(["gh", "api", f"repos/{repo}/environments/{name}"], capture_output=True, text=True)
+        if r.returncode != 0:
+            print(f"FAIL environment {name}: does not exist or cannot be read")
+            failed = True
+            continue
+        env = json.loads(r.stdout)
+        problems = []
+        rules = {x.get("type"): x for x in env.get("protection_rules") or []}
+        if want.get("required_reviewers"):
+            rev = rules.get("required_reviewers")
+            if not rev or not rev.get("reviewers"):
+                problems.append("no required reviewer")
+        notes = []
+        if "admins_can_bypass" in want:
+            if "can_admins_bypass" not in env:
+                notes.append("admin bypass not visible to this token (unverified)")
+            elif env["can_admins_bypass"] != want["admins_can_bypass"]:
+                problems.append(f"administrators can bypass: {env['can_admins_bypass']}, expected {want['admins_can_bypass']}")
+        policy = env.get("deployment_branch_policy") or {}
+        if "deployment_branch_policies" in want:
+            if not policy.get("custom_branch_policies"):
+                problems.append(f"deployments not limited to selected refs (policy: {json.dumps(policy)})")
+            else:
+                got = gh(f"repos/{repo}/environments/{name}/deployment-branch-policies?per_page=100")
+                have = {(p["name"], p.get("type", "branch")) for p in got.get("branch_policies", [])}
+                need = {(p["name"], p["type"]) for p in want["deployment_branch_policies"]}
+                for n, t in sorted(need - have):
+                    problems.append(f"{t} {n} is not allowed to deploy")
+                for n, t in sorted(have - need):
+                    problems.append(f"{t} {n} may also deploy, not in the committed file")
+        if problems:
+            failed = True
+            print(f"FAIL environment {name}:")
+            for p in problems:
+                print(f"  {p}")
+        else:
+            print(f"ok   environment {name}" + ("; " + "; ".join(notes) if notes else ""))
+    return failed
+
+
 def main():
     repo = sys.argv[1]
     folder = pathlib.Path(sys.argv[2] if len(sys.argv) > 2 else ".github/rulesets")
     live = {r["name"]: r for r in gh(f"repos/{repo}/rulesets?per_page=100")}
-    failed = False
+    failed = check_environments(repo, folder / "environments.json")
     for f in sorted(folder.glob("*.json")):
+        if f.name == "environments.json":
+            continue
         want = json.loads(f.read_text())
         name = want["name"]
         if name not in live:
