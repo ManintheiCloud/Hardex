@@ -16,4 +16,6 @@ gh api -X POST repos/ManintheiCloud/Hardex/rulesets --input .github/rulesets/rel
 
 or in the web UI: **Settings → Rules → Rulesets → New ruleset → Import a ruleset**, once per file.
 
-Check: `gh api repos/ManintheiCloud/Hardex/rulesets --jq '.[].name'`.
+Both are applied (2026-10-20).
+
+`tools/check-rulesets.py ManintheiCloud/Hardex` compares the live rulesets with these files and fails on any difference: a missing or disabled ruleset, a removed rule or required check, an added exclusion. It runs before every release (the release stops on a difference) and weekly in `trust-root.yml`. To change the protection, change the file here in a pull request and the live ruleset together; otherwise the next release refuses to run.

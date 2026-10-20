@@ -2,11 +2,14 @@ name: trust-root
 
 # Weekly: is the Sigstore trusted root embedded in Hardex still current?
 # Fails (with the fix in the log) when sigstore/root-signing has rotated keys,
-# so a release never ships a stale root unnoticed.
+# so a release never ships a stale root unnoticed. Also checks that main and
+# the release tags are still protected as .github/rulesets/ says.
 on:
   schedule:
     - cron: "17 4 * * 1"
   workflow_dispatch:
+  pull_request:
+    paths: [".github/rulesets/**", tools/check-rulesets.py, tools/update-trusted-root.sh, .github/workflows/trust-root.yml]
 
 permissions:
   contents: read
@@ -22,5 +25,14 @@ jobs:
         run: |
           if ! tools/update-trusted-root.sh; then
             echo "::error::The embedded Sigstore trusted root is out of date. Run tools/update-trusted-root.sh --write, test, commit and release."
+            exit 1
+          fi
+      - name: main and release tags are protected as committed
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if ! python3 -I tools/check-rulesets.py "$GITHUB_REPOSITORY"; then
+            echo "::error::Repository rulesets differ from .github/rulesets/. Restore them (see .github/rulesets/README.md), or update the committed files through a pull request if the change was intended."
             exit 1
           fi

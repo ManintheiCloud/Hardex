@@ -54,6 +54,13 @@ jobs:
           echo "version=$version" >> "$GITHUB_OUTPUT"
           echo "tag=v$version" >> "$GITHUB_OUTPUT"
           echo "release=$release" >> "$GITHUB_OUTPUT"
+      - name: main and release tags are protected as committed
+        # A release is signed as release.yml on refs/heads/main; that only
+        # means "reviewed and tested" while the rulesets hold.
+        if: steps.v.outputs.release == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 -I tools/check-rulesets.py "$GITHUB_REPOSITORY"
 
   test:
     needs: meta
