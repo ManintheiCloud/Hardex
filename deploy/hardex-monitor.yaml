@@ -40,7 +40,7 @@ spec:
             seccompProfile: {type: RuntimeDefault}
           containers:
             - name: hardex
-              image: ghcr.io/manintheicloud/hardex:0.8.8 # pin by digest in production
+              image: ghcr.io/manintheicloud/hardex:0.8.9 # pin by digest in production
               args:
                 - monitor
                 - --once

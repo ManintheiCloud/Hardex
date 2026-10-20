@@ -58,3 +58,34 @@ jobs:
           gh release download "v${version}" --repo "$GITHUB_REPOSITORY" --pattern 'SHA256SUMS*' --dir rel
           docker run --rm -v "$PWD/rel:/rel:ro" "$image" verify-blob /rel/SHA256SUMS --bundle /rel/SHA256SUMS.sigstore.json \
             --certificate-identity-regexp "$identity" --certificate-oidc-issuer "$issuer"
+      - name: Verify every release artifact (checksums, signature, provenance)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          version="$(tr -d '[:space:]' < VERSION)"
+          tag="v${version}"
+          commit="$(git ls-remote "https://github.com/$GITHUB_REPOSITORY.git" "refs/tags/$tag" | cut -f1)"
+          mkdir -p all && cd all
+          gh release download "$tag" --repo "$GITHUB_REPOSITORY"
+          # Every published file except the checksum file and its signature
+          # must be listed in SHA256SUMS, and match it.
+          for f in *; do
+            case "$f" in SHA256SUMS|SHA256SUMS.sigstore.json) continue ;; esac
+            grep -q "  $f\$" SHA256SUMS || { echo "::error::$f is not covered by SHA256SUMS"; exit 1; }
+          done
+          sha256sum -c SHA256SUMS
+          cosign verify-blob SHA256SUMS --bundle SHA256SUMS.sigstore.json \
+            --certificate-identity-regexp '^https://github.com/ManintheiCloud/Hardex/\.github/workflows/release\.yml@refs/(tags/v|heads/main)' \
+            --certificate-oidc-issuer https://token.actions.githubusercontent.com
+          # SLSA provenance for every archive and the SBOM, built from the
+          # tagged commit by the release workflow.
+          for f in *.tar.gz *.zip hardex.spdx.json; do
+            gh attestation verify "$f" --repo "$GITHUB_REPOSITORY" \
+              --signer-workflow "$GITHUB_REPOSITORY/.github/workflows/release.yml" \
+              --source-digest "$commit" > /dev/null
+            echo "provenance OK: $f"
+          done
+          gh attestation verify "oci://ghcr.io/manintheicloud/hardex:${version}" --repo "$GITHUB_REPOSITORY" \
+            --signer-workflow "$GITHUB_REPOSITORY/.github/workflows/release.yml" --source-digest "$commit" > /dev/null
+          echo "provenance OK: ghcr.io/manintheicloud/hardex:${version}"

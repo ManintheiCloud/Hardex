@@ -2,6 +2,14 @@
 
 All notable changes are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow [Semantic Versioning](https://semver.org/). Before 1.0, minor versions may contain breaking changes.
 
+## 0.8.9 — 2026-10-20
+
+### Fixed
+- `SHA256SUMS` now covers the SBOM (`hardex.spdx.json`), as docs/verifying-releases.md stated; it was generated before the SBOM. (The SBOM was and is covered by its own build-provenance attestation.)
+
+### Added
+- After every release, the `image-smoke` workflow verifies every artifact end to end: each published file is listed in and matches `SHA256SUMS`, the checksum signature verifies with cosign, and every archive, the SBOM and the image carry SLSA provenance from the release workflow at the tagged commit (`gh attestation verify --source-digest`).
+
 ## 0.8.8 — 2026-10-20
 
 ### Added
