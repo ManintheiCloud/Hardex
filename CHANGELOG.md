@@ -7,6 +7,12 @@ All notable changes are documented here. The format follows [Keep a Changelog](h
 ### Fixed
 - The remediation backup (a write-ahead journal since 0.10.0) and history reports were replaced atomically, but the directory was not synced after the rename, so an operating-system crash or power loss soon after could bring back the previous version of the file, losing the record of a change about to be made. The directory is now synced after every replacement (Linux and macOS; Windows journals metadata itself).
 
+### Tests
+- Unit tests now run on macOS and Windows as well as Linux (`test-platforms` in CI). On Windows they found that Git's line-ending conversion broke signed test data; `.gitattributes` now checks text out with LF.
+
+### Documentation
+- On Windows, backups and history files are not restricted to their owner by Hardex (Windows has no POSIX permission bits); keep them in a folder only you can read.
+
 ## 0.10.1 — 2026-10-20
 
 ### Fixed

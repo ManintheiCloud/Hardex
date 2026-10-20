@@ -47,6 +47,8 @@ hardex rollback hardex-backups/hardex-backup-20261019T120000Z.json --cluster
 
 It lists what it will restore, including any patches with an unknown outcome. Rollback refuses to run against a different API server than the backup came from, and refuses to overwrite a field that someone changed after Hardex set it.
 
+Backups contain the full specs of the changed objects (environment-variable literals included) and are created readable only by their owner on Linux and macOS (mode 0600, directory 0700). Windows has no such permission bits: access follows the ACL of the backup directory, so put `--backup-dir` (and `--history` directories) in a folder only you can read.
+
 Writing requires credentials that can `patch` the affected workloads; the read-only `hardex-reader` role is not enough by design. Use a separate, short-lived identity for remediation.
 
 ## Available fixes
