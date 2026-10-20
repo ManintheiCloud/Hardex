@@ -25,7 +25,7 @@ spec:
             seccompProfile: {type: RuntimeDefault}
           containers:
             - name: hardex
-              image: ghcr.io/manintheicloud/hardex:0.8.6 # pin by digest in production
+              image: ghcr.io/manintheicloud/hardex:0.8.7 # pin by digest in production
               args: ["scan", "--in-cluster", "--format", "json", "--fail-on", "none"]
               securityContext:
                 allowPrivilegeEscalation: false

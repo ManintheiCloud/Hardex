@@ -145,6 +145,18 @@ echo "$out"
 echo "$out" | grep -qi 'warning.*HX-WL-001' || fail "admission webhook (warn mode) did not warn about a privileged pod"
 pass "admission webhook warns through the real API server"
 
+step "admission preflight against the live cluster"
+set +e
+./bin/hardex admission --preflight --cluster --kubeconfig "$WORK/reader.kubeconfig" --format json > "$WORK/preflight.json"
+code=$?
+set -e
+[ "$code" = 1 ] || fail "preflight should report denials (exit 1), got exit $code"
+jq -e '[.[] | select(.namespace=="shop" and .name=="insecure-web")] | length == 1' "$WORK/preflight.json" >/dev/null \
+  || fail "preflight did not predict that shop/insecure-web would be rejected"
+jq -e '[.[] | select(.namespace=="hardex" or .namespace=="kube-system")] | length == 0' "$WORK/preflight.json" >/dev/null \
+  || fail "preflight reported objects in excluded namespaces"
+pass "preflight predicts enforce-mode rejections from the live cluster ($(jq length "$WORK/preflight.json") objects)"
+
 step "admission webhook in enforce mode"
 kubectl -n hardex patch deployment hardex-admission --type json \
   -p '[{"op":"replace","path":"/spec/template/spec/containers/0/args/1","value":"--mode=enforce"}]'

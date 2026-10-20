@@ -53,6 +53,8 @@ Usage:
   hardex compare REPORT...         Compare saved reports across clusters
   hardex report REPORT.json        Evidence report (HTML/Markdown) and posture score
   hardex admission [flags]         Serve a validating admission webhook (enforce/warn/audit)
+  hardex admission --preflight --cluster
+                                   List existing objects enforce mode would reject
   hardex history DIR               Show trends from scan --history / monitor
   hardex rules [RULE-ID]           List rules, or explain one
   hardex profiles                  List built-in profiles

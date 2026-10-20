@@ -2,6 +2,11 @@
 
 All notable changes are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow [Semantic Versioning](https://semver.org/). Before 1.0, minor versions may contain breaking changes.
 
+## 0.8.7 — 2026-10-20
+
+### Added
+- `hardex admission --preflight` (with `--cluster` or manifest paths): evaluates every existing object exactly as the webhook would in enforce mode and lists, by namespace, what would be rejected, with guidance on fixing, waiving or excluding; exits 1 if anything would be. Tested to agree with the webhook object by object, and end to end against the live kind cluster.
+
 ## 0.8.6 — 2026-10-20
 
 ### Added

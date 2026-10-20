@@ -33,9 +33,10 @@ Enforce mode applies to everything outside the excluded namespaces, including pl
 
 Before switching to `--mode=enforce`:
 
-1. Run in `warn` mode for long enough to see every controller's pods (including ones that only appear on demand, such as provisioner helpers) and check the decision log for denials-to-be.
-2. Add the namespaces of trusted platform components to the webhook's `namespaceSelector` exclusion list (`values: [kube-system, hardex, cert-manager, local-path-storage, …]`), or waive their specific findings in the policy configuration.
-3. Switch to enforce and keep watching the decision log.
+1. Run `hardex admission --preflight --cluster` (same `--profile`, `--deny-at`, `--config` and `--exclude-namespaces` as the webhook). It evaluates every existing object exactly as the webhook would and lists, by namespace, what enforce mode would reject — a rejected controller can no longer be updated or create pods. It exits 1 if anything would be rejected, so it can gate the switch in CI.
+2. Run in `warn` mode for long enough to see every controller's pods, including ones that only appear on demand (such as provisioner helpers, which preflight cannot see), and check the decision log for denials-to-be.
+3. Add the namespaces of trusted platform components to the webhook's `namespaceSelector` exclusion list (`values: [kube-system, hardex, cert-manager, local-path-storage, …]`), or waive their specific findings in the policy configuration.
+4. Switch to enforce and keep watching the decision log.
 
 ```sh
 kubectl apply -f deploy/hardex-reader.yaml      # namespace and baseline policy
