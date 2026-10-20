@@ -10,7 +10,7 @@ Hardex reads only stable (`v1`) APIs: `v1`, `apps/v1`, `batch/v1`, `networking.k
 
 | Environment | Workloads, RBAC, network, secrets, paths | Control plane (HX-CP) | Kubelet (HX-NODE) |
 |---|---|---|---|
-| kubeadm and other self-managed clusters | ✓ | ✓ from static pod manifests (or the mirror pods `--cluster` collects) | ✓ from `KubeletConfiguration` files |
+| kubeadm and other self-managed clusters | ✓ | ✓ from static pod manifests (or the mirror pods `--cluster` collects), plus the API server's authentication, authorization and encryption configuration files when they are in the input | ✓ from `KubeletConfiguration` files |
 | Managed clusters (EKS, GKE, AKS, …) | ✓ | not visible: the provider runs the control plane | ✓ if you have node configuration files |
 | Manifest repositories, Helm/Kustomize output | ✓ | ✓ for static pod manifests in the input | ✓ for `KubeletConfiguration` in the input |
 

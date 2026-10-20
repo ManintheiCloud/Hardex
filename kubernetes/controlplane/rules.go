@@ -35,10 +35,15 @@ func reportItem(ctx *assessment.Context, c component, flag, item, observed, msg 
 		Observed: observed, Message: msg, Severity: sev})
 }
 
-func apiServerRule(meta assessment.Metadata, check func(ctx *assessment.Context, c component)) assessment.Rule {
+// apiServerRule checks every kube-apiserver component, then runs the
+// optional extra checks (for the API server's configuration files).
+func apiServerRule(meta assessment.Metadata, check func(ctx *assessment.Context, c component), extra ...func(ctx *assessment.Context)) assessment.Rule {
 	return assessment.InventoryRule{Meta: meta, Check: func(ctx *assessment.Context) {
 		for _, c := range findComponents(ctx.Inventory, "kube-apiserver") {
 			check(ctx, c)
+		}
+		for _, e := range extra {
+			e(ctx)
 		}
 	}}
 }
@@ -48,17 +53,24 @@ var anonymousAuth = apiServerRule(assessment.Metadata{
 	Title:       "API server allows anonymous requests",
 	Severity:    finding.Medium,
 	Category:    assessment.CategoryControlPlane,
-	Description: "Detects kube-apiserver configurations that do not set --anonymous-auth=false and do not use a structured authentication configuration.",
+	Description: "Detects kube-apiserver configurations that accept anonymous requests: --anonymous-auth not set to false, or an AuthenticationConfiguration (--authentication-config) whose anonymous authenticator is enabled without conditions or for paths other than /livez, /readyz and /healthz.",
 	Rationale:   "Anonymous requests are attributed to system:anonymous. Any RBAC binding to that user or system:unauthenticated, made in error or by an attacker, becomes reachable by anyone who can reach the API server.",
 	Remediation: "Set --anonymous-auth=false. If anonymous health checks are required, use a structured --authentication-config that limits anonymous access to the health endpoints.",
 	References:  []finding.Reference{refCISAPI, refNSAAuth},
-	Limitations: "When --authentication-config is set, its contents are not yet inspected.",
+	Limitations: "The AuthenticationConfiguration file is assessed when it is part of the input (for example /etc/kubernetes alongside the static pod manifests); when only the flag is visible, its contents cannot be checked and the API server is not reported.",
 }, func(ctx *assessment.Context, c component) {
 	if _, ok := c.flag("authentication-config"); ok {
-		return
+		// The file's anonymous section, when present, replaces the flag.
+		if cfgs := configFiles(ctx.Inventory, "AuthenticationConfiguration"); len(cfgs) == 0 || anonymousSectionEverywhere(cfgs) {
+			return
+		}
 	}
 	if v, _ := c.flag("anonymous-auth"); v != "false" {
 		report(ctx, c, "anonymous-auth", valueOrDefault(v, "true"), "API server accepts anonymous requests", nil)
+	}
+}, func(ctx *assessment.Context) {
+	for _, o := range configFiles(ctx.Inventory, "AuthenticationConfiguration") {
+		checkAuthenticationConfig(ctx, o)
 	}
 })
 
@@ -67,14 +79,14 @@ var authorizationMode = apiServerRule(assessment.Metadata{
 	Title:       "API server authorization disabled or weak",
 	Severity:    finding.Critical,
 	Category:    assessment.CategoryControlPlane,
-	Description: "Detects kube-apiserver configurations whose --authorization-mode is unset (defaulting to AlwaysAllow) or includes AlwaysAllow, and those that do not enable RBAC (medium).",
+	Description: "Detects kube-apiserver configurations whose --authorization-mode is unset (defaulting to AlwaysAllow) or includes AlwaysAllow, and those that do not enable RBAC (medium). The same applies to the authorizers of an AuthorizationConfiguration (--authorization-config).",
 	Rationale:   "With AlwaysAllow, every authenticated request is permitted: any service account token is effectively cluster-admin.",
 	Remediation: "Set --authorization-mode=Node,RBAC.",
 	References:  []finding.Reference{refCISAPI, refNSAAuth},
-	Limitations: "When --authorization-config is set, its contents are not yet inspected.",
+	Limitations: "The AuthorizationConfiguration file is assessed when it is part of the input; when only the flag is visible, its contents cannot be checked and the API server is not reported.",
 }, func(ctx *assessment.Context, c component) {
 	if _, ok := c.flag("authorization-config"); ok {
-		return
+		return // the file, if present, is checked below
 	}
 	v, set := c.flag("authorization-mode")
 	switch {
@@ -84,6 +96,10 @@ var authorizationMode = apiServerRule(assessment.Metadata{
 		report(ctx, c, "authorization-mode", v, "API server authorization mode includes AlwaysAllow", nil)
 	case !listContains(v, "RBAC"):
 		report(ctx, c, "authorization-mode", v, "API server does not enable RBAC authorization", assessment.SeverityOverride(finding.Medium))
+	}
+}, func(ctx *assessment.Context) {
+	for _, o := range configFiles(ctx.Inventory, "AuthorizationConfiguration") {
+		checkAuthorizationConfig(ctx, o, assessment.SeverityOverride(finding.Medium))
 	}
 })
 
@@ -198,14 +214,18 @@ var encryptionAtRest = apiServerRule(assessment.Metadata{
 	Title:       "Secrets not encrypted at rest",
 	Severity:    finding.Medium,
 	Category:    assessment.CategoryControlPlane,
-	Description: "Detects kube-apiserver configurations without --encryption-provider-config.",
+	Description: "Detects kube-apiserver configurations without --encryption-provider-config, and EncryptionConfiguration files under which Secrets are still written unencrypted: no resources entry covers them, or the entry that does lists identity first.",
 	Rationale:   "Without encryption at rest, Secrets are stored in etcd in plain form; an etcd backup or disk snapshot discloses every credential in the cluster.",
 	Remediation: "Configure --encryption-provider-config with a KMS v2 provider (preferred) or aescbc/secretbox, covering at least secrets, and rewrite existing secrets.",
 	References:  []finding.Reference{refCISAPI, baselines.NSA("Authentication and authorization — secrets")},
-	Limitations: "The contents of the encryption configuration (e.g. an identity provider listed first) are not yet inspected.",
+	Limitations: "The EncryptionConfiguration file is assessed when it is part of the input; when only the flag is visible, its contents cannot be checked. Existing Secrets stay as they were written until they are rewritten.",
 }, func(ctx *assessment.Context, c component) {
 	if _, ok := c.flag("encryption-provider-config"); !ok {
 		report(ctx, c, "encryption-provider-config", "<unset>", "API server does not encrypt resources at rest", nil)
+	}
+}, func(ctx *assessment.Context) {
+	for _, o := range configFiles(ctx.Inventory, "EncryptionConfiguration") {
+		checkEncryptionConfig(ctx, o)
 	}
 })
 

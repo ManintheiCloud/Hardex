@@ -1,0 +1,28 @@
+# Structured API server configuration files, as found next to the static
+# pod manifests (/etc/kubernetes/...).
+apiVersion: apiserver.config.k8s.io/v1
+kind: EncryptionConfiguration
+resources:
+  - resources: [secrets, configmaps]
+    providers:
+      - kms:
+          apiVersion: v2
+          name: vault
+          endpoint: unix:///var/run/kms/vault.sock
+      - identity: {}
+---
+apiVersion: apiserver.config.k8s.io/v1
+kind: AuthenticationConfiguration
+anonymous:
+  enabled: true
+  conditions:
+    - path: /livez
+    - path: /readyz
+---
+apiVersion: apiserver.config.k8s.io/v1
+kind: AuthorizationConfiguration
+authorizers:
+  - type: Node
+    name: node
+  - type: RBAC
+    name: rbac

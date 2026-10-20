@@ -67,13 +67,13 @@ Severity is the default; individual findings may be raised or lowered where the 
 
 **API server allows anonymous requests** — medium, control-plane
 
-**Checks:** Detects kube-apiserver configurations that do not set --anonymous-auth=false and do not use a structured authentication configuration.
+**Checks:** Detects kube-apiserver configurations that accept anonymous requests: --anonymous-auth not set to false, or an AuthenticationConfiguration (--authentication-config) whose anonymous authenticator is enabled without conditions or for paths other than /livez, /readyz and /healthz.
 
 **Why it matters:** Anonymous requests are attributed to system:anonymous. Any RBAC binding to that user or system:unauthenticated, made in error or by an attacker, becomes reachable by anyone who can reach the API server.
 
 **Remediation:** Set --anonymous-auth=false. If anonymous health checks are required, use a structured --authentication-config that limits anonymous access to the health endpoints.
 
-**Known limitations:** When --authentication-config is set, its contents are not yet inspected.
+**Known limitations:** The AuthenticationConfiguration file is assessed when it is part of the input (for example /etc/kubernetes alongside the static pod manifests); when only the flag is visible, its contents cannot be checked and the API server is not reported.
 
 **References:**
 
@@ -85,13 +85,13 @@ Severity is the default; individual findings may be raised or lowered where the 
 
 **API server authorization disabled or weak** — critical, control-plane
 
-**Checks:** Detects kube-apiserver configurations whose --authorization-mode is unset (defaulting to AlwaysAllow) or includes AlwaysAllow, and those that do not enable RBAC (medium).
+**Checks:** Detects kube-apiserver configurations whose --authorization-mode is unset (defaulting to AlwaysAllow) or includes AlwaysAllow, and those that do not enable RBAC (medium). The same applies to the authorizers of an AuthorizationConfiguration (--authorization-config).
 
 **Why it matters:** With AlwaysAllow, every authenticated request is permitted: any service account token is effectively cluster-admin.
 
 **Remediation:** Set --authorization-mode=Node,RBAC.
 
-**Known limitations:** When --authorization-config is set, its contents are not yet inspected.
+**Known limitations:** The AuthorizationConfiguration file is assessed when it is part of the input; when only the flag is visible, its contents cannot be checked and the API server is not reported.
 
 **References:**
 
@@ -178,13 +178,13 @@ Severity is the default; individual findings may be raised or lowered where the 
 
 **Secrets not encrypted at rest** — medium, control-plane
 
-**Checks:** Detects kube-apiserver configurations without --encryption-provider-config.
+**Checks:** Detects kube-apiserver configurations without --encryption-provider-config, and EncryptionConfiguration files under which Secrets are still written unencrypted: no resources entry covers them, or the entry that does lists identity first.
 
 **Why it matters:** Without encryption at rest, Secrets are stored in etcd in plain form; an etcd backup or disk snapshot discloses every credential in the cluster.
 
 **Remediation:** Configure --encryption-provider-config with a KMS v2 provider (preferred) or aescbc/secretbox, covering at least secrets, and rewrite existing secrets.
 
-**Known limitations:** The contents of the encryption configuration (e.g. an identity provider listed first) are not yet inspected.
+**Known limitations:** The EncryptionConfiguration file is assessed when it is part of the input; when only the flag is visible, its contents cannot be checked. Existing Secrets stay as they were written until they are rewritten.
 
 **References:**
 
