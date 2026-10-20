@@ -34,6 +34,12 @@ func realBundle(t *testing.T) (digest string, bundle []byte) {
 }
 
 func (f *fakeRegistry) attachBundle(repo, subject string, bundle []byte, viaAPI bool) {
+	f.attachBundleAs(repo, subject, bundle, viaAPI, sigstore.BundleMediaType)
+}
+
+// attachBundleAs lists the referrer with the given artifactType, as
+// registries and tools variously do (cosign v3: the empty config type).
+func (f *fakeRegistry) attachBundleAs(repo, subject string, bundle []byte, viaAPI bool, listedType string) {
 	bd := digestOf(bundle)
 	f.blobs[bd] = bundle
 	man, _ := json.Marshal(map[string]any{"schemaVersion": 2, "mediaType": "application/vnd.oci.image.manifest.v1+json",
@@ -43,7 +49,7 @@ func (f *fakeRegistry) attachBundle(repo, subject string, bundle []byte, viaAPI 
 	md := digestOf(man)
 	f.manifests[repo+":"+md] = man
 	idx, _ := json.Marshal(map[string]any{"schemaVersion": 2, "mediaType": "application/vnd.oci.image.index.v1+json",
-		"manifests": []any{map[string]any{"mediaType": "application/vnd.oci.image.manifest.v1+json", "digest": md, "artifactType": sigstore.BundleMediaType}}})
+		"manifests": []any{map[string]any{"mediaType": "application/vnd.oci.image.manifest.v1+json", "digest": md, "artifactType": listedType}}})
 	if viaAPI {
 		f.referrers[repo+":"+subject] = idx
 	} else {
@@ -140,5 +146,27 @@ func TestVerifyKeylessPredicateType(t *testing.T) {
 	want := VerifyKeyless(context.Background(), f.client(), ref, digest, Keyless{Root: sigstore.PublicGood(), Policy: policy, PredicateType: "https://slsa.dev/provenance/v1"})
 	if want.Status != Invalid || !strings.Contains(want.Detail, "not an attestation of type https://slsa.dev/provenance/v1") {
 		t.Errorf("required predicate: %+v", want)
+	}
+}
+
+// GHCR has no referrers API; cosign v3's signature then appears in the
+// referrers tag index with the empty config type (found on the published
+// Hardex image). It must still be found and verified.
+func TestVerifyKeylessEmptyArtifactType(t *testing.T) {
+	digest, bundle := realBundle(t)
+	for _, listed := range []string{emptyArtifact, ""} {
+		f := newFakeRegistry(t)
+		f.attachBundleAs("app", digest, bundle, false, listed)
+		ref := registry.Ref{Registry: f.host(), Repository: "app"}
+		if res := VerifyKeyless(context.Background(), f.client(), ref, digest, Keyless{Root: sigstore.PublicGood(), Policy: policy}); res.Status != Verified {
+			t.Errorf("listed as %q: %+v", listed, res)
+		}
+	}
+	// Artifacts declared as something else are not opened.
+	f := newFakeRegistry(t)
+	f.attachBundleAs("app", digest, bundle, false, "application/spdx+json")
+	ref := registry.Ref{Registry: f.host(), Repository: "app"}
+	if res := VerifyKeyless(context.Background(), f.client(), ref, digest, Keyless{Root: sigstore.PublicGood(), Policy: policy}); res.Status != Unsigned {
+		t.Errorf("SBOM referrer: %+v", res)
 	}
 }

@@ -55,21 +55,6 @@ jobs:
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version: stable
-      - name: Diagnose signature storage on the published image (temporary)
-        run: |
-          set -uo pipefail
-          repo=manintheicloud/hardex
-          tok="$(curl -sSf "https://ghcr.io/token?scope=repository:$repo:pull" | jq -r .token)"
-          acc='application/vnd.oci.image.index.v1+json,application/vnd.oci.image.manifest.v1+json,application/vnd.docker.distribution.manifest.list.v2+json,application/vnd.docker.distribution.manifest.v2+json'
-          digest="$(curl -sSfI -H "Authorization: Bearer $tok" -H "Accept: $acc" "https://ghcr.io/v2/$repo/manifests/latest" | tr -d '\r' | awk -F': ' 'tolower($1)=="docker-content-digest"{print $2}')"
-          echo "::notice title=diag digest::$digest"
-          ref="$(curl -s -o /tmp/ref.json -w '%{http_code}' -H "Authorization: Bearer $tok" -H 'Accept: application/vnd.oci.image.index.v1+json' "https://ghcr.io/v2/$repo/referrers/$digest")"
-          echo "::notice title=diag referrers API (HTTP $ref)::$(jq -c '[.manifests[]? | {artifactType, mediaType, digest: .digest[0:19]}]' /tmp/ref.json 2>/dev/null | cut -c1-900)"
-          tag="${digest/:/-}"
-          for t in "$tag" "$tag.sig" "$tag.att"; do
-            code="$(curl -s -o /tmp/t.json -w '%{http_code}' -H "Authorization: Bearer $tok" -H "Accept: $acc" "https://ghcr.io/v2/$repo/manifests/$t")"
-            echo "::notice title=diag tag $t (HTTP $code)::$(jq -c '{mediaType, artifactType, manifests: [.manifests[]? | {artifactType, digest: .digest[0:19]}], layers: [.layers[]? | {mediaType, annotations: (.annotations // {} | keys)}]}' /tmp/t.json 2>/dev/null | cut -c1-900)"
-          done
       - name: Verify the published image and release
         env:
           GH_TOKEN: ${{ github.token }}

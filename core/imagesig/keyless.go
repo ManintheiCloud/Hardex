@@ -52,9 +52,19 @@ func VerifyKeyless(ctx context.Context, c *registry.Client, ref registry.Ref, di
 	if err != nil {
 		return Result{Status: Error, Detail: "referrers: " + err.Error()}
 	}
+	opened := 0
 	for _, d := range refs {
-		if !isBundleType(d.ArtifactType) {
+		// The listing's artifactType is a hint: cosign v3 publishes its
+		// signature with an empty config, which the referrers tag schema
+		// lists as application/vnd.oci.empty.v1+json. Open those too and
+		// decide by the layers; skip only artifacts declared as something
+		// else (SBOMs, provenance in other formats).
+		if !isBundleType(d.ArtifactType) && d.ArtifactType != "" && d.ArtifactType != emptyArtifact {
 			continue
+		}
+		if opened++; opened > maxReferrers {
+			reasons[fmt.Sprintf("more than %d candidate referrers; the rest were not checked", maxReferrers)] = true
+			break
 		}
 		m, err := c.GetManifest(ctx, ref.Registry, ref.Repository, d.Digest)
 		if err != nil {
@@ -132,6 +142,13 @@ func VerifyKeyless(ctx context.Context, c *registry.Client, ref registry.Ref, di
 	sort.Strings(list)
 	return Result{Status: Invalid, Detail: strings.Join(list, "; ")}
 }
+
+const (
+	emptyArtifact = "application/vnd.oci.empty.v1+json"
+	// maxReferrers bounds the manifests fetched per image, so a registry
+	// cannot make verification arbitrarily slow.
+	maxReferrers = 32
+)
 
 func isBundleType(t string) bool {
 	return t == sigstore.BundleMediaType || strings.HasPrefix(t, "application/vnd.dev.sigstore.bundle+json")
