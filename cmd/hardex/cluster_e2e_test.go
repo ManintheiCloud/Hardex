@@ -24,6 +24,12 @@ type fakeCluster struct {
 	objects map[string]map[string]any // object path -> object
 	rv      int
 	deny    string // object name whose PATCH is rejected (simulated admission)
+	// inject names an object to which a "mutating webhook" adds
+	// hostPID: true on every change, introducing a finding.
+	inject string
+	// lose names an object whose PATCH is applied but answered with a
+	// gateway timeout, as when the response is lost.
+	lose string
 }
 
 func (f *fakeCluster) add(r cluster.Resource, obj map[string]any) {
@@ -65,9 +71,25 @@ func (f *fakeCluster) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			json.NewEncoder(w).Encode(map[string]any{"message": err.Error()})
 			return
 		}
+		tests := true
+		for _, op := range ops {
+			tests = tests && op.Op == "test"
+		}
+		if tests { // a no-op patch changes nothing, not even resourceVersion
+			json.NewEncoder(w).Encode(patched)
+			return
+		}
+		if name == f.inject {
+			patched["spec"].(map[string]any)["template"].(map[string]any)["spec"].(map[string]any)["hostPID"] = true
+		}
 		f.rv++
 		patched["metadata"].(map[string]any)["resourceVersion"] = fmt.Sprint(f.rv)
 		f.objects[r.URL.Path] = patched
+		if name == f.lose && strings.Contains(string(body), "/metadata/resourceVersion") {
+			f.lose = "" // only the forward patch's response is lost
+			w.WriteHeader(http.StatusGatewayTimeout)
+			return
+		}
 		json.NewEncoder(w).Encode(patched)
 		return
 	}
@@ -182,6 +204,48 @@ func TestClusterApplyFailureRollsBackEverything(t *testing.T) {
 	}
 	if privileged(f.get(deployRes.ObjectPath("shop", "a-first"))) != true {
 		t.Fatal("first object left patched after a later failure")
+	}
+}
+
+// Success is defined by the re-assessment (ADR 0003): when it finds a new
+// problem, the changes are rolled back unless --keep-unverified.
+func TestClusterFailedVerificationRollsBack(t *testing.T) {
+	for _, keep := range []bool{false, true} {
+		f, kc := startFakeCluster(t, "web")
+		f.inject = "web"
+		path := deployRes.ObjectPath("shop", "web")
+		args := []string{"fix", "--cluster", "--kubeconfig", kc, "--rules", "HX-WL-001", "--apply", "--yes",
+			"--backup-dir", t.TempDir(), "--profile", "restricted", "--fail-on", "high"}
+		if keep {
+			args = append(args, "--keep-unverified")
+		}
+		code, out, errOut := cli(t, "", args...)
+		if code != exitFindings || !strings.Contains(out, "Verification failed") || !strings.Contains(out, "introduced [high] HX-WL-002") {
+			t.Fatalf("keep=%v: exit %d\n%s\n%s", keep, code, out, errOut)
+		}
+		want := any(true) // rolled back
+		if keep {
+			want = false
+		}
+		if got := privileged(f.get(path)); got != want {
+			t.Errorf("keep=%v: privileged = %v, want %v\n%s", keep, got, want, out)
+		}
+	}
+}
+
+// A patch the server applied but whose response was lost is undone too.
+func TestClusterLostResponseIsRolledBack(t *testing.T) {
+	f, kc := startFakeCluster(t, "a-first", "b-lost")
+	f.lose = "b-lost"
+	code, out, errOut := cli(t, "", "fix", "--cluster", "--kubeconfig", kc, "--rules", "HX-WL-001",
+		"--apply", "--yes", "--backup-dir", t.TempDir())
+	if code != exitIncomplete || !strings.Contains(errOut, "rolled back 2") || strings.Contains(errOut, "INCOMPLETE") {
+		t.Fatalf("exit %d\n%s\n%s", code, out, errOut)
+	}
+	for _, n := range []string{"a-first", "b-lost"} {
+		if privileged(f.get(deployRes.ObjectPath("shop", n))) != true {
+			t.Errorf("%s left patched", n)
+		}
 	}
 }
 

@@ -108,7 +108,7 @@ hardex diff before.json after.json          # exit 1 if anything >= high was int
 | Code | Meaning |
 |---|---|
 | 0 | No active findings at or above `--fail-on` (default `high`) |
-| 1 | Findings at or above `--fail-on`; for `diff`, a regression was introduced; for `fix --apply`, verification found a regression or an unresolved target; for `monitor --once`, new findings or baseline drift; for `fleet`, any cluster with such findings |
+| 1 | Findings at or above `--fail-on`; for `diff`, a regression was introduced; for `fix --apply`, verification found a regression or an unresolved target (the changes were then rolled back, unless `--keep-unverified`); for `monitor --once`, new findings or baseline drift; for `fleet`, any cluster with such findings |
 | 2 | Invalid arguments, configuration or input |
 | 3 | Incomplete — a rule failed or cluster resources could not be read (results understate risk), an apply failed and was rolled back, or a notification could not be delivered |
 

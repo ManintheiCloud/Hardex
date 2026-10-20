@@ -3,6 +3,7 @@ package remediation
 import (
 	"context"
 	"errors"
+	"fmt"
 	"reflect"
 	"strings"
 	"testing"
@@ -150,42 +151,215 @@ func TestPatchRefusesChangedObject(t *testing.T) {
 	}
 }
 
-func TestApplyAllRollsBackOnFailure(t *testing.T) {
-	inv := deployment(t)
-	plan, _ := Build(inv, []finding.Finding{fnd("HX-A", "a", "spec.template.spec.containers[0].securityContext.privileged")},
-		map[string]Fixer{"HX-A": fixer(false, Low)}, Options{})
-	objs := []ObjectPlan{plan.Objects[0], plan.Objects[0]}
-	objs[1].Target.Name = "second"
+// fakeCluster applies JSON patches (test operations included) to stored
+// objects, like the API server. Each call can be made to fail before or
+// after the server applies it.
+type fakeCluster struct {
+	objs map[string]map[string]any
+	// failForward makes the forward patch of a target fail: "reject" (the
+	// server refuses it) or "lost" (the server applies it, the response is
+	// lost: a timeout).
+	failForward map[string]string
+	calls       []string
+}
 
+func newFakeCluster(plans []ObjectPlan) *fakeCluster {
+	c := &fakeCluster{objs: map[string]map[string]any{}, failForward: map[string]string{}}
+	for _, p := range plans {
+		c.objs[p.Target.Name] = DeepCopy(p.Original).(map[string]any)
+	}
+	return c
+}
+
+func (c *fakeCluster) patch(ctx context.Context, t Target, ops []Op) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	// Forward patches start with the resourceVersion guard (the plans here
+	// use GuardResourceVersion); inverse patches never test it.
+	kind := "inverse"
+	switch {
+	case len(testsOnly(ops)) == len(ops):
+		kind = "probe"
+	case ops[0].Path == "/metadata/resourceVersion":
+		kind = "forward"
+	}
+	c.calls = append(c.calls, kind+":"+t.Name)
+	if kind == "forward" && c.failForward[t.Name] == "reject" {
+		return errors.New("admission webhook denied the request")
+	}
+	out, err := Apply(c.objs[t.Name], ops)
+	if err != nil {
+		return err
+	}
+	if kind != "probe" {
+		// The API server bumps resourceVersion on every change.
+		out["metadata"].(map[string]any)["resourceVersion"] = fmt.Sprint(len(c.calls) + 100)
+	}
+	c.objs[t.Name] = out
+	if kind == "forward" && c.failForward[t.Name] == "lost" {
+		return context.DeadlineExceeded
+	}
+	return nil
+}
+
+// twoObjects plans the same fix for two objects, "web" and "second".
+func twoObjects(t *testing.T) []ObjectPlan {
+	t.Helper()
+	inv := deployment(t)
+	plan, err := Build(inv, []finding.Finding{fnd("HX-A", "a", "spec.template.spec.containers[0].securityContext.privileged")},
+		map[string]Fixer{"HX-A": fixer(false, Low)}, Options{GuardResourceVersion: true})
+	if err != nil || len(plan.Objects) != 1 {
+		t.Fatalf("plan: %v %+v", err, plan)
+	}
+	second := plan.Objects[0]
+	second.Target.Name = "second"
+	return []ObjectPlan{plan.Objects[0], second}
+}
+
+func privileged(c *fakeCluster, name string) any {
+	v, _ := Get(c.objs[name], "/spec/template/spec/containers/0/securityContext/privileged")
+	return v
+}
+
+func TestApplyAllRollsBackOnFailure(t *testing.T) {
+	objs := twoObjects(t)
+	c := newFakeCluster(objs)
+	c.failForward["second"] = "reject"
 	b, err := NewBackup(t.TempDir(), "ctx", "https://k8s", objs, time.Now())
 	if err != nil {
 		t.Fatal(err)
 	}
-	var calls []string
-	patch := func(_ context.Context, tg Target, ops []Op) error {
-		kind := "forward"
-		if ops[0].Op == "test" && ops[0].Value == false {
-			kind = "inverse"
-		}
-		calls = append(calls, kind+":"+tg.Name)
-		if tg.Name == "second" && kind == "forward" {
-			return errors.New("admission denied")
-		}
-		return nil
-	}
-	res := ApplyAll(context.Background(), b, patch)
+	res := ApplyAll(context.Background(), b, c.patch)
 	if res.Err == nil || len(res.RolledBack) != 1 || res.RollbackErr != nil {
 		t.Fatalf("result = %+v", res)
 	}
-	want := []string{"forward:web", "forward:second", "inverse:web"}
-	if !reflect.DeepEqual(calls, want) {
-		t.Errorf("calls = %v, want %v", calls, want)
+	// second was rejected: its outcome is checked (inverse fails, probe
+	// passes), then web is undone.
+	want := []string{"forward:web", "forward:second", "inverse:second", "probe:second", "inverse:web"}
+	if !reflect.DeepEqual(c.calls, want) {
+		t.Errorf("calls = %v, want %v", c.calls, want)
+	}
+	if privileged(c, "web") != true || privileged(c, "second") != true {
+		t.Error("cluster not restored")
 	}
 	reloaded, err := LoadBackup(b.Path())
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !reloaded.Objects[0].Applied || !reloaded.Objects[0].RolledBack || reloaded.Objects[1].Applied {
+	if o := reloaded.Objects; !o[0].Applied || !o[0].RolledBack || o[1].Applied || !o[1].NotApplied {
 		t.Errorf("backup state not recorded: %+v", reloaded.Objects)
+	}
+}
+
+// A request whose response is lost (timeout) may have been applied: it
+// must be undone, not forgotten.
+func TestApplyAllUndoesPatchWithLostResponse(t *testing.T) {
+	objs := twoObjects(t)
+	c := newFakeCluster(objs)
+	c.failForward["second"] = "lost"
+	b, _ := NewBackup(t.TempDir(), "ctx", "https://k8s", objs, time.Now())
+	res := ApplyAll(context.Background(), b, c.patch)
+	if res.Err == nil || res.RollbackErr != nil || len(res.RolledBack) != 2 {
+		t.Fatalf("result = %+v", res)
+	}
+	if privileged(c, "web") != true || privileged(c, "second") != true {
+		t.Errorf("cluster not restored: web=%v second=%v", privileged(c, "web"), privileged(c, "second"))
+	}
+}
+
+// The process dies after the server applied a patch but before the backup
+// recorded it. The journal says "attempted"; hardex rollback must undo it.
+func TestRollbackAfterCrash(t *testing.T) {
+	for _, landed := range []bool{true, false} {
+		objs := twoObjects(t)
+		c := newFakeCluster(objs)
+		dir := t.TempDir()
+		b, _ := NewBackup(dir, "ctx", "https://k8s", objs, time.Now())
+		// web applied and recorded; second attempted, then the crash.
+		b.Objects[0].Attempted = true
+		if err := c.patch(context.Background(), b.Objects[0].Target, b.Objects[0].Patch); err != nil {
+			t.Fatal(err)
+		}
+		b.Objects[0].Applied = true
+		b.Objects[1].Attempted = true
+		if err := b.save(); err != nil {
+			t.Fatal(err)
+		}
+		if landed {
+			if err := c.patch(context.Background(), b.Objects[1].Target, b.Objects[1].Patch); err != nil {
+				t.Fatal(err)
+			}
+		}
+
+		loaded, err := LoadBackup(b.Path())
+		if err != nil {
+			t.Fatal(err)
+		}
+		applied, uncertain := loaded.Pending()
+		if len(applied) != 1 || len(uncertain) != 1 {
+			t.Fatalf("pending = %v / %v", applied, uncertain)
+		}
+		res := Rollback(context.Background(), loaded, c.patch)
+		if res.Err != nil {
+			t.Fatalf("landed=%v: %v", landed, res.Err)
+		}
+		if privileged(c, "web") != true || privileged(c, "second") != true {
+			t.Errorf("landed=%v: cluster not restored", landed)
+		}
+		if landed && len(res.RolledBack) != 2 || !landed && (len(res.RolledBack) != 1 || len(res.NotApplied) != 1) {
+			t.Errorf("landed=%v: result = %+v", landed, res)
+		}
+		if a, u := loaded.Pending(); len(a)+len(u) != 0 {
+			t.Errorf("landed=%v: still pending after rollback: %v %v", landed, a, u)
+		}
+	}
+}
+
+// Ctrl-C during apply cancels the context; the rollback must still run.
+func TestRollbackRunsAfterCancellation(t *testing.T) {
+	objs := twoObjects(t)
+	c := newFakeCluster(objs)
+	ctx, cancel := context.WithCancel(context.Background())
+	b, _ := NewBackup(t.TempDir(), "ctx", "https://k8s", objs, time.Now())
+	n := 0
+	patch := func(pctx context.Context, tg Target, ops []Op) error {
+		n++
+		err := c.patch(pctx, tg, ops)
+		if n == 1 {
+			cancel() // interrupted right after the first patch
+		}
+		return err
+	}
+	res := ApplyAll(ctx, b, patch)
+	if res.Err == nil || !errors.Is(res.Err, context.Canceled) || res.RollbackErr != nil || len(res.RolledBack) != 1 {
+		t.Fatalf("result = %+v", res)
+	}
+	if privileged(c, "web") != true {
+		t.Error("first object not restored after cancellation")
+	}
+	if b.Objects[1].Attempted {
+		t.Error("second object attempted after cancellation")
+	}
+}
+
+// An object changed by someone else after an uncertain attempt is neither
+// in the original nor the patched state: report it, change nothing.
+func TestRollbackReportsConflictOnUncertainObject(t *testing.T) {
+	objs := twoObjects(t)
+	c := newFakeCluster(objs)
+	b, _ := NewBackup(t.TempDir(), "ctx", "https://k8s", objs, time.Now())
+	b.Objects[0].Attempted = true
+	c.objs["web"]["metadata"].(map[string]any)["resourceVersion"] = "999" // someone else's update
+	before := DeepCopy(c.objs["web"])
+	res := Rollback(context.Background(), b, c.patch)
+	if res.Err == nil || !strings.Contains(res.Err.Error(), "unknown whether the patch was applied") {
+		t.Fatalf("err = %v", res.Err)
+	}
+	if !jsonEqual(c.objs["web"], before) {
+		t.Error("rollback changed an object in an unknown state")
+	}
+	if _, u := b.Pending(); len(u) != 1 {
+		t.Error("conflicting object no longer pending")
 	}
 }

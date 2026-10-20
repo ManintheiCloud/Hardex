@@ -2,6 +2,15 @@
 
 All notable changes are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow [Semantic Versioning](https://semver.org/). Before 1.0, minor versions may contain breaking changes.
 
+## Unreleased
+
+### Fixed
+Remediation (`hardex fix --apply`, `hardex rollback`) could leave changes in a cluster without a record or an undo. Reported by an external review; each case is reproduced by a test that fails on 0.9.2.
+- **Crash between patch and record.** The backup recorded a change only after the API server confirmed it, so a process that died in between left a change `hardex rollback` did not know about. The backup is now a write-ahead journal: each object is recorded as attempted before its patch is sent.
+- **Lost responses.** A request that timed out after the server applied it was treated as not applied and left in place, with no rollback error. Attempted objects with an unknown outcome are now resolved against the live object: undone if the patch landed, left alone if it did not, reported if the object has changed since.
+- **Interrupted runs.** Ctrl-C killed the process mid-apply; when the context was cancelled, the automatic rollback reused it and every undo request failed. `fix --apply` now handles SIGINT/SIGTERM by stopping cleanly, and rollback runs on its own context (bounded at two minutes), saving the backup after each object.
+- **Failed verification.** When the re-assessment after applying found new problems, still-present targets, or could not run, `fix --apply` only printed how to undo. It now rolls the changes back automatically (ADR 0003: success is defined by the re-assessment); `--keep-unverified` keeps them.
+
 ## 0.9.2 — 2026-10-20
 
 ### Fixed
