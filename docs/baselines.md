@@ -19,7 +19,7 @@ Profiles are nested (`minimal ⊂ baseline ⊂ restricted`); a test enforces thi
 | Kubernetes Pod Security Standards | Individual control (e.g. "Baseline: Host Namespaces") | Verified against the published standard. HX-WL rules cover every Baseline and Restricted control. |
 | CIS Kubernetes Benchmark **v2.0** (Kubernetes 1.34–1.35) | Individual item (e.g. 5.2.2) | Item-level. Items and titles were taken from kube-bench's open-source encoding of the benchmark (`cfg/cis-2.0`); a test checks every cited item exists. Rules with no corresponding item cite none. |
 | NSA/CISA Kubernetes Hardening Guidance **v1.2** (August 2022) | Exact section heading (e.g. "Kubernetes Pod security › Pod security enforcement") | Section-level, using the document's own table of contents; the guidance has no numbered items. |
-| NIST SP 800-190 | Not yet cited | Planned. |
+| NIST SP 800-190 (September 2017) | Countermeasure section (e.g. "4.4.3 Insecure container runtime configurations") | Section-level, by the document's own numbering and headings; only where the section's text recommends what the rule checks. |
 
 **Newer CIS versions.** CIS has since published Kubernetes Benchmark v2.0.1 (June 2026, Kubernetes 1.34–1.35) and v2.1.0 (by October 2026). Hardex's mappings have not been reviewed against either: their text is available only through CIS WorkBench, and kube-bench has no encoding of them yet. Item numbers usually carry over between point releases, but treat the v2.0 citations as exactly that until a review lands. (Re-checked 2026-10-20: all 42 cited v2.0 items and titles still match kube-bench's `cfg/cis-2.0`.)
 
@@ -107,6 +107,28 @@ Mappings live in one table, [`baselines/mappings.go`](../baselines/mappings.go),
 | 5.4.2 Consider external secret storage | HX-SEC-001 |
 | 5.6.2 Ensure that the seccomp profile is set to docker/default in your Pod definitions | HX-WL-008 |
 | 5.6.3 Apply SecurityContext to your Pods and Containers | HX-WL-009, HX-WL-015, HX-WL-016, HX-WL-017, HX-WL-018 |
+
+## NIST SP 800-190 coverage
+
+Cited by countermeasure section (section 4 of the September 2017 publication; no revision has been published). A rule cites a section only where the section's text recommends what the rule checks; a test checks every cited heading against the document's table of contents.
+
+| Section | Hardex rules |
+|---|---|
+| 4.1.2 Image configuration defects | HX-WL-005 |
+| 4.1.4 Embedded clear text secrets | HX-SEC-001, HX-SEC-002, HX-CP-007 |
+| 4.1.5 Use of untrusted images | HX-WL-011, HX-WL-012 |
+| 4.3.1 Unbounded administrative access | HX-RBAC-001, HX-RBAC-002, HX-RBAC-003, HX-RBAC-004, HX-RBAC-005, HX-RBAC-006, HX-RBAC-007, HX-RBAC-008, HX-CP-002, HX-PATH-001 |
+| 4.3.2 Unauthorized access | HX-RBAC-002, HX-RBAC-007, HX-CP-001, HX-CP-002 |
+| 4.3.3 Poorly separated inter-container network traffic | HX-NET-001 |
+| 4.3.4 Mixing of workload sensitivity levels | HX-PATH-001 |
+| 4.3.5 Orchestrator node trust | HX-CP-006, HX-CP-008, HX-NODE-001, HX-NODE-002, HX-NODE-003 |
+| 4.4.2 Unbounded network access from containers | HX-NET-002 |
+| 4.4.3 Insecure container runtime configurations | HX-WL-001, HX-WL-002, HX-WL-004, HX-WL-006, HX-WL-007, HX-WL-008, HX-WL-015, HX-WL-016, HX-WL-017, HX-WL-018, HX-WL-020 |
+| 4.4.4 App vulnerabilities | HX-WL-009 |
+| 4.4.5 Rogue containers | HX-RBAC-006, HX-CP-003, HX-CP-005 |
+| 4.5.5 Host file system tampering | HX-WL-003 |
+
+Not cited, because they are outside what Hardex can observe in Kubernetes objects and node configuration: image contents (4.1.1 vulnerabilities, 4.1.3 malware; `hardex images --vulns` reports SBOM-based vulnerabilities but is not a rule), registries (4.2), runtime software and behaviour (4.4.1), the host OS (4.5.1–4.5.4) and hardware (4.6). Rules with no section whose text covers what they check cite none: HX-CP-004, HX-CP-009, HX-CP-010, HX-NET-003, HX-NET-004, HX-NET-005, HX-NET-006, HX-NET-007, HX-NET-008, HX-NET-009, HX-NODE-004, HX-PATH-002, HX-WL-010, HX-WL-013, HX-WL-014, HX-WL-019, HX-WL-021.
 
 ## Contributing a mapping
 

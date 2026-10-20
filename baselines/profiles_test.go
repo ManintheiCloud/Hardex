@@ -89,3 +89,49 @@ func TestItemLevelMappings(t *testing.T) {
 		}
 	}
 }
+
+// The NIST SP 800-190 section 4 headings, exactly as in the document's table
+// of contents. Every cited section must be one of them.
+var nistTOC = map[string]bool{
+	"4.1.1 Image vulnerabilities": true, "4.1.2 Image configuration defects": true,
+	"4.1.3 Embedded malware": true, "4.1.4 Embedded clear text secrets": true,
+	"4.1.5 Use of untrusted images": true, "4.2.1 Insecure connections to registries": true,
+	"4.2.2 Stale images in registries": true, "4.2.3 Insufficient authentication and authorization restrictions": true,
+	"4.3.1 Unbounded administrative access": true, "4.3.2 Unauthorized access": true,
+	"4.3.3 Poorly separated inter-container network traffic": true, "4.3.4 Mixing of workload sensitivity levels": true,
+	"4.3.5 Orchestrator node trust": true, "4.4.1 Vulnerabilities within the runtime software": true,
+	"4.4.2 Unbounded network access from containers": true, "4.4.3 Insecure container runtime configurations": true,
+	"4.4.4 App vulnerabilities": true, "4.4.5 Rogue containers": true,
+	"4.5.1 Large attack surface": true, "4.5.2 Shared kernel": true,
+	"4.5.3 Host OS component vulnerabilities": true, "4.5.4 Improper user access rights": true,
+	"4.5.5 Host file system tampering": true, "4.6 Hardware Countermeasures": true,
+}
+
+func TestNISTMappings(t *testing.T) {
+	reg, _ := kubernetes.Registry()
+	for _, s := range baselines.NISTSections {
+		if !nistTOC[s] {
+			t.Errorf("%q is not a NIST SP 800-190 section 4 heading", s)
+		}
+	}
+	for id, sections := range baselines.NISTMappings {
+		if _, ok := reg.Get(id); !ok {
+			t.Errorf("NIST mapping for unknown rule %s", id)
+		}
+		for _, s := range sections {
+			if !nistTOC[s] {
+				t.Errorf("rule %s cites %q, not a NIST SP 800-190 section 4 heading", id, s)
+			}
+		}
+		r, _ := reg.Get(id)
+		n := 0
+		for _, ref := range r.Metadata().References {
+			if ref.Framework == "NIST" {
+				n++
+			}
+		}
+		if n != len(sections) {
+			t.Errorf("rule %s: %d NIST references, want %d", id, n, len(sections))
+		}
+	}
+}

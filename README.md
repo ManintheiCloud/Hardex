@@ -8,7 +8,7 @@ Harden the cluster. Reduce the attack surface. Establish trust.
 
 Hardex is an open-source Kubernetes security hardening framework. It brings systematic, measurable and reproducible security controls to containerized infrastructure: assess, harden, verify, defend.
 
-> **Status: v0.9.0.** Every roadmap objective in phases I–IV is implemented and tested: assessment (56 rules mapped to CIS v2.0 items and NSA/CISA v1.2 sections, three profiles, policy and waivers), read-only live-cluster and node scanning, RBAC reachability and placement-aware attack paths into cluster admin, nodes and cloud identities, guarded remediation with backup and rollback, history and drift monitoring with signed notifications, rule modules, an admission webhook, posture scoring with evidence reports, multi-cluster comparison, and offline keyless Sigstore verification with SBOM vulnerability lookup. Ongoing work is in [ROADMAP.md](ROADMAP.md). No production-readiness or security certification is claimed.
+> **Status: v0.9.0.** Every roadmap objective in phases I–IV is implemented and tested: assessment (56 rules mapped to CIS v2.0 items, NSA/CISA v1.2 sections and NIST SP 800-190 countermeasures, three profiles, policy and waivers), read-only live-cluster and node scanning, RBAC reachability and placement-aware attack paths into cluster admin, nodes and cloud identities, guarded remediation with backup and rollback, history and drift monitoring with signed notifications, rule modules, an admission webhook, posture scoring with evidence reports, multi-cluster comparison, and offline keyless Sigstore verification with SBOM vulnerability lookup. Ongoing work is in [ROADMAP.md](ROADMAP.md). No production-readiness or security certification is claimed.
 
 ## What Hardex does today
 

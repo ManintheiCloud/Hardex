@@ -16,6 +16,76 @@ const CISVersion = "CIS Kubernetes Benchmark v2.0"
 // section headings of its table of contents.
 const NSAVersion = "NSA/CISA Kubernetes Hardening Guidance v1.2 (August 2022)"
 
+// NISTVersion names NIST SP 800-190, cited by countermeasure section
+// (section 4) with its exact number and heading. A rule cites a section only
+// where that section's text recommends what the rule checks; rules with no
+// such section cite none.
+const NISTVersion = "NIST SP 800-190 Application Container Security Guide (September 2017)"
+
+// NIST SP 800-190 countermeasure sections Hardex cites.
+const (
+	nist412 = "4.1.2 Image configuration defects"     // run as non-privileged users
+	nist414 = "4.1.4 Embedded clear text secrets"     // secrets at runtime, via secret management, encrypted at rest
+	nist415 = "4.1.5 Use of untrusted images"         // run only approved images
+	nist431 = "4.3.1 Unbounded administrative access" // least privilege
+	nist432 = "4.3.2 Unauthorized access"             // control cluster-wide administrative access
+	nist433 = "4.3.3 Poorly separated inter-container network traffic"
+	nist434 = "4.3.4 Mixing of workload sensitivity levels"     // separate hosts by sensitivity
+	nist435 = "4.3.5 Orchestrator node trust"                   // mutually authenticated cluster members
+	nist442 = "4.4.2 Unbounded network access from containers"  // egress control
+	nist443 = "4.4.3 Insecure container runtime configurations" // runtime config standards, MAC, seccomp
+	nist444 = "4.4.4 App vulnerabilities"                       // read-only root filesystems
+	nist445 = "4.4.5 Rogue containers"                          // RBAC for deployment, audit, pre-run enforcement
+	nist455 = "4.5.5 Host file system tampering"                // no sensitive host mounts
+)
+
+// NISTMappings lists, per built-in rule, the NIST SP 800-190 sections it
+// implements. Rules not listed cite none.
+var NISTMappings = map[string][]string{
+	"HX-WL-001":   {nist443},
+	"HX-WL-002":   {nist443},
+	"HX-WL-003":   {nist455},
+	"HX-WL-004":   {nist443},
+	"HX-WL-005":   {nist412},
+	"HX-WL-006":   {nist443},
+	"HX-WL-007":   {nist443},
+	"HX-WL-008":   {nist443},
+	"HX-WL-009":   {nist444},
+	"HX-WL-011":   {nist415},
+	"HX-WL-012":   {nist415},
+	"HX-WL-015":   {nist443},
+	"HX-WL-016":   {nist443},
+	"HX-WL-017":   {nist443},
+	"HX-WL-018":   {nist443},
+	"HX-WL-020":   {nist443},
+	"HX-SEC-001":  {nist414},
+	"HX-SEC-002":  {nist414},
+	"HX-RBAC-001": {nist431},
+	"HX-RBAC-002": {nist431, nist432},
+	"HX-RBAC-003": {nist431},
+	"HX-RBAC-004": {nist431},
+	"HX-RBAC-005": {nist431},
+	"HX-RBAC-006": {nist431, nist445},
+	"HX-RBAC-007": {nist431, nist432},
+	"HX-RBAC-008": {nist431},
+	"HX-NET-001":  {nist433},
+	"HX-NET-002":  {nist442},
+	"HX-CP-001":   {nist432},
+	"HX-CP-002":   {nist431, nist432},
+	"HX-CP-003":   {nist445},
+	"HX-CP-005":   {nist445},
+	"HX-CP-006":   {nist435},
+	"HX-CP-007":   {nist414},
+	"HX-CP-008":   {nist435},
+	"HX-NODE-001": {nist435},
+	"HX-NODE-002": {nist435},
+	"HX-NODE-003": {nist435},
+	"HX-PATH-001": {nist431, nist434},
+}
+
+// NISTSections lists every section NISTMappings may cite, for tests.
+var NISTSections = []string{nist412, nist414, nist415, nist431, nist432, nist433, nist434, nist435, nist442, nist443, nist444, nist445, nist455}
+
 // cisItems are the CIS v2.0 items Hardex maps to, with their titles. The
 // list was taken from kube-bench's open-source (Apache-2.0) encoding of the
 // benchmark (cfg/cis-2.0); a test checks every mapping refers to one of them.
@@ -183,8 +253,11 @@ func MappedReferences(ruleID string, existing []finding.Reference) []finding.Ref
 	for _, s := range m.NSA {
 		out = append(out, finding.Reference{Framework: "NSA-CISA", Control: NSAVersion + " — " + s, URL: nsaURL})
 	}
+	for _, s := range NISTMappings[ruleID] {
+		out = append(out, finding.Reference{Framework: "NIST", Control: NISTVersion + " — " + s, URL: nistURL})
+	}
 	for _, r := range existing {
-		if r.Framework != "CIS" && r.Framework != "NSA-CISA" {
+		if r.Framework != "CIS" && r.Framework != "NSA-CISA" && r.Framework != "NIST" {
 			out = append(out, r)
 		}
 	}
