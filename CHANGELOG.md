@@ -2,7 +2,7 @@
 
 All notable changes are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow [Semantic Versioning](https://semver.org/). Before 1.0, minor versions may contain breaking changes.
 
-## Unreleased
+## 0.10.2 — 2026-10-20
 
 ### Fixed
 - The remediation backup (a write-ahead journal since 0.10.0) and history reports were replaced atomically, but the directory was not synced after the rename, so an operating-system crash or power loss soon after could bring back the previous version of the file, losing the record of a change about to be made. The directory is now synced after every replacement (Linux and macOS; Windows journals metadata itself).
