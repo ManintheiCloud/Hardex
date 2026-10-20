@@ -3,6 +3,7 @@ package history
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 	"time"
 
@@ -47,7 +48,9 @@ func TestSaveListTrendPrune(t *testing.T) {
 	if pts[1].Introduced != 1 || pts[1].Resolved != 0 || pts[2].Introduced != 1 || pts[2].Resolved != 1 {
 		t.Errorf("trend = %+v", pts)
 	}
-	if info, _ := os.Stat(entries[0].Path); info.Mode().Perm() != 0o600 {
+	// Windows has no POSIX permission bits (access follows the directory's
+	// ACL); everywhere else reports must be readable only by their owner.
+	if info, _ := os.Stat(entries[0].Path); runtime.GOOS != "windows" && info.Mode().Perm() != 0o600 {
 		t.Errorf("report mode = %v, want 0600", info.Mode().Perm())
 	}
 	if n, err := s.Prune(1); err != nil || n != 2 {
