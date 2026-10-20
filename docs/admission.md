@@ -27,6 +27,16 @@ The webhook sees one object at a time, so rules whose verdict depends on other o
 
 Roll out in `warn` mode, review the warnings developers see and the decision log, add waivers where risk is accepted, then switch to `--mode=enforce`.
 
+### Before enforcing
+
+Enforce mode applies to everything outside the excluded namespaces, including platform components that legitimately need privileges and create pods on their own. The end-to-end test shows the common case: kind's local-path storage provisioner prepares each volume with a root `hostPath` helper pod in `local-path-storage`, so with the shipped exclusions, **enforce mode stops PersistentVolumeClaims from being provisioned**. Other storage drivers, CNI and CSI node agents, and GPU or monitoring agents behave similarly.
+
+Before switching to `--mode=enforce`:
+
+1. Run in `warn` mode for long enough to see every controller's pods (including ones that only appear on demand, such as provisioner helpers) and check the decision log for denials-to-be.
+2. Add the namespaces of trusted platform components to the webhook's `namespaceSelector` exclusion list (`values: [kube-system, hardex, cert-manager, local-path-storage, …]`), or waive their specific findings in the policy configuration.
+3. Switch to enforce and keep watching the decision log.
+
 ```sh
 kubectl apply -f deploy/hardex-reader.yaml      # namespace and baseline policy
 kubectl apply -f deploy/hardex-admission.yaml

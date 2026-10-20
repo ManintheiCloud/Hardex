@@ -173,6 +173,45 @@ POD
 kubectl apply --dry-run=server -f "$WORK/good-pod.yaml" || fail "enforce mode rejected a hardened pod"
 pass "enforce mode rejects a privileged pod and admits a hardened one"
 
+# Enforce mode also applies to platform components outside the excluded
+# namespaces: kind's local-path provisioner runs root hostPath helper pods in
+# local-path-storage, which enforce mode rejects (see docs/admission.md,
+# "Before enforcing"). Prove the interaction, then return to warn mode.
+cat > "$WORK/probe-pvc.yaml" <<'PVC'
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata: {name: probe, namespace: e2e-admission}
+spec: {accessModes: [ReadWriteOnce], resources: {requests: {storage: 1Mi}}}
+---
+apiVersion: v1
+kind: Pod
+metadata: {name: probe, namespace: e2e-admission}
+spec:
+  automountServiceAccountToken: false
+  securityContext: {runAsNonRoot: true, runAsUser: 65532, seccompProfile: {type: RuntimeDefault}}
+  containers:
+    - name: c
+      image: registry.k8s.io/pause:3.10@sha256:ee6521f290b2168b6e0935a181d4cff9be1ac3f505666ef0e3c98fae8199917a
+      securityContext: {allowPrivilegeEscalation: false, readOnlyRootFilesystem: true, capabilities: {drop: ["ALL"]}}
+      resources: {requests: {cpu: 10m, memory: 16Mi}, limits: {cpu: 100m, memory: 32Mi}}
+      volumeMounts: [{name: v, mountPath: /v}]
+  volumes: [{name: v, persistentVolumeClaim: {claimName: probe}}]
+PVC
+kubectl apply -f "$WORK/probe-pvc.yaml"
+for i in $(seq 1 24); do
+  kubectl get events -n e2e-admission --field-selector reason=ProvisioningFailed -o jsonpath='{.items[*].message}' | grep -qi 'hardex\|denied' && break
+  sleep 5
+done
+msg="$(kubectl get events -n e2e-admission --field-selector reason=ProvisioningFailed -o jsonpath='{.items[0].message}' 2>/dev/null)"
+echo "provisioning under enforce: ${msg:-<no failure event>}"
+echo "$msg" | grep -qi 'denied' || fail "expected enforce mode to block local-path helper pods (documented interaction), got: ${msg:-nothing}"
+pass "documented interaction confirmed: enforce mode blocks the local-path provisioner's helper pods"
+kubectl -n hardex patch deployment hardex-admission --type json \
+  -p '[{"op":"replace","path":"/spec/template/spec/containers/0/args/1","value":"--mode=warn"}]'
+kubectl -n hardex rollout status deployment/hardex-admission --timeout 180s
+kubectl -n e2e-admission wait --for=jsonpath='{.status.phase}'=Bound pvc/probe --timeout 180s || fail "provisioning did not recover in warn mode"
+pass "provisioning works again in warn mode"
+
 step "scheduled scan and monitor CronJobs, run in the cluster"
 sed "s#image: ghcr.io/manintheicloud/hardex:[^ ]*#image: $IMAGE#" deploy/hardex-cronjob.yaml | kubectl apply -f -
 # No webhook receiver in the test cluster: events go to the job log only.

@@ -2,6 +2,15 @@
 
 All notable changes are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow [Semantic Versioning](https://semver.org/). Before 1.0, minor versions may contain breaking changes.
 
+## Unreleased
+
+### Added
+- End-to-end: admission enforce mode (rejects a privileged pod, admits a hardened one), the scan and monitor CronJobs run in-cluster, and monitor history persisting between runs.
+
+### Changed
+- `deploy/hardex-monitor.yaml` uses `--fail-on=none`: hourly Jobs fail only when the assessment or the webhook delivery does, not whenever findings exist.
+- docs/admission.md, "Before enforcing": enforce mode blocks platform components outside the excluded namespaces — demonstrated end to end with kind's local-path storage provisioner, whose helper pods it rejects, stopping PVC provisioning.
+
 ## 0.8.5 — 2026-10-20
 
 ### Added

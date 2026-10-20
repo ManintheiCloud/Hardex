@@ -139,6 +139,8 @@ webhooks:
       matchExpressions:
         - key: kubernetes.io/metadata.name
           operator: NotIn
+          # Add trusted platform namespaces (storage provisioners, CNI/CSI
+          # agents) before switching to enforce: see docs/admission.md.
           values: [kube-system, hardex, cert-manager]
     rules:
       - apiGroups: [""]
