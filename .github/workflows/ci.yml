@@ -72,15 +72,10 @@ jobs:
           ./hardex images --image ghcr.io/manintheicloud/hardex:latest --require-signature \
             --predicate-type https://slsa.dev/provenance/v1 \
             --certificate-identity-regexp "$identity" --certificate-oidc-issuer "$issuer" > /dev/null
-          # Report (without failing) whether cosign's own image signature is
-          # found as a cosign v3 sign attestation.
-          if ./hardex images --image ghcr.io/manintheicloud/hardex:latest --require-signature --format json \
-              --predicate-type https://sigstore.dev/cosign/sign/v1 \
-              --certificate-identity-regexp "$identity" --certificate-oidc-issuer "$issuer" > cosign-sign.json; then
-            echo "::notice title=cosign signature::verified as https://sigstore.dev/cosign/sign/v1"
-          else
-            echo "::notice title=cosign signature::not verified as cosign/sign/v1: $(jq -r '.[0].signature.detail' cosign-sign.json | cut -c1-600)"
-          fi
+          # ...and cosign's own image signature (a cosign v3 sign attestation).
+          ./hardex images --image ghcr.io/manintheicloud/hardex:latest --require-signature \
+            --predicate-type https://sigstore.dev/cosign/sign/v1 \
+            --certificate-identity-regexp "$identity" --certificate-oidc-issuer "$issuer" > /dev/null
           tag="$(gh release view --repo "$GITHUB_REPOSITORY" --json tagName --jq .tagName)"
           gh release download "$tag" --repo "$GITHUB_REPOSITORY" --pattern 'SHA256SUMS*' --dir rel
           ./hardex verify-blob rel/SHA256SUMS --bundle rel/SHA256SUMS.sigstore.json \

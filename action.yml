@@ -29,7 +29,7 @@ inputs:
     default: ""
   version:
     description: Hardex release to use (without the v).
-    default: "0.8.9"
+    default: "0.8.10"
   verify-provenance:
     description: Verify the release's SLSA build provenance with `gh attestation verify` (needs the gh CLI, present on GitHub-hosted runners).
     default: "true"

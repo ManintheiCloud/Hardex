@@ -2,6 +2,15 @@
 
 All notable changes are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow [Semantic Versioning](https://semver.org/). Before 1.0, minor versions may contain breaking changes.
 
+## 0.8.10 — 2026-10-20
+
+### Fixed
+- Keyless image verification did not find cosign v3 image signatures on registries without the OCI referrers API (such as GHCR): the referrers tag index lists them with the empty artifact type, which discovery skipped, so only other attestations (e.g. SLSA provenance) were checked. Such referrers are now opened and judged by their layers (at most 32 per image). Found by inspecting the published Hardex image.
+
+### Added
+- `hardex images --predicate-type`: accept only attestations of one kind (e.g. the cosign signature or SLSA provenance). Every verified signature and attestation is now listed, not only the first.
+- CI and the post-release check require both the cosign signature and the SLSA provenance on the published image.
+
 ## 0.8.9 — 2026-10-20
 
 ### Fixed
