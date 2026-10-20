@@ -21,18 +21,32 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - name: Wait for the release the action defaults to
+      - name: Release to test with
+        id: release
         shell: bash
+        env:
+          EVENT: ${{ github.event_name }}
         run: |
+          # The action's default release. A pull request that bumps it (a
+          # release PR) cannot see it yet: the release is built after the
+          # merge. Such a PR tests the action with the latest published
+          # release instead; pushes to main wait for the new one.
           v="$(sed -n 's/^    default: "\([0-9][0-9.]*\)"$/\1/p' action.yml | head -1)"
+          published() { curl -sfIL -o /dev/null "https://github.com/ManintheiCloud/Hardex/releases/download/v$1/SHA256SUMS"; }
+          if [ "$EVENT" = pull_request ] && ! published "$v"; then
+            latest="$(curl -sfIL -o /dev/null -w '%{url_effective}' https://github.com/ManintheiCloud/Hardex/releases/latest | sed 's#.*/tag/v##')"
+            echo "v$v is not published yet (release pull request); testing with v$latest"
+            v="$latest"
+          fi
           for i in $(seq 1 40); do
-            curl -sfIL -o /dev/null "https://github.com/ManintheiCloud/Hardex/releases/download/v$v/SHA256SUMS" && exit 0
+            if published "$v"; then echo "version=$v" >> "$GITHUB_OUTPUT"; exit 0; fi
             echo "waiting for release v$v ($i)"; sleep 30
           done
           echo "release v$v not published"; exit 1
       - name: Clean manifests pass
         uses: ./
         with:
+          version: ${{ steps.release.outputs.version }}
           paths: tests/fixtures/hardened
           profile: restricted
           output: hardened.sarif
@@ -41,6 +55,7 @@ jobs:
         uses: ./
         continue-on-error: true
         with:
+          version: ${{ steps.release.outputs.version }}
           paths: tests/fixtures/insecure
           output: insecure.sarif
       - name: Check results
