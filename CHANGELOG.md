@@ -7,6 +7,9 @@ All notable changes are documented here. The format follows [Keep a Changelog](h
 ### Added
 - NIST SP 800-190 citations: 39 rules cite the countermeasure sections (section 4) whose text recommends what they check, by the document's own numbering and headings ([docs/baselines.md](docs/baselines.md#nist-sp-800-190-coverage)). They appear in rule references, SARIF and `hardex report`, which groups evidence per framework. A test checks every cited heading against the document's table of contents.
 
+### Changed
+- The container image is built on `distroless/static-debian13` (Debian 13, current stable) instead of `static-debian12`, and both base images in the Dockerfile are pinned by digest. A test keeps every GitHub Action pinned to a commit SHA and every base image to a digest.
+
 ## 0.9.0 — 2026-10-20
 
 ### Added

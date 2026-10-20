@@ -14,14 +14,6 @@ permissions:
 # upload. It is therefore not configured here.
 
 jobs:
-  probe-digests:
-    runs-on: ubuntu-24.04
-    steps:
-      - run: |
-          for i in golang:1 gcr.io/distroless/static-debian12:nonroot gcr.io/distroless/static-debian13:nonroot; do
-            d="$(docker buildx imagetools inspect "$i" --format '{{json .Manifest}}' | jq -r .digest)"
-            echo "::notice title=digest::$i@$d"
-          done
   test:
     runs-on: ubuntu-24.04
     steps:
