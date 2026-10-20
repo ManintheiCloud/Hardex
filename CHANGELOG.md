@@ -2,7 +2,7 @@
 
 All notable changes are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow [Semantic Versioning](https://semver.org/). Before 1.0, minor versions may contain breaking changes.
 
-## Unreleased
+## 0.9.2 — 2026-10-20
 
 ### Fixed
 - The API server's structured configuration files were trusted without being read: with `--authentication-config`, `--authorization-config` or `--encryption-provider-config` set, HX-CP-001, HX-CP-002 and HX-CP-007 reported nothing whatever the files said. When the files are part of the input (e.g. scan `/etc/kubernetes` with the static pod manifests), Hardex now reports:
