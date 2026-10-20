@@ -1,6 +1,6 @@
 # Threat model
 
-Version 0.8.10. This document has two parts: the threats Hardex helps defend **clusters** against (what the rules are for), and the threats to **Hardex itself** (how the tool must behave). Both are living documents; propose changes by pull request.
+Version 0.9.0. This document has two parts: the threats Hardex helps defend **clusters** against (what the rules are for), and the threats to **Hardex itself** (how the tool must behave). Both are living documents; propose changes by pull request.
 
 ---
 

@@ -2,7 +2,7 @@
 
 All notable changes are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow [Semantic Versioning](https://semver.org/). Before 1.0, minor versions may contain breaking changes.
 
-## Unreleased
+## 0.9.0 — 2026-10-20
 
 ### Added
 - HX-WL-021: `host` in httpGet/tcpSocket probes and lifecycle hooks, which the Pod Security Standards Baseline forbids since Kubernetes 1.34 (the kubelet runs these from the node, so `host` lets any pod author make it connect to node-local services or the metadata endpoint). Medium; a loopback host in a `hostNetwork` pod is low. In the `baseline` and `restricted` profiles, with a fix that removes the field.
