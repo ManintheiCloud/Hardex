@@ -3,6 +3,8 @@ package monitoring
 import (
 	"context"
 	"errors"
+	"fmt"
+	"os"
 	"path/filepath"
 	"testing"
 	"time"
@@ -94,5 +96,88 @@ func TestMonitorReportsIncompleteAndDeliveryFailure(t *testing.T) {
 	}
 	if len(res.DeliveryErrors) != 1 {
 		t.Error("delivery failure not surfaced")
+	}
+}
+
+// A failed delivery must delay alerts, not lose them: the next assessment
+// compares with the recorded one, so its events alone would never repeat
+// the missed "introduced" event.
+func TestUndeliveredEventsAreRedelivered(t *testing.T) {
+	store, err := history.Open(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	sink := &capture{}
+	m := &Monitor{Store: store, Sinks: []notify.Sink{sink}}
+	t0 := time.Date(2026, 10, 1, 0, 0, 0, 0, time.UTC)
+	if _, err := m.Process(context.Background(), rep(t0, nil)); err != nil {
+		t.Fatal(err)
+	}
+	// The sink is down when a critical finding appears.
+	sink.err = errors.New("connection refused")
+	res, err := m.Process(context.Background(), rep(t0.Add(time.Hour), map[string]finding.Severity{"evil": finding.Critical}))
+	if err != nil || len(res.DeliveryErrors) != 1 {
+		t.Fatalf("res = %+v, err = %v", res, err)
+	}
+	// Still down: the batch keeps both runs' events.
+	if _, err := m.Process(context.Background(), rep(t0.Add(2*time.Hour), map[string]finding.Severity{"evil": finding.Critical})); err != nil {
+		t.Fatal(err)
+	}
+	// Back up: the missed alert arrives, marked late, then the outbox is empty.
+	sink.err = nil
+	res, err = m.Process(context.Background(), rep(t0.Add(3*time.Hour), map[string]finding.Severity{"evil": finding.Critical}))
+	if err != nil || len(res.DeliveryErrors) != 0 {
+		t.Fatalf("res = %+v, err = %v", res, err)
+	}
+	last := sink.batches[len(sink.batches)-1]
+	introduced, late := 0, 0
+	for _, e := range last {
+		if e.Type == notify.FindingIntroduced && e.Finding.Resource.Name == "evil" {
+			introduced++
+			if !e.Late {
+				t.Error("redelivered event not marked late")
+			}
+		}
+		if e.Late {
+			late++
+		}
+	}
+	if introduced != 1 || late == 0 {
+		t.Fatalf("introduced=%d late=%d in %+v", introduced, late, last)
+	}
+	if _, err := os.Stat(filepath.Join(store.Dir(), "undelivered-capture.json")); !os.IsNotExist(err) {
+		t.Errorf("outbox not cleared: %v", err)
+	}
+	// The next batch carries only its own events.
+	res, _ = m.Process(context.Background(), rep(t0.Add(4*time.Hour), map[string]finding.Severity{"evil": finding.Critical}))
+	for _, e := range sink.batches[len(sink.batches)-1] {
+		if e.Late {
+			t.Error("event redelivered twice")
+		}
+	}
+	// The outbox is not mistaken for a report.
+	entries, warns, _ := store.List()
+	if len(entries) != 5 || len(warns) != 0 {
+		t.Errorf("history: %d entries, warnings %v", len(entries), warns)
+	}
+}
+
+func TestUndeliveredEventsAreBounded(t *testing.T) {
+	store, _ := history.Open(t.TempDir())
+	sink := &capture{err: errors.New("down")}
+	m := &Monitor{Store: store, Sinks: []notify.Sink{sink}}
+	t0 := time.Date(2026, 10, 1, 0, 0, 0, 0, time.UTC)
+	items := map[string]finding.Severity{}
+	for i := 0; i < 700; i++ {
+		items[fmt.Sprintf("p%d", i)] = finding.High
+	}
+	m.Process(context.Background(), rep(t0, nil))
+	m.Process(context.Background(), rep(t0.Add(time.Hour), items)) // 700 introduced
+	m.Process(context.Background(), rep(t0.Add(2*time.Hour), nil)) // 700 resolved
+	sink.err = nil
+	m.Process(context.Background(), rep(t0.Add(3*time.Hour), nil))
+	last := sink.batches[len(sink.batches)-1]
+	if len(last) != MaxUndelivered+1 || last[0].Type != notify.EventsDropped {
+		t.Fatalf("batch of %d, first %q", len(last), last[0].Type)
 	}
 }
