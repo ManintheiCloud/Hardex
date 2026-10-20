@@ -1,0 +1,9 @@
+{
+  "release": {
+    "required_reviewers": true,
+    "deployment_branch_policies": [
+      {"name": "main", "type": "branch"},
+      {"name": "v*", "type": "tag"}
+    ]
+  }
+}

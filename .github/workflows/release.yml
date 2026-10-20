@@ -1,8 +1,9 @@
 name: release
 
-# Publishes a release when the VERSION file changes on main (the release
+# Prepares a release when the VERSION file changes on main (the release
 # tag v<VERSION> is created by this workflow), or when a version tag
-# (v1.2.3) is pushed:
+# (v1.2.3) is pushed, and publishes it once a reviewer approves the run
+# (the "release" environment):
 #   - binaries for Linux, macOS and Windows, with SHA256SUMS
 #   - an SPDX SBOM
 #   - a keyless Sigstore signature over SHA256SUMS
@@ -78,8 +79,22 @@ jobs:
       - name: Embedded Sigstore trusted root is current
         run: tools/update-trusted-root.sh
 
-  binaries:
+  # A person approves every release. The "release" environment requires a
+  # reviewer (repository settings; checked by tools/check-rulesets.py), so
+  # the publishing jobs below wait here until someone approves the run in
+  # GitHub. Building and testing above happen without approval; nothing is
+  # signed, tagged or published before it.
+  approve:
     needs: [meta, test]
+    runs-on: ubuntu-24.04
+    environment: release
+    steps:
+      - env:
+          TAG: ${{ needs.meta.outputs.tag }}
+        run: echo "Release $TAG approved"
+
+  binaries:
+    needs: [meta, test, approve]
     runs-on: ubuntu-24.04
     permissions:
       contents: write      # create the release
@@ -147,7 +162,7 @@ jobs:
             --notes "See [CHANGELOG.md](https://github.com/$GITHUB_REPOSITORY/blob/$TAG/CHANGELOG.md). Container image: \`${IMAGE}:${VERSION}\`. How to verify: [docs/verifying-releases.md](https://github.com/$GITHUB_REPOSITORY/blob/$TAG/docs/verifying-releases.md)."
 
   image:
-    needs: [meta, test]
+    needs: [meta, test, approve]
     runs-on: ubuntu-24.04
     permissions:
       contents: read
