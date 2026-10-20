@@ -61,7 +61,18 @@ jobs:
           go-version: stable
           check-latest: true
       - run: go vet ./...
-      - run: go test -count=1 ./...
+      - name: go test
+        shell: bash
+        run: |
+          # Each failing test becomes an annotation, so failures specific to
+          # this platform are visible without opening the log.
+          set +e
+          go test -count=1 ./... > test.txt 2>&1
+          status=$?
+          cat test.txt
+          grep -n -A12 -E '^\s*--- FAIL|^panic:|cannot find|build failed' test.txt | head -400 \
+            | awk 'BEGIN{RS="--\n"} {gsub(/%/,"%25"); gsub(/\r/,""); gsub(/\n/,"%0A"); if (length($0)) print "::error title=go test (${{ matrix.runner }})::" substr($0,1,3000)}'
+          exit $status
 
   supply-chain:
     # Verifies the latest published release with the code under test, against
