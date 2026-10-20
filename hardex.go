@@ -19,7 +19,7 @@ import (
 )
 
 // Version is set at build time with -ldflags "-X github.com/ManintheiCloud/Hardex.Version=...".
-var Version = "0.10.0-dev"
+var Version = "0.10.1-dev"
 
 // ScanOptions configures a scan.
 type ScanOptions struct {
