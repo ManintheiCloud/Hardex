@@ -7,6 +7,9 @@ All notable changes are documented here. The format follows [Keep a Changelog](h
 ### Fixed
 - `hardex monitor`: an alert that could not be delivered (webhook down) was lost. Each assessment is recorded before its events are sent, so the next run compared with it and never repeated the missed "new finding" event. Undelivered events are now kept in the history directory and sent with the next assessment's, marked `"late": true` (Slack: "delayed"); at most 1000 per sink, with an `events.dropped` event if older ones had to go.
 
+### CI
+- The Action test on `main` waited at most 20 minutes for the release `action.yml` defaults to; now that releases wait for a reviewer, that failed whenever approval took longer. Pushes and pull requests test with the latest published release until the new one exists, and the Action is tested against the new release itself once the release workflow has published it.
+
 ## 0.10.2 — 2026-10-20
 
 ### Fixed
