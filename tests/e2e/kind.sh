@@ -189,7 +189,7 @@ jq -e '.objectsEvaluated > 20 and ((.errors // []) | length) == 0' "$WORK/scan-1
 for run in 1 2; do
   kubectl -n hardex create job "monitor-$run" --from=cronjob/hardex-monitor
   kubectl -n hardex wait --for=condition=complete "job/monitor-$run" --timeout 240s \
-    || { kubectl -n hardex logs "job/monitor-$run" | tail -20; fail "monitor run $run did not complete"; }
+    || { kubectl -n hardex describe "job/monitor-$run" | tail -15; fail "monitor run $run did not complete: $(kubectl -n hardex logs "job/monitor-$run" 2>&1 | tail -5) $(kubectl -n hardex get pods -l job-name=monitor-$run -o jsonpath='{.items[*].status.containerStatuses[*].state}')"; }
   kubectl -n hardex logs "job/monitor-$run" > "$WORK/monitor-$run.log" 2>&1
 done
 head -3 "$WORK/monitor-1.log"
