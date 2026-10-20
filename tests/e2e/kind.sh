@@ -60,11 +60,9 @@ users: [{name: reader, user: {token: "$token"}}]
 contexts: [{name: reader, context: {cluster: kind, user: reader}}]
 current-context: reader
 EOF
-set +e
+code=0
 ./bin/hardex scan --cluster --kubeconfig "$WORK/reader.kubeconfig" --profile restricted --format json --fail-on none --stats \
-  -o "$WORK/live.json" 2> "$WORK/live.err"
-code=$?
-set -e
+  -o "$WORK/live.json" 2> "$WORK/live.err" || code=$?
 cat "$WORK/live.err"
 [ "$code" = 0 ] || fail "live scan exited $code (3 means the reader role could not read something)"
 jq -e '.objectsEvaluated > 20' "$WORK/live.json" >/dev/null || fail "too few objects collected"
@@ -146,10 +144,9 @@ echo "$out" | grep -qi 'warning.*HX-WL-001' || fail "admission webhook (warn mod
 pass "admission webhook warns through the real API server"
 
 step "admission preflight against the live cluster"
-set +e
-./bin/hardex admission --preflight --cluster --kubeconfig "$WORK/reader.kubeconfig" --format json > "$WORK/preflight.json"
-code=$?
-set -e
+# (`|| code=$?`: an expected non-zero exit must not trip the ERR trap.)
+code=0
+./bin/hardex admission --preflight --cluster --kubeconfig "$WORK/reader.kubeconfig" --format json > "$WORK/preflight.json" || code=$?
 [ "$code" = 1 ] || fail "preflight should report denials (exit 1), got exit $code"
 jq -e '[.[] | select(.namespace=="shop" and .name=="insecure-web")] | length == 1' "$WORK/preflight.json" >/dev/null \
   || fail "preflight did not predict that shop/insecure-web would be rejected"
