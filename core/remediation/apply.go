@@ -7,6 +7,8 @@ import (
 	"os"
 	"path/filepath"
 	"time"
+
+	"github.com/ManintheiCloud/Hardex/internal/durable"
 )
 
 // BackupSchema identifies the backup file format.
@@ -87,8 +89,8 @@ func LoadBackup(path string) (*Backup, error) {
 	return &b, nil
 }
 
-// save writes the backup atomically (write, sync, rename), readable only by
-// the owner: it contains full object specs.
+// save writes the backup atomically and durably (write, sync, rename, sync
+// the directory), readable only by the owner: it contains full object specs.
 func (b *Backup) save() error {
 	data, err := json.MarshalIndent(b, "", "  ")
 	if err != nil {
@@ -110,7 +112,9 @@ func (b *Backup) save() error {
 	if err := f.Close(); err != nil {
 		return err
 	}
-	return os.Rename(tmp, b.path)
+	// The directory sync makes the rename itself durable: the journal must
+	// survive an operating-system crash, not only a process crash.
+	return durable.Rename(tmp, b.path, filepath.Dir(b.path))
 }
 
 // ApplyResult describes an apply run.
