@@ -2,8 +2,15 @@
   "release": {
     "required_reviewers": true,
     "deployment_branch_policies": [
-      {"name": "main", "type": "branch"},
-      {"name": "v*", "type": "tag"}
-    ]
+      {
+        "name": "main",
+        "type": "branch"
+      },
+      {
+        "name": "v*",
+        "type": "tag"
+      }
+    ],
+    "admins_can_bypass": false
   }
 }

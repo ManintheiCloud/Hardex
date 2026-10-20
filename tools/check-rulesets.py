@@ -92,6 +92,12 @@ def check_environments(repo, path):
             rev = rules.get("required_reviewers")
             if not rev or not rev.get("reviewers"):
                 problems.append("no required reviewer")
+        notes = []
+        if "admins_can_bypass" in want:
+            if "can_admins_bypass" not in env:
+                notes.append("admin bypass not visible to this token (unverified)")
+            elif env["can_admins_bypass"] != want["admins_can_bypass"]:
+                problems.append(f"administrators can bypass: {env['can_admins_bypass']}, expected {want['admins_can_bypass']}")
         policy = env.get("deployment_branch_policy") or {}
         if "deployment_branch_policies" in want:
             if not policy.get("custom_branch_policies"):
@@ -110,7 +116,7 @@ def check_environments(repo, path):
             for p in problems:
                 print(f"  {p}")
         else:
-            print(f"ok   environment {name}")
+            print(f"ok   environment {name}" + ("; " + "; ".join(notes) if notes else ""))
     return failed
 
 
