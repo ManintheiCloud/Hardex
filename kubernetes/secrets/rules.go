@@ -7,7 +7,7 @@ package secrets
 
 import (
 	"fmt"
-	"regexp"
+	"strings"
 
 	"github.com/ManintheiCloud/Hardex/baselines"
 	"github.com/ManintheiCloud/Hardex/core/assessment"
@@ -54,10 +54,37 @@ var inlineSecretData = assessment.ObjectRule{
 	},
 }
 
-var credentialName = regexp.MustCompile(`(?i)(passw(or)?d|passwd|secret|token|api[_-]?key|access[_-]?key|private[_-]?key|credential)`)
+// credentialWords are the name fragments that suggest a credential:
+// passw(or)?d, secret, token, api[_-]?key, access[_-]?key, private[_-]?key,
+// credential. Plain substring tests rather than a regexp: admission checks
+// objects with thousands of variables and must stay fast (see
+// integrations/admission/load_test.go).
+var credentialWords = []string{"password", "passwd", "secret", "token", "apikey", "api_key", "api-key",
+	"accesskey", "access_key", "access-key", "privatekey", "private_key", "private-key", "credential"}
 
-// Names that match the pattern but conventionally hold non-secret values.
-var benignSuffix = regexp.MustCompile(`(?i)(_file|_path|_url|_uri|_endpoint|_host|_name|_user(name)?|_enabled|_ttl|_timeout|_header)$`)
+// benignSuffixes conventionally hold non-secret values.
+var benignSuffixes = []string{"_file", "_path", "_url", "_uri", "_endpoint", "_host", "_name", "_user", "_username",
+	"_enabled", "_ttl", "_timeout", "_header"}
+
+func credentialName(name string) bool {
+	n := strings.ToLower(name)
+	for _, w := range credentialWords {
+		if strings.Contains(n, w) {
+			return true
+		}
+	}
+	return false
+}
+
+func benignSuffix(name string) bool {
+	n := strings.ToLower(name)
+	for _, s := range benignSuffixes {
+		if strings.HasSuffix(n, s) {
+			return true
+		}
+	}
+	return false
+}
 
 var literalEnvCredential = assessment.ObjectRule{
 	Meta: assessment.Metadata{
@@ -77,7 +104,7 @@ var literalEnvCredential = assessment.ObjectRule{
 		for _, c := range resource.Containers(pod) {
 			for i, env := range resource.Maps(c.Spec, "env") {
 				name := resource.String(env, "name")
-				if resource.String(env, "value") == "" || !credentialName.MatchString(name) || benignSuffix.MatchString(name) {
+				if resource.String(env, "value") == "" || !credentialName(name) || benignSuffix(name) {
 					continue
 				}
 				ctx.Report(assessment.Hit{Object: obj, Container: c.Name,

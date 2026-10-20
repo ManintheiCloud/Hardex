@@ -2,6 +2,14 @@
 
 All notable changes are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow [Semantic Versioning](https://semver.org/). Before 1.0, minor versions may contain breaking changes.
 
+## Unreleased
+
+### Added
+- Admission load test and benchmarks (`integrations/admission/load_test.go`): decision latency for typical and near-maximum objects, and a concurrent mixed load in CI (p99 under 2 s; concurrency correctness also under the race detector). Numbers in docs/performance.md.
+
+### Changed
+- HX-SEC-002 matches credential-like variable names with substring tests instead of a regular expression (same results, verified on 20,000 generated names; a third faster on objects with thousands of variables).
+
 ## 0.8.7 — 2026-10-20
 
 ### Added
