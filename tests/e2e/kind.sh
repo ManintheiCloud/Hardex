@@ -107,6 +107,31 @@ priv="$(kubectl get deployment -n shop insecure-web -o jsonpath='{.spec.template
 [ "$priv" = "true" ] || fail "rollback did not restore the original value"
 pass "rollback restored the original"
 
+step "remediation: recovery after a crash, against the real API server"
+# A crash between the patch and the journal entry leaves objects recorded
+# as attempted but not applied. Replay both outcomes on the real API server:
+# the patch landed (rollback must undo it), and it did not (rollback must
+# leave the object alone; this relies on a test-only JSON patch being
+# accepted without changing the object).
+privileged() { kubectl get deployment -n shop insecure-web -o jsonpath='{.spec.template.spec.containers[0].securityContext.privileged}'; }
+./bin/hardex fix --cluster --rules HX-WL-001 --max-risk high --apply --yes --backup-dir "$WORK/crash" --fail-on none > "$WORK/crash-fix.txt"
+[ "$(privileged)" != "true" ] || fail "fix did not apply"
+crash="$(ls "$WORK"/crash/*.json | head -1)"
+jq '.objects |= map(.applied = false | .attempted = true)' "$crash" > "$crash.tmp" && mv "$crash.tmp" "$crash"
+./bin/hardex rollback "$crash" --cluster --yes | tee "$WORK/crash-rb1.txt"
+grep -q "outcome unknown" "$WORK/crash-rb1.txt" || fail "rollback did not list the unconfirmed patch"
+[ "$(privileged)" = "true" ] || fail "rollback did not undo a patch that landed before the crash"
+# Now the patch "never landed": the object is in its original state.
+jq '.objects |= map(.applied = false | .attempted = true | .rolledBack = false)' "$crash" > "$crash.tmp" && mv "$crash.tmp" "$crash"
+rv="$(kubectl get deployment -n shop insecure-web -o jsonpath='{.metadata.resourceVersion}')"
+./bin/hardex rollback "$crash" --cluster --yes | tee "$WORK/crash-rb2.txt"
+grep -q "had not changed" "$WORK/crash-rb2.txt" || fail "rollback did not recognise a patch that never landed"
+[ "$(privileged)" = "true" ] || fail "rollback changed an object whose patch never landed"
+[ "$(kubectl get deployment -n shop insecure-web -o jsonpath='{.metadata.resourceVersion}')" = "$rv" ] \
+  || fail "checking an unconfirmed patch changed the object (resourceVersion moved)"
+jq -e '.objects | all(.notApplied == true)' "$crash" >/dev/null || fail "backup does not record the patch as not applied"
+pass "after a simulated crash, rollback undoes a landed patch and leaves an unlanded one untouched"
+
 step "node scanner DaemonSet"
 sed "s#image: ghcr.io/manintheicloud/hardex:[^ ]*#image: $IMAGE#" deploy/hardex-node.yaml | kubectl apply -f -
 kubectl -n hardex-node rollout status daemonset/hardex-node --timeout 120s

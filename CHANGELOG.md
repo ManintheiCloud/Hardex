@@ -2,6 +2,11 @@
 
 All notable changes are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow [Semantic Versioning](https://semver.org/). Before 1.0, minor versions may contain breaking changes.
 
+## Unreleased
+
+### Tests
+- The kind end-to-end test replays a crash during `fix --apply` against the real API server, both ways: a patch that landed before the crash is undone by `hardex rollback`, and one that never landed is left untouched (its `resourceVersion` does not move). This checks, on a real cluster, that a JSON patch made only of `test` operations is accepted without changing the object, which recovery relies on.
+
 ## 0.10.0 — 2026-10-20
 
 ### Fixed
