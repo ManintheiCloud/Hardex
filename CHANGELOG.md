@@ -2,7 +2,7 @@
 
 All notable changes are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow [Semantic Versioning](https://semver.org/). Before 1.0, minor versions may contain breaking changes.
 
-## Unreleased
+## 0.9.1 — 2026-10-20
 
 ### Added
 - NIST SP 800-190 citations: 39 rules cite the countermeasure sections (section 4) whose text recommends what they check, by the document's own numbering and headings ([docs/baselines.md](docs/baselines.md#nist-sp-800-190-coverage)). They appear in rule references, SARIF and `hardex report`, which groups evidence per framework. A test checks every cited heading against the document's table of contents.
