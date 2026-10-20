@@ -180,8 +180,8 @@ type RollbackResult struct {
 
 // Rollback undoes, in reverse order, every object that was applied, and
 // resolves every object whose outcome is unknown: if its inverse applies,
-// the patch had landed and is now undone; if instead the forward patch's
-// own tests still pass, it never landed. Inverse patches test the values
+// the patch had landed and is now undone; if instead every field the patch
+// touches still has its original value, there is nothing to undo. Inverse patches test the values
 // Hardex set, so an object someone changed since is reported, never
 // overwritten. The backup is saved after each object. Rollback ignores the
 // cancellation of ctx (it is often called because ctx was cancelled) and
@@ -240,13 +240,16 @@ func (b *Backup) Pending() (applied, uncertain []Target) {
 	return applied, uncertain
 }
 
-// testsOnly returns the test operations of a patch: sent alone, they check
-// that the object is still in the state the patch was computed against
-// without changing it.
+// testsOnly returns the test operations of a patch on the values it
+// replaces: sent alone, they check, without changing anything, that every
+// field the patch touches still has its original value. The
+// resourceVersion guard is left out: it moves with any update (a
+// controller writing status, say), and a field-level match already means
+// there is nothing to undo.
 func testsOnly(ops []Op) []Op {
 	var out []Op
 	for _, op := range ops {
-		if op.Op == "test" {
+		if op.Op == "test" && op.Path != "/metadata/resourceVersion" {
 			out = append(out, op)
 		}
 	}

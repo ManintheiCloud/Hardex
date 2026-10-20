@@ -2,6 +2,14 @@
 
 All notable changes are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow [Semantic Versioning](https://semver.org/). Before 1.0, minor versions may contain breaking changes.
 
+## Unreleased
+
+### Fixed
+- Rollback of a patch with an unknown outcome (0.10.0) decided "never applied" only if the object's `resourceVersion` had not moved. On a real cluster it moves with any update, for example the Deployment controller writing status, so an untouched object was reported as changed by someone else and left for manual review. Rollback now compares the fields the patch touches: if all still have their original values, there is nothing to undo. Found by the new end-to-end crash replay below.
+
+### Tests
+- The kind end-to-end test replays a crash during `fix --apply` against the real API server, both ways: a patch that landed before the crash is undone by `hardex rollback`, and one that never landed is left untouched (its `resourceVersion` does not move). This checks, on a real cluster, that a JSON patch made only of `test` operations is accepted without changing the object, which recovery relies on.
+
 ## 0.10.0 — 2026-10-20
 
 ### Fixed

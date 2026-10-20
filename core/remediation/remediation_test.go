@@ -343,14 +343,31 @@ func TestRollbackRunsAfterCancellation(t *testing.T) {
 	}
 }
 
-// An object changed by someone else after an uncertain attempt is neither
-// in the original nor the patched state: report it, change nothing.
+// Other updates (a controller writing status) move resourceVersion without
+// touching the fields Hardex patches: an unconfirmed patch whose fields are
+// all still original needs no undo.
+func TestRollbackIgnoresUnrelatedUpdatesOnUncertainObject(t *testing.T) {
+	objs := twoObjects(t)
+	c := newFakeCluster(objs)
+	b, _ := NewBackup(t.TempDir(), "ctx", "https://k8s", objs, time.Now())
+	b.Objects[0].Attempted = true
+	c.objs["web"]["metadata"].(map[string]any)["resourceVersion"] = "999"
+	c.objs["web"]["status"] = map[string]any{"readyReplicas": 3.0}
+	res := Rollback(context.Background(), b, c.patch)
+	if res.Err != nil || len(res.NotApplied) != 1 {
+		t.Fatalf("result = %+v", res)
+	}
+}
+
+// An object whose patched field someone changed to a third value after an
+// uncertain attempt is neither original nor patched: report it, change
+// nothing.
 func TestRollbackReportsConflictOnUncertainObject(t *testing.T) {
 	objs := twoObjects(t)
 	c := newFakeCluster(objs)
 	b, _ := NewBackup(t.TempDir(), "ctx", "https://k8s", objs, time.Now())
 	b.Objects[0].Attempted = true
-	c.objs["web"]["metadata"].(map[string]any)["resourceVersion"] = "999" // someone else's update
+	c.objs["web"], _ = Apply(c.objs["web"], []Op{{Op: "replace", Path: "/spec/template/spec/containers/0/securityContext/privileged", Value: "someone-else"}})
 	before := DeepCopy(c.objs["web"])
 	res := Rollback(context.Background(), b, c.patch)
 	if res.Err == nil || !strings.Contains(res.Err.Error(), "unknown whether the patch was applied") {
