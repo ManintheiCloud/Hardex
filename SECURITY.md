@@ -39,3 +39,7 @@ Until 1.0, only the latest release receives security fixes.
 |---|---|
 | latest 0.x | ✅ |
 | older 0.x | ❌ |
+
+## Release integrity
+
+Releases are built and signed in GitHub Actions with no long-lived keys; verifiers trust the identity `https://github.com/ManintheiCloud/Hardex/.github/workflows/release.yml@refs/heads/main` (see `docs/verifying-releases.md`). That identity is only as trustworthy as the protection of `main`: anyone who can push to it can produce a validly signed release. `main` and the `v*` tags are protected by the rulesets in `.github/rulesets/` — changes only through pull requests with all required checks passing, no force-push, and immutable release tags. Report any release whose provenance does not point at a commit on `main` reached through a pull request.
