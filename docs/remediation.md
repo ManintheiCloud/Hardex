@@ -37,7 +37,7 @@ Applying requires `--rules` and an interactive `yes` (or `--yes` in automation).
 4. re-collects and re-assesses the cluster, and reports what was resolved, introduced or is still present;
 5. if that verification fails (a finding at or above `--fail-on` introduced, a targeted finding still present) or cannot run (collection failed or was incomplete), **rolls the changes back** and exits non-zero. `--keep-unverified` keeps them instead.
 
-**Interrupted runs.** If the process dies mid-run (killed, a second Ctrl-C, a crash, a lost connection), the backup still records every attempted change. A patch whose outcome is unknown (attempted but not confirmed, e.g. a request that timed out) is resolved against the live object when you roll back: if Hardex's undo patch applies, the change had landed and is undone; if instead the object is still exactly as it was before (its `resourceVersion` and the replaced values match), it was never changed; if neither holds, someone has changed it since, and it is reported, not overwritten.
+**Interrupted runs.** If the process dies mid-run (killed, a second Ctrl-C, a crash, a lost connection), the backup still records every attempted change. A patch whose outcome is unknown (attempted but not confirmed, e.g. a request that timed out) is resolved against the live object when you roll back: if Hardex's undo patch applies, the change had landed and is undone; if instead every field the patch touches still has its original value, there is nothing to undo (other updates, such as a controller writing status, do not matter); if neither holds, someone has changed it since, and it is reported, not overwritten.
 
 Undo later with the backup file:
 
