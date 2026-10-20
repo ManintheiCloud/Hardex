@@ -127,3 +127,18 @@ func TestLegacyBundle(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func TestVerifyKeylessPredicateType(t *testing.T) {
+	digest, bundle := realBundle(t) // a message signature, not an attestation
+	f := newFakeRegistry(t)
+	f.attachBundle("app", digest, bundle, true)
+	ref := registry.Ref{Registry: f.host(), Repository: "app"}
+	any := VerifyKeyless(context.Background(), f.client(), ref, digest, Keyless{Root: sigstore.PublicGood(), Policy: policy})
+	if any.Status != Verified || len(any.Verified) != 1 || !strings.HasPrefix(any.Verified[0], "signature by https://github.com/ManintheiCloud/Hardex/") {
+		t.Errorf("any type: %+v", any)
+	}
+	want := VerifyKeyless(context.Background(), f.client(), ref, digest, Keyless{Root: sigstore.PublicGood(), Policy: policy, PredicateType: "https://slsa.dev/provenance/v1"})
+	if want.Status != Invalid || !strings.Contains(want.Detail, "not an attestation of type https://slsa.dev/provenance/v1") {
+		t.Errorf("required predicate: %+v", want)
+	}
+}

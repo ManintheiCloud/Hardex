@@ -94,6 +94,9 @@ type Result struct {
 	Status Status `json:"status"`
 	Key    string `json:"key,omitempty"`
 	Detail string `json:"detail,omitempty"`
+	// Verified lists every keyless signature and attestation that verified
+	// (signer and predicate type), not only the first.
+	Verified []string `json:"verified,omitempty"`
 }
 
 type ociManifest struct {

@@ -27,6 +27,11 @@ const (
 type Keyless struct {
 	Root   *sigstore.TrustedRoot
 	Policy sigstore.Policy
+	// PredicateType, if set, accepts only DSSE attestations of that type
+	// (e.g. https://slsa.dev/provenance/v1, or cosign v3's image signature
+	// https://sigstore.dev/cosign/sign/v1); message signatures and legacy
+	// cosign signatures then do not count.
+	PredicateType string
 }
 
 // VerifyKeyless looks for Sigstore signatures of the image digest — bundles
@@ -40,6 +45,7 @@ func VerifyKeyless(ctx context.Context, c *registry.Client, ref registry.Ref, di
 	}
 	reasons := map[string]bool{}
 	found := false
+	var ok []*sigstore.Result
 
 	// 1. Sigstore bundles as OCI referrers.
 	refs, err := c.Referrers(ctx, ref.Registry, ref.Repository, digest)
@@ -70,12 +76,15 @@ func VerifyKeyless(ctx context.Context, c *registry.Client, ref registry.Ref, di
 				reasons["bundle unavailable: "+err.Error()] = true
 				continue
 			}
-			res, err := sigstore.Verify(blob, sigstore.Options{Root: k.Root, Policy: k.Policy, Digest: want})
+			res, err := sigstore.Verify(blob, sigstore.Options{Root: k.Root, Policy: k.Policy, Digest: want, PredicateType: k.PredicateType})
+			if err == nil && k.PredicateType != "" && res.Statement == nil {
+				err = errors.New("message signature, not an attestation of type " + k.PredicateType)
+			}
 			if err != nil {
 				reasons[err.Error()] = true
 				continue
 			}
-			return verified(res)
+			ok = append(ok, res)
 		}
 	}
 
@@ -97,15 +106,22 @@ func VerifyKeyless(ctx context.Context, c *registry.Client, ref registry.Ref, di
 				continue
 			}
 			found = true
+			if k.PredicateType != "" {
+				reasons["legacy cosign signature, not an attestation of type "+k.PredicateType] = true
+				continue
+			}
 			res, err := verifyLegacy(ctx, c, ref, digest, layer.Digest, layer.Annotations, k)
 			if err != nil {
 				reasons[err.Error()] = true
 				continue
 			}
-			return verified(res)
+			ok = append(ok, res)
 		}
 	}
 
+	if len(ok) > 0 {
+		return verified(ok)
+	}
 	if !found && len(reasons) == 0 {
 		return Result{Status: Unsigned, Detail: "no Sigstore signature found"}
 	}
@@ -121,12 +137,26 @@ func isBundleType(t string) bool {
 	return t == sigstore.BundleMediaType || strings.HasPrefix(t, "application/vnd.dev.sigstore.bundle+json")
 }
 
-func verified(r *sigstore.Result) Result {
+func describe(r *sigstore.Result) string {
+	kind := "signature"
+	if r.Statement != nil && r.Statement.PredicateType != "" {
+		kind = r.Statement.PredicateType
+	}
+	return fmt.Sprintf("%s by %s (Rekor log index %d, signed %s)", kind, r.Identity, r.LogIndex, r.SigningTime.Format("2006-01-02T15:04:05Z"))
+}
+
+func verified(rs []*sigstore.Result) Result {
+	r := rs[0]
 	signer := r.Identity
 	if r.Statement != nil && r.Statement.PredicateType != "" {
 		signer += " (" + r.Statement.PredicateType + ")"
 	}
-	return Result{Status: Verified, Key: signer, Detail: fmt.Sprintf("Rekor log index %d, signed %s", r.LogIndex, r.SigningTime.Format("2006-01-02T15:04:05Z"))}
+	out := Result{Status: Verified, Key: signer, Detail: fmt.Sprintf("%d verified", len(rs))}
+	for _, x := range rs {
+		out.Verified = append(out.Verified, describe(x))
+	}
+	sort.Strings(out.Verified)
+	return out
 }
 
 // verifyLegacy converts cosign's annotation-based keyless signature into a

@@ -58,6 +58,7 @@ func cmdImages(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 	offline := fs.Bool("offline", false, "do not contact registries; only report how images are referenced")
 	var sf sigstoreFlags
 	sf.register(fs)
+	predicate := fs.String("predicate-type", "", "keyless: accept only attestations of this predicate type (e.g. https://sigstore.dev/cosign/sign/v1 or https://slsa.dev/provenance/v1)")
 	vulns := fs.Bool("vulns", false, "look up known vulnerabilities (OSV) for the packages in each image's SBOM attestation")
 	osvURL := fs.String("osv-url", vuln.DefaultOSV, "OSV API base URL (with --vulns)")
 	failOnVulns := fs.Bool("fail-on-vulns", false, "with --vulns, exit 1 if any image has a known vulnerability or no SBOM")
@@ -75,6 +76,8 @@ func cmdImages(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 		return fail(fmt.Errorf("--require-signature needs --key or --certificate-identity"))
 	case *offline && (len(keys) > 0 || sf.active() || *vulns):
 		return fail(fmt.Errorf("--key, --certificate-identity and --vulns require registry access; drop --offline"))
+	case *predicate != "" && !sf.active():
+		return fail(fmt.Errorf("--predicate-type applies to keyless verification; add --certificate-identity"))
 	case *failOnVulns && !*vulns:
 		return fail(fmt.Errorf("--fail-on-vulns needs --vulns"))
 	}
@@ -84,6 +87,7 @@ func cmdImages(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 		if err != nil {
 			return fail(err)
 		}
+		k.PredicateType = *predicate
 		checks.keyless = k
 	}
 	if *vulns {
@@ -284,6 +288,14 @@ func printImages(w io.Writer, reports []imageReport, verify bool) {
 	if len(pins) > 0 {
 		fmt.Fprintln(w, "\nPin these images by digest (what they resolve to right now):")
 		fmt.Fprintln(w, strings.Join(pins, "\n"))
+	}
+	for _, r := range reports {
+		if r.Signature != nil && r.Signature.Status == imagesig.Verified && len(r.Signature.Verified) > 0 {
+			fmt.Fprintf(w, "%s: verified:\n", reporting.Sanitize(r.Image))
+			for _, v := range r.Signature.Verified {
+				fmt.Fprintf(w, "  %s\n", reporting.Sanitize(v))
+			}
+		}
 	}
 	for _, r := range reports {
 		if r.Signature != nil && r.Signature.Detail != "" && r.Signature.Status != imagesig.Verified {

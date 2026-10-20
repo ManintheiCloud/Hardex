@@ -67,6 +67,20 @@ jobs:
             --certificate-identity-regexp "$identity" --certificate-oidc-issuer "$issuer" > images.json
           # Surface the result as annotations, readable without the job log.
           jq -r '.[] | "::notice title=\(.image)::signature \(.signature.status) \(.signature.key // "") \(.signature.detail // ""); SBOM \(.vulnerabilities.sbom // false), \(.vulnerabilities.packages // 0) packages, findings \((.vulnerabilities.findings // []) | map(.purl + " " + (.vulnerabilities | join(","))) | join("; "))"' images.json
+          jq -r '.[] | .signature.verified[]? | "::notice title=verified::\(.)"' images.json
+          # Require the SLSA build provenance specifically.
+          ./hardex images --image ghcr.io/manintheicloud/hardex:latest --require-signature \
+            --predicate-type https://slsa.dev/provenance/v1 \
+            --certificate-identity-regexp "$identity" --certificate-oidc-issuer "$issuer" > /dev/null
+          # Report (without failing) whether cosign's own image signature is
+          # found as a cosign v3 sign attestation.
+          if ./hardex images --image ghcr.io/manintheicloud/hardex:latest --require-signature --format json \
+              --predicate-type https://sigstore.dev/cosign/sign/v1 \
+              --certificate-identity-regexp "$identity" --certificate-oidc-issuer "$issuer" > cosign-sign.json; then
+            echo "::notice title=cosign signature::verified as https://sigstore.dev/cosign/sign/v1"
+          else
+            echo "::notice title=cosign signature::not verified as cosign/sign/v1: $(jq -r '.[0].signature.detail' cosign-sign.json | cut -c1-600)"
+          fi
           tag="$(gh release view --repo "$GITHUB_REPOSITORY" --json tagName --jq .tagName)"
           gh release download "$tag" --repo "$GITHUB_REPOSITORY" --pattern 'SHA256SUMS*' --dir rel
           ./hardex verify-blob rel/SHA256SUMS --bundle rel/SHA256SUMS.sigstore.json \
