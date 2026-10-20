@@ -1,0 +1,11 @@
+HX-NET-001 medium Namespace -/knative-serving | namespace knative-serving has no NetworkPolicy isolating all pods for Ingress traffic
+HX-RBAC-001 low ClusterRole -/knative-serving-core | rule 10 uses a wildcard in resources (limited to the API group serving.knative.dev, autoscaling.internal.knative.dev, networking.internal.knative.dev)
+HX-RBAC-001 low ClusterRole -/knative-serving-namespaced-admin | rule 0 uses a wildcard in resources, verbs (limited to the API group serving.knative.dev)
+HX-RBAC-001 low ClusterRole -/knative-serving-namespaced-admin | rule 1 uses a wildcard in resources (limited to the API group networking.internal.knative.dev, autoscaling.internal.knative.dev, caching.internal.knative.dev)
+HX-RBAC-001 low ClusterRole -/knative-serving-namespaced-edit | rule 0 uses a wildcard in resources (limited to the API group serving.knative.dev)
+HX-RBAC-001 low ClusterRole -/knative-serving-namespaced-edit | rule 1 uses a wildcard in resources (limited to the API group networking.internal.knative.dev, autoscaling.internal.knative.dev, caching.internal.knative.dev)
+HX-RBAC-001 low ClusterRole -/knative-serving-namespaced-view | rule 0 uses a wildcard in resources (limited to the API group serving.knative.dev, networking.internal.knative.dev, autoscaling.internal.knative.dev, caching.internal.knative.dev)
+HX-RBAC-001 medium ClusterRole -/knative-serving-core | rule 15 uses a wildcard in apiGroups (scale subresources only)
+HX-RBAC-003 high ClusterRole -/knative-serving-core | rule 0 grants get on all secrets in scope
+HX-RBAC-003 medium Role knative-serving/knative-serving-activator | rule 0 grants get on all secrets in scope
+HX-RBAC-008 medium Deployment knative-serving/activator | pods run as service account knative-serving/activator, whose token can: read secrets in namespace knative-serving (via RoleBinding knative-serving-activator → Role knative-serving-activator)

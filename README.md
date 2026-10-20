@@ -8,7 +8,7 @@ Harden the cluster. Reduce the attack surface. Establish trust.
 
 Hardex is an open-source Kubernetes security hardening framework. It brings systematic, measurable and reproducible security controls to containerized infrastructure: assess, harden, verify, defend.
 
-> **Status: v0.8.4.** Every roadmap objective in phases I–IV is implemented and tested: assessment (55 rules mapped to CIS v2.0 items and NSA/CISA v1.2 sections, three profiles, policy and waivers), read-only live-cluster and node scanning, RBAC reachability and placement-aware attack paths into cluster admin, nodes and cloud identities, guarded remediation with backup and rollback, history and drift monitoring with signed notifications, rule modules, an admission webhook, posture scoring with evidence reports, multi-cluster comparison, and offline keyless Sigstore verification with SBOM vulnerability lookup. Ongoing work is in [ROADMAP.md](ROADMAP.md). No production-readiness or security certification is claimed.
+> **Status: v0.8.5.** Every roadmap objective in phases I–IV is implemented and tested: assessment (55 rules mapped to CIS v2.0 items and NSA/CISA v1.2 sections, three profiles, policy and waivers), read-only live-cluster and node scanning, RBAC reachability and placement-aware attack paths into cluster admin, nodes and cloud identities, guarded remediation with backup and rollback, history and drift monitoring with signed notifications, rule modules, an admission webhook, posture scoring with evidence reports, multi-cluster comparison, and offline keyless Sigstore verification with SBOM vulnerability lookup. Ongoing work is in [ROADMAP.md](ROADMAP.md). No production-readiness or security certification is claimed.
 
 ## What Hardex does today
 
@@ -125,7 +125,7 @@ permissions:
   security-events: write   # to upload SARIF to code scanning
 steps:
   - uses: actions/checkout@v5
-  - uses: ManintheiCloud/Hardex@v0.8.4
+  - uses: ManintheiCloud/Hardex@v0.8.5
     with:
       paths: k8s/
       profile: baseline
@@ -227,7 +227,7 @@ The test suite encodes the README's validation priorities:
 - **Real clusters** — every push runs `tests/e2e/kind.sh` on a kind cluster (Kubernetes 1.37): a live scan with only the shipped reader role must be complete and must not be able to read Secrets, exec, use `nodes/proxy`, mint tokens or write; `fix --apply` and `rollback` change and restore a real Deployment; the node DaemonSet reads a real kubelet and control-plane manifests; the admission webhook warns through the real API server.
 - **Supply chain** — keyless verification passes the Sigstore client conformance suite; CI verifies the latest published release and image with the code under test; a weekly job checks the embedded Sigstore trust root against sigstore/root-signing.
 - **Fuzzing** — every parser that sees untrusted or operator input.
-- **Accuracy review** — findings on widely used components (cert-manager, Argo CD, prometheus-operator, Calico, Gatekeeper, Kyverno, Envoy Gateway, Longhorn, …) are reviewed one by one; see [docs/accuracy.md](docs/accuracy.md).
+- **Accuracy review** — findings on widely used components (18 components including cert-manager, Argo CD, Flux, prometheus-operator, Calico, Gatekeeper, Kyverno, KEDA, Longhorn and Rook) are reviewed one by one; see [docs/accuracy.md](docs/accuracy.md).
 
 ```sh
 make check   # fmt, vet, race-enabled tests, govulncheck

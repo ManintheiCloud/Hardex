@@ -32,7 +32,13 @@ func TestWildcardSeverity(t *testing.T) {
 		`[{apiGroups: [""], resources: ["*"], verbs: [get]}]`:                                    "high", // core: Secrets
 		`[{apiGroups: [rbac.authorization.k8s.io], resources: ["*"], verbs: [create]}]`:          "high",
 		`[{apiGroups: [apps], resources: ["*"], verbs: [get]}]`:                                  "high",
-		`[{apiGroups: [crd.projectcalico.org], resources: [felixconfigurations], verbs: ["*"]}]`: "high", // verb wildcard: escalate, bind…
+		`[{apiGroups: [crd.projectcalico.org], resources: [felixconfigurations], verbs: ["*"]}]`: "low", // escalate, bind, impersonate mean nothing on CRDs
+		`[{apiGroups: [source.toolkit.fluxcd.io], resources: ["*"], verbs: ["*"]}]`:              "low",
+		`[{apiGroups: [external.metrics.k8s.io], resources: ["*"], verbs: ["*"]}]`:               "low",
+		`[{apiGroups: ["*"], resources: ["*/scale"], verbs: [patch, update]}]`:                   "medium",
+		`[{apiGroups: ["*"], resources: ["*/scale"], verbs: ["*"]}]`:                             "high",
+		`[{apiGroups: ["*"], resources: ["*"], verbs: [get]}]`:                                   "high",
+		`[{apiGroups: [rbac.authorization.k8s.io], resources: [clusterroles], verbs: ["*"]}]`:    "high",
 		`[{apiGroups: ["*"], resources: [pods], verbs: [get]}]`:                                  "high",
 		`[{apiGroups: [crd.projectcalico.org, ""], resources: ["*"], verbs: [get]}]`:             "high",
 	}
@@ -96,5 +102,47 @@ spec: {serviceAccountName: ctl, containers: [{name: c, image: x}]}
 	}
 	if got := strings.Join(reach(t, grant("payments")), "\n"); !strings.Contains(got, "ctl: high") {
 		t.Errorf("other namespace: %s", got)
+	}
+}
+
+func TestBroadSubjectsNarrowRole(t *testing.T) {
+	run := func(rules string, group string) []string {
+		y := `apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata: {name: proxier, namespace: ops}
+rules: ` + rules + `
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata: {name: proxier, namespace: ops}
+roleRef: {kind: Role, name: proxier, apiGroup: rbac.authorization.k8s.io}
+subjects: [{kind: Group, name: "` + group + `", apiGroup: rbac.authorization.k8s.io}]
+`
+		inv, err := resource.Load([]string{"-"}, strings.NewReader(y))
+		if err != nil {
+			t.Fatal(err)
+		}
+		reg, _ := assessment.NewRegistry(broadSubjects)
+		var out []string
+		for _, f := range assessment.Evaluate(inv, reg.All(), assessment.Options{}).Findings {
+			out = append(out, f.Severity.String())
+		}
+		return out
+	}
+	// sealed-secrets lets every user fetch its public certificate.
+	narrow := `[{apiGroups: [""], resources: [services], resourceNames: [sealed-secrets-controller], verbs: [get]},
+  {apiGroups: [""], resources: [services/proxy], resourceNames: ["http:sealed-secrets-controller:"], verbs: [create, get]}]`
+	broad := `[{apiGroups: [""], resources: [configmaps], verbs: [get]}]`
+	named := `[{apiGroups: [""], resources: [secrets], resourceNames: [x], verbs: [update]}]`
+	for _, c := range []struct{ rules, group, want string }{
+		{narrow, "system:authenticated", "low"},
+		{narrow, "system:unauthenticated", "high"},
+		{broad, "system:authenticated", "high"},
+		{broad, "system:anonymous", "critical"},
+		{named, "system:authenticated", "high"}, // named, but a write
+	} {
+		if got := run(c.rules, c.group); len(got) != 1 || got[0] != c.want {
+			t.Errorf("%s / %s: got %v, want %s", c.group, c.rules, got, c.want)
+		}
 	}
 }

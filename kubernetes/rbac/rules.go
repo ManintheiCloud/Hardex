@@ -113,7 +113,7 @@ var wildcards = assessment.InventoryRule{
 		Title:       "Wildcard RBAC permission",
 		Severity:    finding.High,
 		Category:    assessment.CategoryRBAC,
-		Description: "Detects Roles and ClusterRoles that use \"*\" in verbs, resources or apiGroups. High for ClusterRoles, medium for Roles; low when the only wildcard is resources within extension API groups (an operator's own CRDs), which cannot reach built-in objects.",
+		Description: "Detects Roles and ClusterRoles that use \"*\" in verbs, resources or apiGroups. High for ClusterRoles, medium for Roles; low when the wildcards are resources or verbs within extension API groups (an operator's own CRDs) or the metrics APIs, which cannot reach built-in objects; medium (low for Roles) when an API group wildcard covers only scale subresources.",
 		Rationale:   "Wildcards grant every current and future permission in scope, including secrets, escalation verbs and resources introduced later by CRDs. They make least privilege impossible to verify.",
 		Remediation: "Replace wildcards with the explicit verbs, resources and API groups the subject needs.",
 		References:  []finding.Reference{refCISRBAC, refNSAAuth},
@@ -133,12 +133,21 @@ var wildcards = assessment.InventoryRule{
 				}
 				sev := scopeSeverity(o, sevHigh, sevMedium)
 				msg := fmt.Sprintf("rule %d uses a wildcard in %s", i, strings.Join(fields, ", "))
-				if groups := resource.Strings(rule, "apiGroups"); len(fields) == 1 && fields[0] == "resources" && thirdPartyGroups(groups) {
-					// Every resource of a project's own API group (typically
-					// an operator managing its CRDs): still a wildcard, but it
-					// cannot reach Secrets, workloads or RBAC.
+				groups := resource.Strings(rule, "apiGroups")
+				switch {
+				case !contains(fields, "apiGroups") && thirdPartyGroups(groups):
+					// Every resource and/or verb of a project's own API groups
+					// (typically an operator managing its CRDs), or of the
+					// read-only metrics APIs: still a wildcard, but it cannot
+					// reach Secrets, workloads or RBAC, and escalate, bind and
+					// impersonate mean nothing there.
 					sev = sevLow
 					msg += " (limited to the API group " + strings.Join(groups, ", ") + ")"
+				case contains(fields, "apiGroups") && onlyScaleSubresource(resource.Strings(rule, "resources")) && !contains(fields, "verbs"):
+					// The scale subresource of everything (autoscalers): can
+					// resize workloads, cannot read data or escalate.
+					sev = scopeSeverity(o, sevMedium, sevLow)
+					msg += " (scale subresources only)"
 				}
 				ctx.Report(assessment.Hit{Object: o, Path: fmt.Sprintf("rules[%d]", i), Observed: strings.Join(fields, ","),
 					Severity: sev, Message: msg})
@@ -155,11 +164,67 @@ func thirdPartyGroups(groups []string) bool {
 		return false
 	}
 	for _, g := range groups {
+		if metricsGroups[g] {
+			continue
+		}
 		if g == "" || g == "*" || !strings.Contains(g, ".") || strings.HasSuffix(g, ".k8s.io") || g == "k8s.io" {
 			return false
 		}
 	}
 	return true
+}
+
+// The aggregated metrics APIs serve read-only measurements.
+var metricsGroups = map[string]bool{"metrics.k8s.io": true, "custom.metrics.k8s.io": true, "external.metrics.k8s.io": true}
+
+func onlyScaleSubresource(resources []string) bool {
+	for _, r := range resources {
+		if r != "*/scale" {
+			return false
+		}
+	}
+	return len(resources) > 0
+}
+
+// referencedRole finds the Role or ClusterRole a binding refers to.
+func referencedRole(inv *resource.Inventory, b *resource.Object) *resource.Object {
+	kind, name := resource.String(b.Raw, "roleRef", "kind"), resource.String(b.Raw, "roleRef", "name")
+	for _, o := range inv.OfKind(kind) {
+		if o.Name == name && (kind == "ClusterRole" || o.EffectiveNamespace() == b.EffectiveNamespace()) {
+			return o
+		}
+	}
+	return nil
+}
+
+// nameScoped reports whether every rule of a role is limited to named
+// objects (resourceNames) with read or proxy verbs — e.g. letting every user
+// fetch one controller's public certificate.
+func nameScoped(role *resource.Object) bool {
+	rules := resource.Maps(role.Raw, "rules")
+	if len(rules) == 0 {
+		return false
+	}
+	for _, r := range rules {
+		if len(resource.Strings(r, "resourceNames")) == 0 {
+			return false
+		}
+		for _, v := range resource.Strings(r, "verbs") {
+			if v != "get" && !(v == "create" && proxyOnly(resource.Strings(r, "resources"))) {
+				return false
+			}
+		}
+	}
+	return true
+}
+
+func proxyOnly(resources []string) bool {
+	for _, r := range resources {
+		if r != "services/proxy" {
+			return false
+		}
+	}
+	return len(resources) > 0
 }
 
 var clusterAdminBinding = assessment.InventoryRule{
@@ -334,7 +399,7 @@ var broadSubjects = assessment.InventoryRule{
 		Title:       "Permissions granted to anonymous or all users",
 		Severity:    finding.High,
 		Category:    assessment.CategoryRBAC,
-		Description: "Detects bindings whose subjects are system:anonymous or system:unauthenticated (critical), or system:authenticated / all service accounts (high).",
+		Description: "Detects bindings whose subjects are system:anonymous or system:unauthenticated (critical), or system:authenticated / all service accounts (high). One level lower — high and low — when every rule of the granted role is limited to named objects with read or proxy verbs.",
 		Rationale:   "These groups include every caller that can reach the API server. A grant to them is a grant to any attacker with network access or any compromised pod.",
 		Remediation: "Bind permissions to specific users, groups or service accounts.",
 		References:  []finding.Reference{refCISRBAC, refNSAAuth},
@@ -348,14 +413,27 @@ var broadSubjects = assessment.InventoryRule{
 				name := resource.String(s, "name")
 				role := resource.String(b.Raw, "roleRef", "name")
 				hit := assessment.Hit{Object: b, Path: fmt.Sprintf("subjects[%d]", i), Observed: name}
+				narrow := false
+				if r := referencedRole(ctx.Inventory, b); r != nil && nameScoped(r) {
+					narrow = true
+				}
 				switch name {
 				case "system:anonymous", "system:unauthenticated":
 					hit.Severity = sevCrit
+					if narrow {
+						hit.Severity = sevHigh
+					}
 					hit.Message = fmt.Sprintf("unauthenticated callers are granted %s", role)
 				case "system:authenticated", "system:serviceaccounts":
+					if narrow {
+						hit.Severity = sevLow
+					}
 					hit.Message = fmt.Sprintf("every authenticated identity is granted %s", role)
 				default:
 					continue
+				}
+				if narrow {
+					hit.Message += " (read or proxy access to named objects only)"
 				}
 				ctx.Report(hit)
 			}

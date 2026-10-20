@@ -1,0 +1,10 @@
+HX-NET-001 medium Namespace -/rook-ceph | namespace rook-ceph has no NetworkPolicy isolating all pods for Ingress traffic
+HX-PATH-001 high Deployment rook-ceph/rook-ceph-operator | compromise of this workload leads to root on a node: uses its mounted token (service account rook-ceph/rook-ceph-system) → creates a privileged pod, scheduled on any node, in namespace rook-ceph, which does not enforce Pod Security (cluster-wide, via ClusterRoleBinding rook-ceph-global → ClusterRole rook-ceph-global)
+HX-RBAC-003 high ClusterRole -/objectstorage-provisioner-role | rule 2 grants get on all secrets in scope
+HX-RBAC-003 high ClusterRole -/rook-ceph-cluster-mgmt | rule 0 grants get on all secrets in scope
+HX-RBAC-003 high ClusterRole -/rook-ceph-global | rule 0 grants get on all secrets in scope
+HX-RBAC-003 high ClusterRole -/rook-ceph-object-bucket | rule 0 grants get on all secrets in scope
+HX-RBAC-003 medium Role rook-ceph/rook-ceph-osd | rule 0 grants get on all secrets in scope
+HX-RBAC-005 high ClusterRole -/rook-ceph-system | grants create on pods/exec
+HX-RBAC-008 high Deployment rook-ceph/rook-ceph-operator | pods run as service account rook-ceph/rook-ceph-system, whose token can: create workloads cluster-wide (via ClusterRoleBinding rook-ceph-global → ClusterRole rook-ceph-global); create workloads in namespace rook-ceph (via RoleBinding rook-ceph-cluster-mgmt → ClusterRole rook-ceph-cluster-mgmt); create workloads in namespace rook-ceph (via RoleBinding rook-ceph-system → Role rook-ceph-system); execute commands in other pods cluster-wide (via ClusterRoleBinding rook-ceph-system → ClusterRole rook-ceph-system); read secrets cluster-wide (via ClusterRoleBinding rook-ceph-global → ClusterRole rook-ceph-global); read secrets cluster-wide (via ClusterRoleBinding rook-ceph-object-bucket → ClusterRole rook-ceph-object-bucket); read secrets in namespace rook-ceph (via RoleBinding rook-ceph-cluster-mgmt → ClusterRole rook-ceph-cluster-mgmt)
+HX-WL-008 medium Deployment rook-ceph/rook-ceph-operator[rook-ceph-operator] | container "rook-ceph-operator" has no seccomp profile

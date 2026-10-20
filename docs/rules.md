@@ -494,7 +494,7 @@ Severity is the default; individual findings may be raised or lowered where the 
 
 **Wildcard RBAC permission** — high, rbac
 
-**Checks:** Detects Roles and ClusterRoles that use "*" in verbs, resources or apiGroups. High for ClusterRoles, medium for Roles; low when the only wildcard is resources within extension API groups (an operator's own CRDs), which cannot reach built-in objects.
+**Checks:** Detects Roles and ClusterRoles that use "*" in verbs, resources or apiGroups. High for ClusterRoles, medium for Roles; low when the wildcards are resources or verbs within extension API groups (an operator's own CRDs) or the metrics APIs, which cannot reach built-in objects; medium (low for Roles) when an API group wildcard covers only scale subresources.
 
 **Why it matters:** Wildcards grant every current and future permission in scope, including secrets, escalation verbs and resources introduced later by CRDs. They make least privilege impossible to verify.
 
@@ -591,7 +591,7 @@ Severity is the default; individual findings may be raised or lowered where the 
 
 **Permissions granted to anonymous or all users** — high, rbac
 
-**Checks:** Detects bindings whose subjects are system:anonymous or system:unauthenticated (critical), or system:authenticated / all service accounts (high).
+**Checks:** Detects bindings whose subjects are system:anonymous or system:unauthenticated (critical), or system:authenticated / all service accounts (high). One level lower — high and low — when every rule of the granted role is limited to named objects with read or proxy verbs.
 
 **Why it matters:** These groups include every caller that can reach the API server. A grant to them is a grant to any attacker with network access or any compromised pod.
 

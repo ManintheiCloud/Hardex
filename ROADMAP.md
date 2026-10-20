@@ -1,6 +1,6 @@
 # Roadmap
 
-Roadmap items are development objectives, not completed or guaranteed features. Status as of v0.8.4. Every Phase I–IV objective is complete; ongoing work is listed at the end.
+Roadmap items are development objectives, not completed or guaranteed features. Status as of v0.8.5. Every Phase I–IV objective is complete; ongoing work is listed at the end.
 
 ## Phase I — Foundation
 

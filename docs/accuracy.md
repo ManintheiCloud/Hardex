@@ -5,7 +5,7 @@ Findings on software that thousands of clusters run unchanged are the best test 
 - a fresh **kind** cluster (Kubernetes 1.37) with cert-manager and Hardex's own deployments, on every push (`tests/e2e/kind.sh` publishes every finding outside the deliberately insecure fixtures for review, and fails if Hardex's own deployments have a critical finding);
 - the published install manifests of widely used components, at pinned releases, scanned with `--profile baseline` on every push (`tests/corpus`, `make corpus`). Every finding is compared with a reviewed golden file, so a rule change that alters what Hardex says about real-world software fails CI until the new findings are reviewed and the golden files updated in the same change.
 
-## Review of October 2026 (v0.8.3)
+## Review of October 2026 (v0.8.5)
 
 | Component (manifest) | Findings kept | Verdict |
 |---|---|---|
@@ -21,6 +21,14 @@ Findings on software that thousands of clusters run unchanged are the best test 
 | Envoy Gateway 1.9 (`install.yaml`) | HX-RBAC-003, -008, HX-PATH-001 | True: it creates the proxy Deployments in its namespace. |
 | Longhorn (`deploy/longhorn.yaml`) | HX-WL-001, -003 critical, HX-RBAC-002, -008 | True: a privileged storage DaemonSet with host `/dev`, `/proc`, `/etc`, `/boot`; a cluster-admin binding for support bundles. Expected for block storage; isolate it. |
 | metrics-server (`manifests/base`) | none | — |
+| Flux 2.9 (`install.yaml`) | HX-RBAC-002, -008 critical; HX-PATH-001 critical; HX-RBAC-005 | True, and worth knowing: helm-controller and kustomize-controller hold cluster-admin by design, and every other Flux controller can mint a token for any service account (`serviceaccounts/token` create, for workload identity) — including theirs, so compromising source-controller is a path to cluster-admin. **Recalibrated:** `*` verbs and resources on Flux's own API groups are low. |
+| MetalLB 0.16 (`metallb-native.yaml`) | HX-WL-002, -006 (speaker), HX-RBAC-003/-008 medium | True: the speaker needs host networking and NET_RAW for L2/BGP announcements. **Recalibrated:** `*` verbs on `metallb.io` resources are low. |
+| Sealed Secrets 0.40 (`controller.yaml`) | HX-RBAC-003, HX-RBAC-007 at low | True: the controller reads Secrets. **Recalibrated:** HX-RBAC-007 for granting every user read and proxy access to the one named controller Service (how `kubeseal` fetches the public certificate) is low, not high. |
+| KEDA 2.21 (`keda-2.21.0.yaml`) | HX-RBAC-008, HX-PATH-001 (nodes/proxy), HX-RBAC-003 | True: the operator has `get` on every resource, which includes Secrets and `nodes/proxy` (exec through the kubelet). **Recalibrated:** `*/scale` across all groups is medium; the external metrics API wildcard is low. |
+| Strimzi 1.3 | HX-RBAC-003, -005 | True: the operator reads Secrets and mints tokens. |
+| Rook Ceph 1.21 (`common.yaml`, `operator.yaml`) | HX-RBAC-003, -005, -008, HX-PATH-001 | True: the operator execs into pods and creates privileged storage daemons. |
+| Knative Serving 1.23 (`serving-core.yaml`) | HX-RBAC-003, -008 medium | True. **Recalibrated:** `*/scale` across all groups is medium; wildcards on Knative's own groups are low. |
+| node-problem-detector 1.37 | none | — |
 | Hardex's own deployments | HX-WL-003 (high), HX-WL-005, HX-WL-012, HX-WL-013 | Documented in `deploy/README.md`. **Fixed false positive:** read-only mounts of individual host files were treated as node escape (0.8.1). |
 
 "True" means the finding describes a real capability an attacker inheriting that workload's identity would have — not that the project is misconfigured. Many components need powerful access; Hardex's job is to make it visible, so it can be isolated (dedicated namespaces with Pod Security enforced, NetworkPolicies, separate node pools) and accepted with a waiver that expires.

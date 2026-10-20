@@ -1,0 +1,4 @@
+HX-NET-001 medium Namespace -/default | namespace default has no NetworkPolicy isolating all pods for Ingress traffic
+HX-RBAC-003 high ClusterRole -/strimzi-cluster-operator-namespaced | rule 2 grants get on all secrets in scope
+HX-RBAC-003 high ClusterRole -/strimzi-entity-operator | rule 4 grants get on all secrets in scope
+HX-RBAC-005 high ClusterRole -/strimzi-cluster-operator-namespaced | grants create on serviceaccounts/token

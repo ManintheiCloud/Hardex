@@ -2,6 +2,15 @@
 
 All notable changes are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow [Semantic Versioning](https://semver.org/). Before 1.0, minor versions may contain breaking changes.
 
+## 0.8.5 — 2026-10-20
+
+### Added
+- Accuracy corpus extended to 18 components: Flux, MetalLB, Sealed Secrets, KEDA, Strimzi, Rook Ceph, Knative Serving and node-problem-detector (see docs/accuracy.md).
+
+### Changed
+- HX-RBAC-001: wildcard verbs, not only resources, within extension API groups or the metrics APIs are low (escalate, bind and impersonate have no meaning there); an API-group wildcard covering only `*/scale` is medium (low for Roles).
+- HX-RBAC-007: one level lower (high for unauthenticated, low for authenticated) when every rule of the granted role is limited to named objects with read or proxy verbs.
+
 ## 0.8.4 — 2026-10-19
 
 ### Added

@@ -2,10 +2,10 @@ HX-NET-001 medium Namespace -/longhorn-system | namespace longhorn-system has no
 HX-RBAC-001 high ClusterRole -/longhorn-role | rule 0 uses a wildcard in verbs
 HX-RBAC-001 high ClusterRole -/longhorn-role | rule 10 uses a wildcard in verbs
 HX-RBAC-001 high ClusterRole -/longhorn-role | rule 11 uses a wildcard in verbs
-HX-RBAC-001 high ClusterRole -/longhorn-role | rule 12 uses a wildcard in verbs
 HX-RBAC-001 high ClusterRole -/longhorn-role | rule 19 uses a wildcard in verbs
 HX-RBAC-001 high ClusterRole -/longhorn-role | rule 3 uses a wildcard in verbs
 HX-RBAC-001 high ClusterRole -/longhorn-role | rule 9 uses a wildcard in verbs
+HX-RBAC-001 low ClusterRole -/longhorn-role | rule 12 uses a wildcard in verbs (limited to the API group longhorn.io)
 HX-RBAC-001 medium Role longhorn-system/longhorn | rule 0 uses a wildcard in verbs
 HX-RBAC-001 medium Role longhorn-system/longhorn | rule 1 uses a wildcard in verbs
 HX-RBAC-001 medium Role longhorn-system/longhorn | rule 2 uses a wildcard in verbs
