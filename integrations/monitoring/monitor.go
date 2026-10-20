@@ -5,14 +5,24 @@ package monitoring
 
 import (
 	"context"
+	"encoding/json"
+	"errors"
 	"fmt"
+	"io/fs"
+	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/ManintheiCloud/Hardex/core/finding"
 	"github.com/ManintheiCloud/Hardex/core/history"
 	"github.com/ManintheiCloud/Hardex/core/verification"
 	"github.com/ManintheiCloud/Hardex/integrations/notify"
+	"github.com/ManintheiCloud/Hardex/internal/durable"
 )
+
+// MaxUndelivered bounds the events kept per sink while it is unreachable;
+// the oldest are dropped first, and the next delivered batch says so.
+const MaxUndelivered = 1000
 
 // Monitor processes successive assessments.
 type Monitor struct {
@@ -36,7 +46,10 @@ type Result struct {
 	SinceBaseline *verification.Comparison
 	Events        []notify.Event
 	// DeliveryErrors are sinks that failed. Undelivered alerts are a
-	// failure of the monitor, so callers should surface them.
+	// failure of the monitor, so callers should surface them. Their events
+	// are kept in the history directory and delivered with the next
+	// assessment's (an outbox), so a failed delivery delays alerts rather
+	// than losing them.
 	DeliveryErrors []error
 }
 
@@ -64,11 +77,77 @@ func (m *Monitor) Process(ctx context.Context, r *finding.Report) (*Result, erro
 	}
 	res.Events = m.events(r, res, prev == nil)
 	for _, s := range m.Sinks {
-		if err := s.Send(ctx, res.Events); err != nil {
+		if err := m.deliver(ctx, s, res.Events); err != nil {
 			res.DeliveryErrors = append(res.DeliveryErrors, fmt.Errorf("%s: %w", s.Name(), err))
 		}
 	}
 	return res, nil
+}
+
+// outbox is the file holding a sink's undelivered events.
+func (m *Monitor) outbox(s notify.Sink) string {
+	return filepath.Join(m.Store.Dir(), "undelivered-"+s.Name()+".json")
+}
+
+// deliver sends the sink's undelivered events from earlier assessments,
+// then this assessment's, as one batch. On failure the batch is kept for
+// the next run; on success the outbox is cleared.
+func (m *Monitor) deliver(ctx context.Context, s notify.Sink, events []notify.Event) error {
+	path := m.outbox(s)
+	var pending []notify.Event
+	if data, err := os.ReadFile(path); err == nil {
+		if err := json.Unmarshal(data, &pending); err != nil {
+			return fmt.Errorf("undelivered events in %s are unreadable (move the file aside to continue): %w", path, err)
+		}
+	} else if !errors.Is(err, fs.ErrNotExist) {
+		return err
+	}
+	for i := range pending {
+		pending[i].Late = true
+	}
+	batch := append(pending, events...)
+	if dropped := len(batch) - MaxUndelivered; dropped > 0 {
+		batch = batch[dropped:]
+		note := notify.Event{Type: notify.EventsDropped, Time: events[len(events)-1].Time,
+			Message: fmt.Sprintf("%d older undelivered event(s) were dropped while %s was unreachable; see the history for the full record", dropped, s.Name())}
+		batch = append([]notify.Event{note}, batch...)
+	}
+	if err := s.Send(ctx, batch); err != nil {
+		if serr := writeEvents(path, m.Store.Dir(), batch); serr != nil {
+			return fmt.Errorf("%w; and keeping the events for the next run failed: %v", err, serr)
+		}
+		return fmt.Errorf("%w; %d event(s) kept for the next run in %s", err, len(batch), path)
+	}
+	if len(pending) > 0 {
+		if err := os.Remove(path); err != nil && !errors.Is(err, fs.ErrNotExist) {
+			return fmt.Errorf("delivered, but clearing %s failed (its events will be sent again): %w", path, err)
+		}
+		return durable.SyncDir(m.Store.Dir())
+	}
+	return nil
+}
+
+func writeEvents(path, dir string, events []notify.Event) error {
+	data, err := json.Marshal(events)
+	if err != nil {
+		return err
+	}
+	tmp := path + ".tmp"
+	f, err := os.OpenFile(tmp, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o600)
+	if err != nil {
+		return err
+	}
+	if _, err = f.Write(data); err == nil {
+		err = f.Sync()
+	}
+	if cerr := f.Close(); err == nil {
+		err = cerr
+	}
+	if err != nil {
+		os.Remove(tmp)
+		return err
+	}
+	return durable.Rename(tmp, path, dir)
 }
 
 func (m *Monitor) events(r *finding.Report, res *Result, first bool) []notify.Event {

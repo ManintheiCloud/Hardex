@@ -42,6 +42,7 @@ Each assessment produces:
 | `finding.introduced` | A finding at or above `--notify-min` (default `medium`) appeared since the previous assessment |
 | `finding.resolved` | Such a finding disappeared and the rule that found it ran again |
 | `assessment.incomplete` | Rules failed or cluster resources could not be read |
+| `events.dropped` | Undelivered events were discarded after a long outage of the sink (see below) |
 | `assessment.completed` | Always; summary counts, and `drift` when a baseline is set |
 
 Events go to JSON Lines (`--events -` for stdout, the default, or `--events file.jsonl`) for log pipelines and SIEMs, and optionally to a webhook.
@@ -60,7 +61,7 @@ hardex monitor --cluster --webhook https://hooks.slack.com/services/... --webhoo
 - The secret is read only from the environment, never from a flag (flags appear in process listings).
 - Slack format renders a short summary; object names are escaped so manifests cannot inject mentions or links.
 
-A notification that cannot be delivered is a monitoring failure: one-shot runs exit 3.
+A notification that cannot be delivered is a monitoring failure: one-shot runs exit 3. The events are not lost: they are kept in the history directory (`undelivered-<sink>.json`) and delivered, marked `"late": true`, together with the next assessment's events once the sink is reachable again. Without this, an alert missed during an outage would never be repeated, because the next run compares with the assessment already recorded. At most 1000 events are kept per sink; if older ones have to be dropped, the next delivered batch starts with an `events.dropped` event saying how many.
 
 ## In-cluster
 

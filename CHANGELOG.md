@@ -2,6 +2,11 @@
 
 All notable changes are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow [Semantic Versioning](https://semver.org/). Before 1.0, minor versions may contain breaking changes.
 
+## Unreleased
+
+### Fixed
+- `hardex monitor`: an alert that could not be delivered (webhook down) was lost. Each assessment is recorded before its events are sent, so the next run compared with it and never repeated the missed "new finding" event. Undelivered events are now kept in the history directory and sent with the next assessment's, marked `"late": true` (Slack: "delayed"); at most 1000 per sink, with an `events.dropped` event if older ones had to go.
+
 ## 0.10.2 — 2026-10-20
 
 ### Fixed

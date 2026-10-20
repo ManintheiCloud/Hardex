@@ -31,6 +31,9 @@ const (
 	FindingResolved      = "finding.resolved"
 	AssessmentIncomplete = "assessment.incomplete"
 	AssessmentCompleted  = "assessment.completed"
+	// EventsDropped reports that undelivered events were discarded because
+	// the sink was unreachable for too long.
+	EventsDropped = "events.dropped"
 )
 
 // Event is one notification.
@@ -45,6 +48,9 @@ type Event struct {
 	// Drift is the number of active findings not present in the approved
 	// baseline, when a baseline is configured.
 	Drift *int `json:"drift,omitempty"`
+	// Late is set on an event from an earlier assessment whose delivery
+	// failed and that is being delivered again with a later batch.
+	Late bool `json:"late,omitempty"`
 }
 
 // Sink receives batches of events.
@@ -219,8 +225,12 @@ func SlackText(events []Event) string {
 			introduced = append(introduced, e)
 		case FindingResolved:
 			resolved = append(resolved, e)
-		case AssessmentIncomplete, AssessmentCompleted:
-			fmt.Fprintf(&b, "*Hardex*: %s\n", escapeSlack(e.Message))
+		case AssessmentIncomplete, AssessmentCompleted, EventsDropped:
+			late := ""
+			if e.Late {
+				late = " _(delayed: from " + e.Time.UTC().Format(time.RFC3339) + ")_"
+			}
+			fmt.Fprintf(&b, "*Hardex*: %s%s\n", escapeSlack(e.Message), late)
 		}
 	}
 	list := func(title string, es []Event) {
@@ -234,7 +244,11 @@ func SlackText(events []Event) string {
 				break
 			}
 			f := e.Finding
-			fmt.Fprintf(&b, "• [%s] %s %s — %s\n", strings.ToUpper(f.Severity.String()), f.RuleID, escapeSlack(f.Resource.String()), escapeSlack(f.Title))
+			late := ""
+			if e.Late {
+				late = " _(delayed)_"
+			}
+			fmt.Fprintf(&b, "• [%s] %s %s — %s%s\n", strings.ToUpper(f.Severity.String()), f.RuleID, escapeSlack(f.Resource.String()), escapeSlack(f.Title), late)
 		}
 	}
 	list(":rotating_light: New findings", introduced)
