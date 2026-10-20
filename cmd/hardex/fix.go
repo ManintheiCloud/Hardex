@@ -8,9 +8,11 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"os/signal"
 	"path/filepath"
 	"sort"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/goccy/go-yaml"
@@ -46,7 +48,8 @@ func cmdFix(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 	apply := fs.Bool("apply", false, "apply the plan to the live cluster (requires --cluster and --rules)")
 	yes := fs.Bool("yes", false, "do not ask for confirmation before applying")
 	backupDir := fs.String("backup-dir", "hardex-backups", "where to record backups before applying")
-	failOn := fs.String("fail-on", "high", "after --apply, exit 1 if the verification scan finds an introduced finding at or above this severity")
+	failOn := fs.String("fail-on", "high", "after --apply, verification fails if the re-assessment finds an introduced finding at or above this severity")
+	keepUnverified := fs.Bool("keep-unverified", false, "after --apply, keep the changes when verification fails or cannot run (by default they are rolled back)")
 	var cf clusterFlags
 	cf.register(fs)
 	paths, err := parseInterleaved(fs, args)
@@ -206,28 +209,57 @@ func cmdFix(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 		return exitUsage
 	}
 	fmt.Fprintf(stdout, "Backup: %s\n", backup.Path())
-	res := remediation.ApplyAll(ctx, backup, clusterPatcher(writer))
+	patcher := clusterPatcher(writer)
+
+	// Ctrl-C or SIGTERM during the apply cancels it cleanly: the patch in
+	// flight is resolved and everything applied is rolled back (the
+	// rollback ignores the cancellation). A second signal kills the process;
+	// the backup then still records every attempted change for
+	// hardex rollback.
+	actx, stop := signal.NotifyContext(ctx, os.Interrupt, syscall.SIGTERM)
+	res := remediation.ApplyAll(actx, backup, patcher)
+	stop()
 	if res.Err != nil {
 		fmt.Fprintf(stderr, "fix: apply failed: %v\n", res.Err)
-		fmt.Fprintf(stderr, "fix: automatically rolled back %d object(s)\n", len(res.RolledBack))
+		fmt.Fprintf(stderr, "fix: automatically rolled back %d object(s)", len(res.RolledBack))
+		if len(res.NotApplied) > 0 {
+			fmt.Fprintf(stderr, "; %d failed patch(es) had not changed their object", len(res.NotApplied))
+		}
+		fmt.Fprintln(stderr)
 		if res.RollbackErr != nil {
-			fmt.Fprintf(stderr, "fix: ROLLBACK INCOMPLETE: %v\nfix: the backup %s records the remaining changes\n", res.RollbackErr, backup.Path())
+			fmt.Fprintf(stderr, "fix: ROLLBACK INCOMPLETE: %v\nfix: the backup %s records the remaining changes; run hardex rollback %s --cluster\n", res.RollbackErr, backup.Path(), backup.Path())
 		}
 		return exitIncomplete
 	}
 	fmt.Fprintf(stdout, "Applied %d patch(es).\n", len(res.Applied))
 
-	// Verification: success is defined by a fresh assessment, not by the
-	// API accepting the patches (ADR 0003, constraint 3).
+	// failed handles a verification that failed or could not run. Success
+	// is defined by a fresh assessment (ADR 0003, constraint 3), so by
+	// default the changes are rolled back.
+	failed := func(reason string, code int) int {
+		if *keepUnverified {
+			fmt.Fprintf(stdout, "Verification failed (%s); changes kept (--keep-unverified). To undo: hardex rollback %s --cluster\n", reason, backup.Path())
+			return code
+		}
+		fmt.Fprintf(stdout, "Verification failed (%s); rolling back.\n", reason)
+		rb := remediation.Rollback(ctx, backup, patcher)
+		fmt.Fprintf(stdout, "Restored %d object(s).\n", len(rb.RolledBack))
+		if rb.Err != nil {
+			fmt.Fprintf(stderr, "fix: ROLLBACK INCOMPLETE: %v\nfix: the backup %s records the remaining changes; run hardex rollback %s --cluster\n", rb.Err, backup.Path(), backup.Path())
+			return exitIncomplete
+		}
+		return code
+	}
+
 	col, errs, _, err := cf.collect(ctx, client)
 	if err != nil {
 		fmt.Fprintln(stderr, "fix: verification scan failed:", err)
-		return exitIncomplete
+		return failed("the verification scan could not run", exitIncomplete)
 	}
 	after, _, err := hardex.Scan(hardex.ScanOptions{Inventory: col.Inventory, Config: cfg, Profile: *profile, CollectionErrors: errs})
 	if err != nil {
 		fmt.Fprintln(stderr, "fix: verification scan failed:", err)
-		return exitIncomplete
+		return failed("the verification scan could not run", exitIncomplete)
 	}
 	actual := verification.Compare(before, after)
 	targeted := map[string]bool{}
@@ -249,12 +281,13 @@ func cmdFix(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 	for _, f := range unresolved {
 		fmt.Fprintf(stdout, "  unresolved [%s] %s %s\n", f.Severity, f.RuleID, reporting.Sanitize(f.Resource.String()))
 	}
-	if !after.Complete() {
-		return exitIncomplete
-	}
-	if actual.Regressed(threshold) || len(unresolved) > 0 {
-		fmt.Fprintf(stdout, "To undo: hardex rollback %s --cluster\n", backup.Path())
-		return exitFindings
+	switch {
+	case !after.Complete():
+		return failed("the verification scan was incomplete", exitIncomplete)
+	case actual.Regressed(threshold):
+		return failed(fmt.Sprintf("findings at or above %s were introduced", threshold), exitFindings)
+	case len(unresolved) > 0:
+		return failed("targeted findings are still present", exitFindings)
 	}
 	fmt.Fprintf(stdout, "Verified. To undo: hardex rollback %s --cluster\n", backup.Path())
 	return exitOK
@@ -289,13 +322,16 @@ func cmdRollback(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 		fmt.Fprintf(stderr, "rollback: backup was taken on %s but the current context points at %s; refusing\n", backup.Server, writer.Server())
 		return exitUsage
 	}
-	pending := 0
-	for _, o := range backup.Objects {
-		if o.Applied && !o.RolledBack {
-			pending++
-			fmt.Fprintf(stdout, "  will restore %s\n", reporting.Sanitize(o.Target.String()))
-		}
+	applied, uncertain := backup.Pending()
+	for _, t := range applied {
+		fmt.Fprintf(stdout, "  will restore %s\n", reporting.Sanitize(t.String()))
 	}
+	for _, t := range uncertain {
+		// Recorded as attempted but not confirmed: the run was interrupted
+		// or the request's outcome was unknown.
+		fmt.Fprintf(stdout, "  will check and, if changed, restore %s (patch attempted, outcome unknown)\n", reporting.Sanitize(t.String()))
+	}
+	pending := len(applied) + len(uncertain)
 	if pending == 0 {
 		fmt.Fprintln(stdout, "Nothing to roll back.")
 		return exitOK
@@ -306,6 +342,9 @@ func cmdRollback(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 	}
 	res := remediation.Rollback(context.Background(), backup, clusterPatcher(writer))
 	fmt.Fprintf(stdout, "Restored %d object(s).\n", len(res.RolledBack))
+	if len(res.NotApplied) > 0 {
+		fmt.Fprintf(stdout, "%d attempted patch(es) had not changed their object; nothing to restore there.\n", len(res.NotApplied))
+	}
 	if res.Err != nil {
 		fmt.Fprintln(stderr, "rollback:", res.Err)
 		return exitIncomplete

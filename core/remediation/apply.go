@@ -12,9 +12,12 @@ import (
 // BackupSchema identifies the backup file format.
 const BackupSchema = "hardex.dev/backup/v1alpha1"
 
-// Backup records everything needed to undo an apply. It is written before
-// the first change and updated after each one, so an interrupted run still
-// leaves an accurate record of what was changed.
+// Backup records everything needed to undo an apply. It is a write-ahead
+// journal: each object is marked Attempted, durably, before its patch is
+// sent, and Applied after the API server confirms it. An object that is
+// Attempted but not Applied (the process died, or the request failed in a
+// way that does not say whether the server applied it) has an unknown
+// outcome; Rollback resolves it against the live object.
 type Backup struct {
 	Schema    string         `json:"schema"`
 	CreatedAt time.Time      `json:"createdAt"`
@@ -31,9 +34,21 @@ type BackupObject struct {
 	Patch    []Op           `json:"patch"`
 	Inverse  []Op           `json:"inverse"`
 	Fixes    []FixSummary   `json:"fixes"`
-	Applied  bool           `json:"applied"`
+	// Attempted is recorded before the patch is sent.
+	Attempted bool `json:"attempted,omitempty"`
+	// Applied is recorded after the API server accepted the patch.
+	Applied bool `json:"applied"`
 	// RolledBack is set once the inverse has been applied.
 	RolledBack bool `json:"rolledBack,omitempty"`
+	// NotApplied is set when an attempted patch is found not to have
+	// changed the object.
+	NotApplied bool `json:"notApplied,omitempty"`
+}
+
+// uncertain reports whether the object's patch may or may not have been
+// applied.
+func (o *BackupObject) uncertain() bool {
+	return o.Attempted && !o.Applied && !o.RolledBack && !o.NotApplied
 }
 
 // PatchFunc sends a JSON patch for a target to the cluster.
@@ -102,6 +117,9 @@ func (b *Backup) save() error {
 type ApplyResult struct {
 	Applied    []Target
 	RolledBack []Target
+	// NotApplied lists objects whose patch failed and turned out not to
+	// have changed them.
+	NotApplied []Target
 	// Err is the error that stopped the run, if any.
 	Err error
 	// RollbackErr is set if automatic rollback itself failed; the backup
@@ -110,60 +128,127 @@ type ApplyResult struct {
 }
 
 // ApplyAll applies each object's patch in order. If any patch fails, every
-// patch already applied in this run is reverted, so the cluster is never left
-// partially remediated (ADR 0003, constraint 5).
+// patch that was or may have been applied in this run is reverted, so the
+// cluster is never left partially remediated (ADR 0003, constraint 5).
+// Rollback does not use ctx's cancellation: an interrupted run must still
+// be able to undo what it did.
 func ApplyAll(ctx context.Context, b *Backup, patch PatchFunc) ApplyResult {
 	var res ApplyResult
+	fail := func(err error) ApplyResult {
+		res.Err = err
+		rb := Rollback(ctx, b, patch)
+		res.RolledBack, res.NotApplied, res.RollbackErr = rb.RolledBack, rb.NotApplied, rb.Err
+		return res
+	}
 	for i := range b.Objects {
 		o := &b.Objects[i]
+		if err := ctx.Err(); err != nil {
+			return fail(fmt.Errorf("interrupted before %s: %w", o.Target, err))
+		}
+		// Write-ahead: record the attempt before the cluster can change.
+		o.Attempted = true
+		if err := b.save(); err != nil {
+			o.Attempted = false
+			return fail(fmt.Errorf("recording backup before %s: %w", o.Target, err))
+		}
 		if err := patch(ctx, o.Target, o.Patch); err != nil {
-			res.Err = fmt.Errorf("%s: %w", o.Target, err)
-			rb := Rollback(ctx, b, patch)
-			res.RolledBack, res.RollbackErr = rb.RolledBack, rb.Err
-			return res
+			// The object stays Attempted: a timeout or cancellation may
+			// have been applied by the server. Rollback finds out.
+			return fail(fmt.Errorf("%s: %w", o.Target, err))
 		}
 		o.Applied = true
 		res.Applied = append(res.Applied, o.Target)
 		if err := b.save(); err != nil {
-			res.Err = fmt.Errorf("recording backup after %s: %w", o.Target, err)
-			rb := Rollback(ctx, b, patch)
-			res.RolledBack, res.RollbackErr = rb.RolledBack, rb.Err
-			return res
+			return fail(fmt.Errorf("recording backup after %s: %w", o.Target, err))
 		}
 	}
 	return res
 }
 
+// RollbackTimeout bounds a rollback, which runs even after the apply's
+// context was cancelled.
+var RollbackTimeout = 2 * time.Minute
+
 // RollbackResult describes a rollback run.
 type RollbackResult struct {
 	RolledBack []Target
+	// NotApplied lists objects whose outcome was unknown and that turned
+	// out not to have been changed.
+	NotApplied []Target
 	Err        error
 }
 
-// Rollback applies the inverse patch of every applied, not yet rolled back
-// object, in reverse order. Inverse patches test the values Hardex set; if
-// someone changed an object since, its rollback fails and is reported rather
-// than overwriting their change.
+// Rollback undoes, in reverse order, every object that was applied, and
+// resolves every object whose outcome is unknown: if its inverse applies,
+// the patch had landed and is now undone; if instead the forward patch's
+// own tests still pass, it never landed. Inverse patches test the values
+// Hardex set, so an object someone changed since is reported, never
+// overwritten. The backup is saved after each object. Rollback ignores the
+// cancellation of ctx (it is often called because ctx was cancelled) and
+// is bounded by RollbackTimeout instead.
 func Rollback(ctx context.Context, b *Backup, patch PatchFunc) RollbackResult {
+	ctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), RollbackTimeout)
+	defer cancel()
 	var res RollbackResult
 	var errs []error
 	for i := len(b.Objects) - 1; i >= 0; i-- {
 		o := &b.Objects[i]
-		if !o.Applied || o.RolledBack {
+		switch {
+		case o.Applied && !o.RolledBack:
+			if err := patch(ctx, o.Target, o.Inverse); err != nil {
+				errs = append(errs, fmt.Errorf("%s: %w", o.Target, err))
+				continue
+			}
+			o.RolledBack = true
+			res.RolledBack = append(res.RolledBack, o.Target)
+		case o.uncertain():
+			if err := patch(ctx, o.Target, o.Inverse); err == nil {
+				o.Applied, o.RolledBack = true, true
+				res.RolledBack = append(res.RolledBack, o.Target)
+			} else if tests := testsOnly(o.Patch); len(tests) > 0 && patch(ctx, o.Target, tests) == nil {
+				o.NotApplied = true
+				res.NotApplied = append(res.NotApplied, o.Target)
+			} else {
+				errs = append(errs, fmt.Errorf("%s: unknown whether the patch was applied, and the object no longer matches either the original or the patched state (changed since?): %w", o.Target, err))
+				continue
+			}
+		default:
 			continue
 		}
-		if err := patch(ctx, o.Target, o.Inverse); err != nil {
-			errs = append(errs, fmt.Errorf("%s: %w", o.Target, err))
-			continue
+		if err := b.save(); err != nil {
+			errs = append(errs, fmt.Errorf("recording rollback of %s: %w", o.Target, err))
 		}
-		o.RolledBack = true
-		res.RolledBack = append(res.RolledBack, o.Target)
-	}
-	if err := b.save(); err != nil {
-		errs = append(errs, fmt.Errorf("recording rollback: %w", err))
 	}
 	if len(errs) > 0 {
 		res.Err = fmt.Errorf("rollback incomplete: %v", errs)
 	}
 	return res
+}
+
+// Pending lists the objects a rollback would act on: applied and not yet
+// rolled back, or with an unknown outcome.
+func (b *Backup) Pending() (applied, uncertain []Target) {
+	for i := range b.Objects {
+		o := &b.Objects[i]
+		switch {
+		case o.Applied && !o.RolledBack:
+			applied = append(applied, o.Target)
+		case o.uncertain():
+			uncertain = append(uncertain, o.Target)
+		}
+	}
+	return applied, uncertain
+}
+
+// testsOnly returns the test operations of a patch: sent alone, they check
+// that the object is still in the state the patch was computed against
+// without changing it.
+func testsOnly(ops []Op) []Op {
+	var out []Op
+	for _, op := range ops {
+		if op.Op == "test" {
+			out = append(out, op)
+		}
+	}
+	return out
 }

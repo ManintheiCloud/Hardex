@@ -32,9 +32,12 @@ hardex fix --cluster --rules HX-WL-004,HX-WL-008 --apply
 Applying requires `--rules` and an interactive `yes` (or `--yes` in automation). Hardex then:
 
 1. writes a backup to `--backup-dir` (default `./hardex-backups`) **before** changing anything;
-2. applies each object's patch, guarded by its `resourceVersion` and the values being replaced;
-3. if any patch fails, **rolls back every patch already applied** in this run;
-4. re-collects and re-assesses the cluster, and reports what was resolved, introduced or is still present (exit 1 on regressions or unresolved targets).
+2. applies each object's patch, guarded by its `resourceVersion` and the values being replaced. The backup is a write-ahead journal: each object is recorded as *attempted*, durably, before its patch is sent, and as *applied* once the API server confirms it;
+3. if any patch fails, or the run is interrupted (Ctrl-C, SIGTERM), **rolls back every patch that was or may have been applied** in this run. The rollback runs even though the run was cancelled;
+4. re-collects and re-assesses the cluster, and reports what was resolved, introduced or is still present;
+5. if that verification fails (a finding at or above `--fail-on` introduced, a targeted finding still present) or cannot run (collection failed or was incomplete), **rolls the changes back** and exits non-zero. `--keep-unverified` keeps them instead.
+
+**Interrupted runs.** If the process dies mid-run (killed, a second Ctrl-C, a crash, a lost connection), the backup still records every attempted change. A patch whose outcome is unknown (attempted but not confirmed, e.g. a request that timed out) is resolved against the live object when you roll back: if Hardex's undo patch applies, the change had landed and is undone; if instead the object is still exactly as it was before (its `resourceVersion` and the replaced values match), it was never changed; if neither holds, someone has changed it since, and it is reported, not overwritten.
 
 Undo later with the backup file:
 
@@ -42,7 +45,7 @@ Undo later with the backup file:
 hardex rollback hardex-backups/hardex-backup-20261019T120000Z.json --cluster
 ```
 
-Rollback refuses to run against a different API server than the backup came from, and refuses to overwrite a field that someone changed after Hardex set it.
+It lists what it will restore, including any patches with an unknown outcome. Rollback refuses to run against a different API server than the backup came from, and refuses to overwrite a field that someone changed after Hardex set it.
 
 Writing requires credentials that can `patch` the affected workloads; the read-only `hardex-reader` role is not enough by design. Use a separate, short-lived identity for remediation.
 
