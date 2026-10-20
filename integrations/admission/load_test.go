@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"runtime"
 	"sort"
 	"strings"
 	"sync"
@@ -115,7 +116,10 @@ func TestConcurrentDecisions(t *testing.T) {
 	sort.Slice(lat, func(i, j int) bool { return lat[i] < lat[j] })
 	p50, p99, max := lat[len(lat)/2], lat[len(lat)*99/100], lat[len(lat)-1]
 	t.Logf("%d requests from %d workers: p50 %s, p99 %s, max %s", len(lat), workers, p50, p99, max)
-	if !raceEnabled && p99 > 2*time.Second {
+	// The bound is for the webhook as deployed: the Linux container image.
+	// Shared macOS and Windows CI runners are slower and noisier; the
+	// correctness checks above still run there.
+	if !raceEnabled && runtime.GOOS == "linux" && p99 > 2*time.Second {
 		t.Errorf("p99 latency %s is too close to the webhook's 5 s timeout", p99)
 	}
 }

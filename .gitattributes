@@ -1,0 +1,6 @@
+# Check out text files with LF line endings on every platform. Test data is
+# hashed and signature-checked byte for byte (Sigstore conformance bundles,
+# signed artifacts, golden files), and generated docs are compared with
+# their generator's output; a CRLF conversion on Windows would break both.
+* text=auto eol=lf
+**/testdata/** -text
