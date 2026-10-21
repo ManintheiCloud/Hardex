@@ -47,7 +47,7 @@ spec:
         seccompProfile: {type: RuntimeDefault}
       containers:
         - name: hardex
-          image: ghcr.io/manintheicloud/hardex:0.10.4 # pin by digest in production
+          image: ghcr.io/manintheicloud/hardex:0.10.5 # pin by digest in production
           args: ["scan", "--node", "--node-root", "/host", "--every", "24h", "--format", "json", "--fail-on", "none"]
           env:
             - name: NODE_NAME
