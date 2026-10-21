@@ -18,8 +18,13 @@ ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 cd "$ROOT"
 
 # On GitHub Actions, results are also annotations, readable without the log.
-annotate() { [ -n "${GITHUB_ACTIONS:-}" ] && echo "::$1 title=e2e::$(echo "$2" | tr '\n' ' ' | cut -c1-900)" || true; }
-pass() { echo "PASS: $*"; annotate notice "PASS: $*"; }
+# GitHub keeps at most 10 notice annotations per job, so passes are
+# collected and reported together at the end (and in the job summary); the
+# review lists are in the job summary only. Errors are annotated at once.
+annotate() { [ -n "${GITHUB_ACTIONS:-}" ] && echo "::$1 title=e2e::$(echo "$2" | tr '\n' ' ' | cut -c1-4000)" || true; }
+summary() { [ -n "${GITHUB_STEP_SUMMARY:-}" ] && printf '%s\n' "$@" >> "$GITHUB_STEP_SUMMARY" || true; }
+PASSES=()
+pass() { echo "PASS: $*"; PASSES+=("$*"); summary "- PASS: $*"; }
 fail() { echo "FAIL: $*" >&2; annotate error "FAIL: $*"; exit 1; }
 CURRENT_STEP=""
 step() { echo; echo "=== $*"; CURRENT_STEP="$*"; }
@@ -88,10 +93,7 @@ jq -r '.findings[] | select((.resource.namespace // "") as $n | $n != "shop" and
   | "\(.ruleId) \(.severity) \(.resource.kind) \(.resource.namespace // "-")/\(.resource.name)\(if .resource.container then "["+.resource.container+"]" else "" end)"' \
   "$WORK/live.json" | sort | uniq > "$WORK/other.txt"
 echo "Findings outside the fixtures ($(wc -l < "$WORK/other.txt")):"; cat "$WORK/other.txt"
-if [ -n "${GITHUB_ACTIONS:-}" ]; then
-  split -l 12 "$WORK/other.txt" "$WORK/other."
-  for f in "$WORK"/other.??; do annotate notice "REVIEW: $(paste -sd ';' "$f")"; done
-fi
+summary "" "<details><summary>Findings outside the fixtures ($(wc -l < "$WORK/other.txt"))</summary>" "" '```' "$(cat "$WORK/other.txt")" '```' "</details>" ""
 
 # The reader must not be able to read Secrets or exec.
 # (Subresources need --subresource: "nodes/proxy" alone means a node named proxy.)
@@ -344,10 +346,7 @@ jq -r '.findings[] | select(.resource.namespace as $n | ["hardex","hardex-node",
   | "\(.ruleId) \(.severity) \(.resource.kind) \(.resource.namespace)/\(.resource.name)\(if .resource.container then "["+.resource.container+"]" else "" end)"' \
   "$WORK/final.json" | sort | uniq > "$WORK/own.txt"
 echo "Findings on Hardex and cert-manager ($(wc -l < "$WORK/own.txt")):"; cat "$WORK/own.txt"
-if [ -n "${GITHUB_ACTIONS:-}" ]; then
-  split -l 12 "$WORK/own.txt" "$WORK/own."
-  for f in "$WORK"/own.??; do [ -e "$f" ] && annotate notice "REVIEW-OWN: $(paste -sd ';' "$f")"; done
-fi
+summary "" "<details><summary>Findings on Hardex and cert-manager ($(wc -l < "$WORK/own.txt"))</summary>" "" '```' "$(cat "$WORK/own.txt")" '```' "</details>" ""
 
 crit="$(jq -r '[.findings[] | select((.resource.namespace=="hardex" or .resource.namespace=="hardex-node") and .severity=="critical") | "\(.ruleId) \(.resource.namespace)/\(.resource.name)"] | join(", ")' "$WORK/final.json")"
 [ -z "$crit" ] || fail "Hardex's own deployments have critical findings: $crit"
@@ -355,3 +354,4 @@ pass "Hardex's own deployments have no critical findings"
 
 echo
 echo "All end-to-end checks passed."
+annotate notice "ALL PASSED (${#PASSES[@]}): $(printf '%s; ' "${PASSES[@]}")"
