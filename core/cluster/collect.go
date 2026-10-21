@@ -146,8 +146,15 @@ func Collect(ctx context.Context, c *Client) (*Collection, error) {
 			item["apiVersion"] = r.APIVersion()
 			item["kind"] = r.Kind
 			if ownedByCollectedController(item) {
-				col.Skipped++
-				continue
+				// The owner's template is assessed instead, except for
+				// containers added to this pod alone: ephemeral containers
+				// (kubectl debug) are never in the template.
+				eph, ok := withEphemeralOnly(item)
+				if !ok {
+					col.Skipped++
+					continue
+				}
+				item = eph
 			}
 			obj, err := resource.NewObject(item, source, 0)
 			if err != nil {
@@ -208,6 +215,35 @@ func listAll(ctx context.Context, c *Client, r Resource) ([]map[string]any, erro
 var templateOwners = map[string]bool{
 	"Deployment": true, "ReplicaSet": true, "StatefulSet": true, "DaemonSet": true,
 	"Job": true, "CronJob": true, "ReplicationController": true,
+}
+
+// withEphemeralOnly returns a pod reduced to its ephemeral containers and
+// the pod-level settings that decide their effective security (security
+// context, OS, user namespace, service-account token), or false if it has
+// none. Host namespaces, volumes and the regular containers are left out:
+// they are the owner's template, already assessed there.
+func withEphemeralOnly(pod map[string]any) (map[string]any, bool) {
+	eph := resource.Maps(pod, "spec", "ephemeralContainers")
+	if len(eph) == 0 {
+		return nil, false
+	}
+	spec := map[string]any{"containers": []any{}}
+	list := make([]any, len(eph))
+	for i, c := range eph {
+		list[i] = c
+	}
+	spec["ephemeralContainers"] = list
+	for _, k := range []string{"securityContext", "os", "hostUsers", "serviceAccountName", "automountServiceAccountToken"} {
+		if v, ok := resource.Lookup(pod, "spec", k); ok {
+			spec[k] = v
+		}
+	}
+	out := map[string]any{}
+	for k, v := range pod {
+		out[k] = v
+	}
+	out["spec"] = spec
+	return out, true
 }
 
 func ownedByCollectedController(item map[string]any) bool {

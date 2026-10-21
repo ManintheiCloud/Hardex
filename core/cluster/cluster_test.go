@@ -60,6 +60,15 @@ func (f *fakeAPI) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				"metadata": map[string]any{"name": "web-abc-123", "namespace": "shop",
 					"ownerReferences": []any{map[string]any{"kind": "ReplicaSet", "name": "web-abc", "controller": true}}},
 				"spec": map[string]any{"containers": []any{map[string]any{"name": "c", "image": "x:1"}}},
+			}, map[string]any{
+				// kubectl debug --profile=sysadmin on a Deployment's pod
+				"metadata": map[string]any{"name": "web-abc-456", "namespace": "shop",
+					"ownerReferences": []any{map[string]any{"kind": "ReplicaSet", "name": "web-abc", "controller": true}}},
+				"spec": map[string]any{
+					"hostNetwork":         true,
+					"containers":          []any{map[string]any{"name": "c", "image": "x:1"}},
+					"ephemeralContainers": []any{map[string]any{"name": "debugger-x", "image": "busybox", "securityContext": map[string]any{"privileged": true}}},
+				},
 			}}
 		}
 	}
@@ -93,8 +102,13 @@ func TestCollectPaginatesAndDeduplicates(t *testing.T) {
 		t.Fatal(err)
 	}
 	pods := col.Inventory.OfKind("Pod")
-	if len(pods) != 1 || pods[0].Name != "standalone" {
-		t.Fatalf("pods = %v; want only the standalone pod", pods)
+	if len(pods) != 2 || pods[0].Name != "standalone" || pods[1].Name != "web-abc-456" {
+		t.Fatalf("pods = %v; want the standalone pod and the owned pod with a debug container", pods)
+	}
+	// The owned pod is kept for its ephemeral container only.
+	spec := resource.Map(pods[1].Raw, "spec")
+	if len(resource.Maps(spec, "containers")) != 0 || len(resource.Maps(spec, "ephemeralContainers")) != 1 || spec["hostNetwork"] != nil {
+		t.Errorf("owned pod spec = %v; want only its ephemeral container", spec)
 	}
 	if col.Skipped != 1 {
 		t.Errorf("skipped = %d, want 1 (ReplicaSet-owned pod)", col.Skipped)
