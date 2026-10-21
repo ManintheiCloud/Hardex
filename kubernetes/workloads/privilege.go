@@ -62,7 +62,7 @@ var criticalHostPaths = []string{
 	"/", "/etc", "/root", "/proc", "/sys", "/dev", "/boot", "/usr", "/bin", "/sbin", "/lib",
 	"/var/run", "/run", "/var/lib/kubelet", "/var/lib/docker", "/var/lib/containerd", "/var/lib/etcd",
 	"/var/run/docker.sock", "/run/containerd/containerd.sock", "/var/run/crio/crio.sock",
-	"/etc/kubernetes",
+	"/etc/kubernetes", "/opt",
 }
 
 // Host paths where even *reading* compromises the node or cluster: keys,
@@ -144,7 +144,7 @@ var hostPathVolumes = eachPod(assessment.Metadata{
 	Title:       "HostPath volume",
 	Severity:    finding.High,
 	Category:    assessment.CategoryWorkloads,
-	Description: "Detects pods that mount directories from the node's filesystem. Mounts of sensitive paths are raised to critical when they give node or cluster compromise: runtime sockets and paths holding credentials (keys, kubeconfigs, other pods' volumes, etcd data) even read-only, and other sensitive paths (root, /etc, kubelet state, system binaries) when a container can write to them.",
+	Description: "Detects pods that mount directories from the node's filesystem. Mounts of sensitive paths are raised to critical when they give node or cluster compromise: runtime sockets and paths holding credentials (keys, kubeconfigs, other pods' volumes, etcd data) even read-only, and other sensitive paths when a container can write to them: root, /etc, kubelet state, system binaries and libraries, CNI plugins (/opt/cni), FlexVolume drivers, container runtime state, and node logs (/var/log, where a symlink makes the kubelet's log endpoint serve any host file).",
 	Rationale:   "HostPath mounts bypass container filesystem isolation. Writable mounts of sensitive paths allow node takeover; a mounted container runtime socket is equivalent to root on the node.",
 	Remediation: "Replace hostPath with emptyDir, a ConfigMap/Secret, or a PersistentVolumeClaim. If node access is unavoidable (e.g. a log collector), mount the narrowest path read-only and isolate the workload in a dedicated namespace.",
 	References:  []finding.Reference{baselines.PSS("Baseline", "HostPath Volumes"), refNSAPod, refCISPods},
@@ -175,10 +175,35 @@ func isCriticalHostPath(p string) bool {
 		}
 	}
 	// Any socket (container runtimes, systemd), anything holding kubelet or
-	// control-plane credentials, and anything under /etc.
-	return strings.HasSuffix(p, ".sock") ||
-		strings.HasPrefix(p, "/var/lib/kubelet/") ||
-		strings.HasPrefix(p, "/etc/")
+	// control-plane credentials, anything under /etc, and anything the node
+	// executes as root or reads as root on request: a writable mount of
+	// these is a node takeover.
+	if strings.HasSuffix(p, ".sock") {
+		return true
+	}
+	for _, prefix := range criticalHostPrefixes {
+		if p == strings.TrimSuffix(prefix, "/") || strings.HasPrefix(p, prefix) {
+			return true
+		}
+	}
+	return false
+}
+
+// Directories whose contents the node runs or serves as root: a writable
+// mount of them, or of anything inside, lets a container take over the node.
+var criticalHostPrefixes = []string{
+	"/var/lib/kubelet/", "/etc/",
+	// System binaries and libraries.
+	"/usr/", "/bin/", "/sbin/", "/lib/", "/lib64/", "/boot/", "/root/",
+	// CNI plugins, run as root by the container runtime for every pod.
+	"/opt/cni/",
+	// FlexVolume drivers, run as root by the kubelet.
+	"/usr/libexec/kubernetes/",
+	// Image layers and runtime state.
+	"/var/lib/docker/", "/var/lib/containerd/", "/var/lib/etcd/", "/run/containerd/", "/var/run/containerd/",
+	// Node logs: a writable mount lets a symlink make the kubelet's log
+	// endpoint serve any host file.
+	"/var/log/",
 }
 
 var privilegeEscalation = eachContainer(assessment.Metadata{

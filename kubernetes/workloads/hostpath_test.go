@@ -38,7 +38,11 @@ func TestHostPathCritical(t *testing.T) {
 		"read-only node root":           {mount("/", ", readOnly: true", ""), true},
 		"read-only admin kubeconfig":    {mount("/etc/kubernetes/admin.conf", ", readOnly: true", ""), true},
 		"unmounted sensitive volume":    {`{volumes: [{name: v, hostPath: {path: /etc/kubernetes/manifests}}], containers: [{name: c, image: x}]}`, false},
-		"non-sensitive writable path":   {mount("/var/log", "", ""), false},
+		"non-sensitive writable path":   {mount("/data/cache", "", ""), false},
+		"writable CNI plugin dir":       {mount("/opt/cni/bin", "", ""), true},
+		"read-only CNI plugin dir":      {mount("/opt/cni/bin", ", readOnly: true", ""), false},
+		"writable node logs":            {mount("/var/log", "", ""), true},
+		"read-only node logs":           {mount("/var/log", ", readOnly: true", ""), false},
 		"init container writes":         {`{volumes: [{name: v, hostPath: {path: /etc/kubernetes/manifests}}], initContainers: [{name: i, image: x, volumeMounts: [{name: v, mountPath: /m}]}], containers: [{name: c, image: x, volumeMounts: [{name: v, mountPath: /m, readOnly: true}]}]}`, true},
 	}
 	for name, c := range cases {
