@@ -56,4 +56,6 @@ Participation is governed by our [Code of Conduct](CODE_OF_CONDUCT.md).
 
 ## Releasing
 
-Releases are cut by changing the `VERSION` file on `main` (together with the CHANGELOG entry). The release workflow then tests, builds, signs and publishes binaries and the container image, and creates the `v<VERSION>` tag and GitHub release. Pushing a `v*` tag by hand works too. See [docs/verifying-releases.md](docs/verifying-releases.md).
+Releases are cut by changing the `VERSION` file on `main` (together with the CHANGELOG entry), through a pull request. The release workflow then builds and tests, waits for a reviewer to approve the run (the `release` environment), and only then signs and publishes binaries and the container image and creates the `v<VERSION>` tag and GitHub release.
+
+If GitHub drops the push event and no release run starts, start it by hand: **Actions → release → Run workflow** on `main`. It releases the current `VERSION`, waits for approval like any other run, and does nothing if that release already exists. Prefer this to pushing a `v*` tag: tag-triggered releases are signed with the tag's identity, not `refs/heads/main`, which the verification instructions expect. See [docs/verifying-releases.md](docs/verifying-releases.md).

@@ -2,6 +2,11 @@
 
 All notable changes are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow [Semantic Versioning](https://semver.org/). Before 1.0, minor versions may contain breaking changes.
 
+## Unreleased
+
+### CI
+- The release workflow can be started by hand from `main` (Actions → release → Run workflow), for when GitHub drops the push event that should have started it. It still waits for approval and never rebuilds an existing release.
+
 ## 0.10.5 — 2026-10-21
 
 ### Fixed

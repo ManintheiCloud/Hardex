@@ -16,6 +16,10 @@ on:
     branches: [main]
     paths: [VERSION]
     tags: ["v*.*.*"]
+  # Recovery when GitHub drops the push event: start the release of the
+  # current VERSION by hand, from main only (checked below). It still waits
+  # for a reviewer, and an existing release is never rebuilt.
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -39,6 +43,9 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
+          if [ "$GITHUB_EVENT_NAME" = workflow_dispatch ] && [ "$GITHUB_REF" != refs/heads/main ]; then
+            echo "::error::manual releases run from main only (this run: $GITHUB_REF)"; exit 1
+          fi
           if [ "$GITHUB_REF_TYPE" = tag ]; then
             version="${GITHUB_REF_NAME#v}"
           else
