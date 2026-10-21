@@ -182,3 +182,38 @@ func TestCertificateReload(t *testing.T) {
 		t.Error("a broken rotation must keep serving the last good certificate")
 	}
 }
+
+// kubectl debug goes through the pods/ephemeralcontainers subresource: a
+// privileged debug container is denied, and only the ephemeral containers
+// are judged (the rest of the Pod was admitted already).
+func TestEphemeralContainersSubresource(t *testing.T) {
+	h := handler(t, Enforce, "")
+	sub := func(object string) map[string]any {
+		body := `{"apiVersion":"admission.k8s.io/v1","kind":"AdmissionReview","request":{"uid":"u-2","kind":{"group":"","version":"v1","kind":"Pod"},"subResource":"ephemeralcontainers","namespace":"shop","name":"web","operation":"UPDATE","object":` + object + `}}`
+		req := httptest.NewRequest(http.MethodPost, "/validate", strings.NewReader(body))
+		req.Header.Set("Content-Type", "application/json")
+		rec := httptest.NewRecorder()
+		h.ServeHTTP(rec, req)
+		var out map[string]any
+		json.Unmarshal(rec.Body.Bytes(), &out)
+		return resp(out)
+	}
+	// An already-running Pod with a privileged container (admitted earlier,
+	// or from an excluded period) gets a harmless debug container: allowed.
+	harmless := `{"apiVersion":"v1","kind":"Pod","metadata":{"name":"web"},"spec":{
+	 "containers":[{"name":"c","image":"x:1","securityContext":{"privileged":true}}],
+	 "ephemeralContainers":[{"name":"dbg","image":"busybox","securityContext":{"allowPrivilegeEscalation":false,"capabilities":{"drop":["ALL"]}}}]}}`
+	if r := sub(harmless); r["allowed"] != true {
+		t.Errorf("harmless debug container denied because of the Pod's own containers: %v", r)
+	}
+	privileged := `{"apiVersion":"v1","kind":"Pod","metadata":{"name":"web"},"spec":{
+	 "containers":[{"name":"c","image":"x:1"}],
+	 "ephemeralContainers":[{"name":"dbg","image":"busybox","securityContext":{"privileged":true}}]}}`
+	r := sub(privileged)
+	if r["allowed"] != false {
+		t.Fatalf("privileged debug container admitted: %v", r)
+	}
+	if msg := r["status"].(map[string]any)["message"].(string); !strings.Contains(msg, "HX-WL-001") {
+		t.Errorf("message = %s", msg)
+	}
+}

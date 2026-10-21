@@ -84,12 +84,15 @@ type Request struct {
 	Kind struct {
 		Group, Version, Kind string
 	} `json:"kind"`
-	Namespace string          `json:"namespace"`
-	Name      string          `json:"name"`
-	Operation string          `json:"operation"`
-	DryRun    bool            `json:"dryRun"`
-	Object    json.RawMessage `json:"object"`
-	UserInfo  struct {
+	// SubResource is set for requests to a subresource, e.g.
+	// "ephemeralcontainers" for kubectl debug.
+	SubResource string          `json:"subResource,omitempty"`
+	Namespace   string          `json:"namespace"`
+	Name        string          `json:"name"`
+	Operation   string          `json:"operation"`
+	DryRun      bool            `json:"dryRun"`
+	Object      json.RawMessage `json:"object"`
+	UserInfo    struct {
 		Username string `json:"username"`
 	} `json:"userInfo"`
 }
@@ -138,6 +141,12 @@ func (h *Handler) Decide(req *Request) *Response {
 		return resp
 	}
 	findings, evalErr := h.evaluate(req)
+	if req.SubResource == "ephemeralcontainers" {
+		// kubectl debug adds containers to a running Pod through this
+		// subresource and can change nothing else: judge the ephemeral
+		// containers, not the rest of the Pod (already admitted).
+		findings = ephemeralOnly(req, findings)
+	}
 
 	var blocking, advisory []finding.Finding
 	for _, f := range findings {
@@ -211,6 +220,29 @@ func (h *Handler) evaluate(req *Request) ([]finding.Finding, error) {
 	}
 	active, _, _ := policy.Apply(h.Config, res.Findings, now)
 	return active, nil
+}
+
+// ephemeralOnly keeps the findings on the Pod's ephemeral containers.
+func ephemeralOnly(req *Request, fs []finding.Finding) []finding.Finding {
+	var pod struct {
+		Spec struct {
+			EphemeralContainers []struct {
+				Name string `json:"name"`
+			} `json:"ephemeralContainers"`
+		} `json:"spec"`
+	}
+	_ = json.Unmarshal(req.Object, &pod)
+	names := map[string]bool{}
+	for _, c := range pod.Spec.EphemeralContainers {
+		names[c.Name] = true
+	}
+	var out []finding.Finding
+	for _, f := range fs {
+		if f.Resource.Container != "" && names[f.Resource.Container] {
+			out = append(out, f)
+		}
+	}
+	return out
 }
 
 func denyMessage(fs []finding.Finding) string {
