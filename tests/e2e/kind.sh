@@ -153,6 +153,22 @@ echo "$report" | jq -e '.objectsEvaluated >= 2 and (.inputs | map(select(test("k
 echo "$report" | jq -r '.findings[] | "  \(.ruleId) \(.resource.kind) \(.resource.name): \(.message)"' | head -20
 pass "node scan read the real kubelet configuration and control-plane manifests"
 
+step "kubectl debug containers on a Deployment's pod are assessed"
+# Pods owned by a Deployment are assessed through its template, but an
+# ephemeral container added with kubectl debug is in the pod alone.
+kubectl create namespace e2e-debug --dry-run=client -o yaml | kubectl apply -f -
+kubectl -n e2e-debug create deployment app --replicas=1 \
+  --image=registry.k8s.io/pause:3.10@sha256:ee6521f290b2168b6e0935a181d4cff9be1ac3f505666ef0e3c98fae8199917a
+kubectl -n e2e-debug rollout status deployment/app --timeout 120s
+dbg_pod="$(kubectl -n e2e-debug get pods -l app=app -o jsonpath='{.items[0].metadata.name}')"
+[ -n "$dbg_pod" ] || fail "no pod to debug"
+kubectl -n e2e-debug debug "pod/$dbg_pod" --profile=sysadmin --container=hx-debug \
+  --image=registry.k8s.io/pause:3.10@sha256:ee6521f290b2168b6e0935a181d4cff9be1ac3f505666ef0e3c98fae8199917a
+./bin/hardex scan --cluster --kubeconfig "$WORK/reader.kubeconfig" --profile minimal --format json --fail-on none > "$WORK/debug-scan.json"
+jq -e --arg p "$dbg_pod" '[.findings[] | select(.ruleId == "HX-WL-001" and .resource.kind == "Pod" and .resource.name == $p and .resource.container == "hx-debug")] | length == 1' "$WORK/debug-scan.json" >/dev/null \
+  || fail "privileged debug container on $dbg_pod not reported: $(jq -c --arg p "$dbg_pod" '[.findings[] | select(.resource.name == $p)]' "$WORK/debug-scan.json" | head -c 500)"
+pass "a privileged kubectl debug container on a Deployment's pod is reported"
+
 step "admission webhook"
 kubectl apply -f "https://github.com/cert-manager/cert-manager/releases/download/${CERT_MANAGER}/cert-manager.yaml"
 kubectl -n cert-manager rollout status deployment/cert-manager-webhook --timeout 180s

@@ -27,7 +27,7 @@ The scale test fails if ~16,000 objects take longer than 15 seconds, so regressi
 
 - RBAC bindings are indexed by subject, and each service account's effective permissions are computed once.
 - Attack paths are found with one backwards breadth-first search per goal (cluster administrator, node root) over the whole graph, instead of one search per workload. Before this change the same 15,800-object cluster took 35 seconds.
-- Live-cluster collection pages through LIST results (500 per page) and skips controller-owned objects, so a Deployment's ReplicaSets and Pods are not assessed three times.
+- Live-cluster collection pages through LIST results (500 per page) and skips controller-owned objects, so a Deployment's ReplicaSets and Pods are not assessed three times. The exception is a Pod with ephemeral containers (`kubectl debug`): they are not in the template, so the Pod is kept, reduced to those containers and the pod-level settings that govern them.
 
 ## Real clusters
 
