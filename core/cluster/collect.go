@@ -112,9 +112,6 @@ type Collection struct {
 	Errors []string
 	// Warnings describe enrichment resources that could not be read.
 	Warnings []string
-	// Skipped counts controller-owned objects omitted to avoid reporting
-	// the same weakness on a Deployment, its ReplicaSet and every Pod.
-	Skipped int
 }
 
 // pageSize bounds each LIST response.
@@ -145,17 +142,6 @@ func Collect(ctx context.Context, c *Client) (*Collection, error) {
 		for _, item := range items {
 			item["apiVersion"] = r.APIVersion()
 			item["kind"] = r.Kind
-			if ownedByCollectedController(item) {
-				// The owner's template is assessed instead, except for
-				// containers added to this pod alone: ephemeral containers
-				// (kubectl debug) are never in the template.
-				eph, ok := withEphemeralOnly(item)
-				if !ok {
-					col.Skipped++
-					continue
-				}
-				item = eph
-			}
 			obj, err := resource.NewObject(item, source, 0)
 			if err != nil {
 				continue
@@ -207,52 +193,6 @@ func listAll(ctx context.Context, c *Client, r Resource) ([]map[string]any, erro
 		}
 		q.Set("continue", cont)
 	}
-}
-
-// Controllers whose pod templates are assessed directly. Objects they own
-// (a Deployment's ReplicaSets, a ReplicaSet's Pods, a CronJob's Jobs) carry
-// the same template and would duplicate every finding.
-var templateOwners = map[string]bool{
-	"Deployment": true, "ReplicaSet": true, "StatefulSet": true, "DaemonSet": true,
-	"Job": true, "CronJob": true, "ReplicationController": true,
-}
-
-// withEphemeralOnly returns a pod reduced to its ephemeral containers and
-// the pod-level settings that decide their effective security (security
-// context, OS, user namespace, service-account token), or false if it has
-// none. Host namespaces, volumes and the regular containers are left out:
-// they are the owner's template, already assessed there.
-func withEphemeralOnly(pod map[string]any) (map[string]any, bool) {
-	eph := resource.Maps(pod, "spec", "ephemeralContainers")
-	if len(eph) == 0 {
-		return nil, false
-	}
-	spec := map[string]any{"containers": []any{}}
-	list := make([]any, len(eph))
-	for i, c := range eph {
-		list[i] = c
-	}
-	spec["ephemeralContainers"] = list
-	for _, k := range []string{"securityContext", "os", "hostUsers", "serviceAccountName", "automountServiceAccountToken"} {
-		if v, ok := resource.Lookup(pod, "spec", k); ok {
-			spec[k] = v
-		}
-	}
-	out := map[string]any{}
-	for k, v := range pod {
-		out[k] = v
-	}
-	out["spec"] = spec
-	return out, true
-}
-
-func ownedByCollectedController(item map[string]any) bool {
-	for _, ref := range resource.Maps(item, "metadata", "ownerReferences") {
-		if isController, _ := resource.Bool(ref, "controller"); isController && templateOwners[resource.String(ref, "kind")] {
-			return true
-		}
-	}
-	return false
 }
 
 // minimal keeps only the fields the analysis uses: node addresses, images

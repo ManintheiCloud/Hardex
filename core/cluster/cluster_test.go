@@ -101,17 +101,11 @@ func TestCollectPaginatesAndDeduplicates(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	// Every page is read and every object kept: duplicates with owners are
+	// removed after evaluation, against verified owners (core/owners).
 	pods := col.Inventory.OfKind("Pod")
-	if len(pods) != 2 || pods[0].Name != "standalone" || pods[1].Name != "web-abc-456" {
-		t.Fatalf("pods = %v; want the standalone pod and the owned pod with a debug container", pods)
-	}
-	// The owned pod is kept for its ephemeral container only.
-	spec := resource.Map(pods[1].Raw, "spec")
-	if len(resource.Maps(spec, "containers")) != 0 || len(resource.Maps(spec, "ephemeralContainers")) != 1 || spec["hostNetwork"] != nil {
-		t.Errorf("owned pod spec = %v; want only its ephemeral container", spec)
-	}
-	if col.Skipped != 1 {
-		t.Errorf("skipped = %d, want 1 (ReplicaSet-owned pod)", col.Skipped)
+	if len(pods) != 3 || pods[0].Name != "standalone" {
+		t.Fatalf("pods = %v; want all three", pods)
 	}
 	if pods[0].Kind != "Pod" || pods[0].APIVersion != "v1" {
 		t.Error("kind/apiVersion not set on list items")
