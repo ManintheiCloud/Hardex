@@ -2,7 +2,7 @@
 
 All notable changes are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow [Semantic Versioning](https://semver.org/). Before 1.0, minor versions may contain breaking changes.
 
-## Unreleased
+## 0.10.3 — 2026-10-21
 
 ### Fixed
 - Report files (`scan -o`, `report -o`, `fleet --out`) are written completely or not at all: to a temporary file that replaces the target only after every write succeeded. Before, an interrupted run or a full disk could leave a truncated report where a baseline or diff input was expected, and `fleet --out` ignored write errors entirely. Report files are now readable only by their owner (0600), like history and backups.
@@ -12,7 +12,7 @@ All notable changes are documented here. The format follows [Keep a Changelog](h
 - A release run approved after a newer release was published now refuses to publish; it would have made the older version the "latest" release and moved the image's `:latest` tag back.
 - The Action test on `main` waited at most 20 minutes for the release `action.yml` defaults to; now that releases wait for a reviewer, that failed whenever approval took longer. Pushes and pull requests test with the latest published release until the new one exists, and the Action is tested against the new release itself once the release workflow has published it.
 
-## 0.10.2 — 2026-10-20
+## 0.10.2 — not published (superseded by 0.10.3, which contains it)
 
 ### Fixed
 - The remediation backup (a write-ahead journal since 0.10.0) and history reports were replaced atomically, but the directory was not synced after the rename, so an operating-system crash or power loss soon after could bring back the previous version of the file, losing the record of a change about to be made. The directory is now synced after every replacement (Linux and macOS; Windows journals metadata itself).

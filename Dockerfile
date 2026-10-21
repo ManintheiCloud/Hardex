@@ -8,7 +8,7 @@ RUN go mod download && go mod verify
 COPY . .
 ARG TARGETOS
 ARG TARGETARCH
-ARG VERSION=0.10.2-dev
+ARG VERSION=0.10.3-dev
 RUN CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH \
     go build -trimpath -ldflags "-s -w -X github.com/ManintheiCloud/Hardex.Version=${VERSION}" -o /hardex ./cmd/hardex
 
