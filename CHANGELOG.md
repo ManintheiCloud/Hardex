@@ -2,7 +2,7 @@
 
 All notable changes are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow [Semantic Versioning](https://semver.org/). Before 1.0, minor versions may contain breaking changes.
 
-## Unreleased
+## 0.10.4 — 2026-10-21
 
 ### Fixed
 - `scan --cluster` and `monitor --cluster` missed `kubectl debug` containers on Pods owned by a Deployment, StatefulSet, DaemonSet, Job or similar. Such Pods were skipped because their owner's template is assessed, but ephemeral containers are added to the Pod alone, so a privileged debug container (`--profile=sysadmin`) went unreported. Owned Pods with ephemeral containers are now assessed, reduced to those containers and the pod-level settings that govern them. Checked on a real cluster in the end-to-end test.
