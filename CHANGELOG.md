@@ -2,7 +2,7 @@
 
 All notable changes are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow [Semantic Versioning](https://semver.org/). Before 1.0, minor versions may contain breaking changes.
 
-## Unreleased
+## 0.10.6 — 2026-10-21
 
 ### CI
 - The release workflow can be started by hand from `main` (Actions → release → Run workflow), for when GitHub drops the push event that should have started it. It still waits for approval and never rebuilds an existing release.
@@ -11,7 +11,7 @@ All notable changes are documented here. The format follows [Keep a Changelog](h
 - The admission webhook did not see `kubectl debug`: it adds containers through the `pods/ephemeralcontainers` subresource, which a rule for `pods` does not cover, so in enforce mode a privileged debug container (`--profile=sysadmin`) was admitted into any guarded namespace. `deploy/hardex-admission.yaml` now registers the subresource, and the webhook judges only the ephemeral containers on it. **If you deployed the webhook from an earlier manifest, re-apply it** (or add `pods/ephemeralcontainers`, operation UPDATE, to your own configuration).
 - RBAC rules skipped any Role, ClusterRole or binding named `system:…` or `kubeadm:…`, or labelled `kubernetes.io/bootstrapping: rbac-defaults`, to leave Kubernetes' own defaults out. Names and labels are chosen by whoever creates the object, so a ClusterRoleBinding named `system:backdoor` granting `cluster-admin` to a service account was never reported, nor was a subject or permission added to a real default. Defaults are now recognised by content: an object is skipped only if it is one of the defaults Kubernetes (1.34–1.37) or kubeadm creates and grants no more than its default definition. The aggregated `admin`, `edit` and `view` roles are trusted while aggregated; each role they aggregate is assessed on its own.
 
-## 0.10.5 — 2026-10-21
+## 0.10.5 — not published (superseded by 0.10.6, which contains it)
 
 ### Fixed
 - Live-cluster scans skipped any Pod or ReplicaSet whose `ownerReferences` named a controller, without checking the owner existed or matched. Anyone able to create a Pod could hide it (a privileged one included) by adding a made-up owner reference, and a ReplicaSet whose template was edited after its Deployment created it, with its Pods, was never assessed. Every object is now assessed; a finding on an owned object is omitted only when its owner is verified (same kind, name and UID) and reports the same problem, or when the object runs nothing (a ReplicaSet scaled to zero, a finished Job or Pod). This replaces the 0.10.4 special case for `kubectl debug` containers, which are still reported. Applies to manifests exported from a cluster as well.
