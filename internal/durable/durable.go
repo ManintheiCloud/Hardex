@@ -9,7 +9,9 @@
 package durable
 
 import (
+	"io"
 	"os"
+	"path/filepath"
 	"runtime"
 )
 
@@ -37,4 +39,38 @@ func Rename(oldpath, newpath, dir string) error {
 		return err
 	}
 	return SyncDir(dir)
+}
+
+// WriteFile writes a file through write and replaces path only if every
+// step succeeded: a temporary file in the same directory is written,
+// synced, closed and renamed over path, then the directory is synced. On
+// any error path is untouched and the temporary file is removed, so an
+// interrupted or failed write never leaves a truncated file where a
+// complete one is expected.
+func WriteFile(path string, perm os.FileMode, write func(io.Writer) error) (err error) {
+	dir := filepath.Dir(path)
+	f, err := os.CreateTemp(dir, "."+filepath.Base(path)+".*.tmp")
+	if err != nil {
+		return err
+	}
+	tmp := f.Name()
+	defer func() {
+		if err != nil {
+			f.Close()
+			os.Remove(tmp)
+		}
+	}()
+	if err = f.Chmod(perm); err != nil && runtime.GOOS != "windows" {
+		return err
+	}
+	if err = write(f); err != nil {
+		return err
+	}
+	if err = f.Sync(); err != nil {
+		return err
+	}
+	if err = f.Close(); err != nil {
+		return err
+	}
+	return Rename(tmp, path, dir)
 }

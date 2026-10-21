@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -253,5 +254,31 @@ func TestScanCloudIAM(t *testing.T) {
 	}
 	if code, _, _ := cli(t, "", "scan", "--cloud-iam", fixtures+"insecure/rbac.yaml", fixtures+"insecure/cloud-identity.yaml"); code != exitUsage {
 		t.Errorf("unrecognised export: code %d", code)
+	}
+}
+
+// Reports written with -o are complete or absent, and private to their owner.
+func TestScanOutputIsAtomicAndPrivate(t *testing.T) {
+	dir := t.TempDir()
+	out := filepath.Join(dir, "report.json")
+	os.WriteFile(out, []byte("previous"), 0o644)
+	if code, _, errOut := cli(t, "", "scan", "--format", "json", "--fail-on", "none", "-o", out, "../../tests/fixtures/hardened"); code != exitOK {
+		t.Fatalf("exit %d: %s", code, errOut)
+	}
+	data, _ := os.ReadFile(out)
+	var r map[string]any
+	if err := json.Unmarshal(data, &r); err != nil || r["schema"] == nil {
+		t.Fatalf("not a complete report: %v", err)
+	}
+	if info, _ := os.Stat(out); runtime.GOOS != "windows" && info.Mode().Perm() != 0o600 {
+		t.Errorf("mode = %v, want 0600", info.Mode().Perm())
+	}
+	if left, _ := filepath.Glob(filepath.Join(dir, ".*.tmp")); len(left) != 0 {
+		t.Errorf("temporary files left: %v", left)
+	}
+	// An unknown format fails before anything is written: the old file stays.
+	cli(t, "", "scan", "--format", "nope", "-o", out, "../../tests/fixtures/hardened")
+	if b, _ := os.ReadFile(out); !json.Valid(b) {
+		t.Error("a failed run replaced the report")
 	}
 }

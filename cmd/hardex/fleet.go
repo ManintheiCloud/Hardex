@@ -107,12 +107,10 @@ func cmdFleet(args []string, stdout, stderr io.Writer) int {
 			return fail(err)
 		}
 		if *outDir != "" {
-			f, err := os.OpenFile(filepath.Join(*outDir, safeName(name)+".json"), os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o600)
-			if err != nil {
+			path := filepath.Join(*outDir, safeName(name)+".json")
+			if err := writeOutput(path, nil, func(w io.Writer) error { return reporting.JSON(w, r) }); err != nil {
 				return fail(err)
 			}
-			reporting.JSON(f, r)
-			f.Close()
 		}
 		if !r.Complete() {
 			exit = exitIncomplete

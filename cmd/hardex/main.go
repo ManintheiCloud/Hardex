@@ -24,6 +24,7 @@ import (
 	"github.com/ManintheiCloud/Hardex/core/modules"
 	"github.com/ManintheiCloud/Hardex/core/verification"
 	"github.com/ManintheiCloud/Hardex/integrations/reporting"
+	"github.com/ManintheiCloud/Hardex/internal/durable"
 	"github.com/ManintheiCloud/Hardex/kubernetes"
 )
 
@@ -241,17 +242,7 @@ func cmdScan(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 		printStats(stderr, opts.Stats)
 	}
 
-	out := stdout
-	if *output != "" {
-		f, err := os.Create(*output)
-		if err != nil {
-			fmt.Fprintln(stderr, "scan:", err)
-			return exitUsage
-		}
-		defer f.Close()
-		out = f
-	}
-	if err := reporting.Write(out, *format, report, rules); err != nil {
+	if err := writeOutput(*output, stdout, func(w io.Writer) error { return reporting.Write(w, *format, report, rules) }); err != nil {
 		fmt.Fprintln(stderr, "scan:", err)
 		return exitUsage
 	}
@@ -459,4 +450,15 @@ func withoutFlag(args []string, name string) []string {
 		}
 	}
 	return out
+}
+
+// writeOutput renders to stdout, or, with a path, to that file: written
+// completely or not at all, readable only by its owner (reports describe
+// weaknesses), so an interrupted run or a full disk never leaves a
+// truncated report where a baseline or diff input is expected.
+func writeOutput(path string, stdout io.Writer, render func(io.Writer) error) error {
+	if path == "" {
+		return render(stdout)
+	}
+	return durable.WriteFile(path, 0o600, render)
 }
