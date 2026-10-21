@@ -30,18 +30,6 @@ var (
 	sevCrit    = assessment.SeverityOverride(finding.Critical)
 )
 
-// isSystem reports whether an RBAC object is a Kubernetes-managed default:
-// the API server's system: roles and bindings, and those kubeadm creates
-// (kubeadm: prefix, e.g. anonymous read of kube-public/cluster-info for node
-// bootstrap, which kubeadm requires).
-func isSystem(o *resource.Object) bool {
-	if strings.HasPrefix(o.Name, "system:") || strings.HasPrefix(o.Name, "kubeadm:") {
-		return true
-	}
-	labels := resource.Map(o.Raw, "metadata", "labels")
-	return labels["kubernetes.io/bootstrapping"] == "rbac-defaults"
-}
-
 func roleObjects(ctx *assessment.Context) []*resource.Object {
 	var out []*resource.Object
 	for _, o := range ctx.Inventory.OfKind("Role", "ClusterRole") {
