@@ -2,6 +2,11 @@
 
 All notable changes are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow [Semantic Versioning](https://semver.org/). Before 1.0, minor versions may contain breaking changes.
 
+## Unreleased
+
+### Fixed
+- HX-WL-003 graded writable hostPath mounts of several node-takeover paths as high instead of critical: only exact matches of `/usr`, `/bin`, `/lib` and similar counted, so `/usr/local/bin` or `/lib/modules` did not, and CNI plugin binaries (`/opt/cni/bin`, run as root by the container runtime), FlexVolume drivers (`/usr/libexec/kubernetes`), container runtime state and node logs (`/var/log`: a symlink makes the kubelet's log endpoint serve any host file) were not considered at all. A writable mount of any of these, or of anything inside them, is now critical; read-only mounts stay high.
+
 ## 0.10.6 — 2026-10-21
 
 ### CI

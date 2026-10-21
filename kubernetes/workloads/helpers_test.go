@@ -20,12 +20,16 @@ func TestImageRef(t *testing.T) {
 }
 
 func TestCriticalHostPaths(t *testing.T) {
-	for _, p := range []string{"/", "/etc", "/etc/kubernetes/pki", "/var/run/docker.sock", "/run/containerd/containerd.sock", "/var/lib/kubelet/pods", "/proc/"} {
+	for _, p := range []string{"/", "/etc", "/etc/kubernetes/pki", "/var/run/docker.sock", "/run/containerd/containerd.sock", "/var/lib/kubelet/pods", "/proc/",
+		// Run or served as root by the node: CNI plugins, FlexVolume
+		// drivers, system binaries, node logs (symlink attack via the
+		// kubelet's log endpoint).
+		"/opt/cni/bin", "/opt", "/usr/libexec/kubernetes/kubelet-plugins/volume/exec", "/usr/local/bin", "/lib/modules", "/var/log", "/var/log/pods"} {
 		if !isCriticalHostPath(p) {
 			t.Errorf("%s should be critical", p)
 		}
 	}
-	for _, p := range []string{"/var/log", "/data/cache", "/opt/agent"} {
+	for _, p := range []string{"/data/cache", "/opt/agent", "/srv", "/var/lib/cni", "/home/app", "/usrdata", "/var/logs-archive"} {
 		if isCriticalHostPath(p) {
 			t.Errorf("%s should not be critical", p)
 		}
