@@ -89,9 +89,23 @@ jobs:
     runs-on: ubuntu-24.04
     environment: release
     steps:
-      - env:
-          TAG: ${{ needs.meta.outputs.tag }}
-        run: echo "Release $TAG approved"
+      # Checked after approval, against what is published at that moment: a
+      # run approved late must not publish an older version over a newer one
+      # (the "latest" release and the image's :latest tag would move back).
+      - name: Not older than the latest release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ needs.meta.outputs.version }}
+        run: |
+          set -euo pipefail
+          latest="$(gh release view --repo "$GITHUB_REPOSITORY" --json tagName --jq .tagName 2>/dev/null || true)"
+          latest="${latest#v}"
+          if [ -n "$latest" ] && [ "$latest" != "$VERSION" ] && \
+             [ "$(printf '%s\n%s\n' "$latest" "$VERSION" | sort -V | tail -1)" = "$latest" ]; then
+            echo "::error::v$latest is already published; refusing to publish the older v$VERSION"
+            exit 1
+          fi
+          echo "Release v$VERSION approved (latest published: v${latest:-none})"
 
   binaries:
     needs: [meta, test, approve]
