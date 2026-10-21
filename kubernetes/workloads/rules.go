@@ -8,6 +8,6 @@ func Rules() []assessment.Rule {
 		privileged, hostNamespaces, hostPathVolumes, privilegeEscalation, runAsNonRoot,
 		dangerousCapabilities, minimalCapabilities, seccomp, readOnlyRootFS, resourceLimits,
 		mutableImageTag, imageDigest, serviceAccountToken, hostPorts, appArmor, seLinux,
-		procMount, unsafeSysctls, volumeTypes, hostProcess, probeHost,
+		procMount, unsafeSysctls, volumeTypes, hostProcess, probeHost, systemHostAccess,
 	}
 }

@@ -17,6 +17,7 @@ import (
 	"github.com/ManintheiCloud/Hardex/core/resource"
 	"github.com/ManintheiCloud/Hardex/integrations/monitoring"
 	"github.com/ManintheiCloud/Hardex/integrations/notify"
+	"github.com/ManintheiCloud/Hardex/kubernetes"
 )
 
 // webhookSecretEnv names the environment variable holding the webhook
@@ -79,7 +80,14 @@ func cmdMonitor(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 	if err != nil {
 		return fail(err)
 	}
-	m := &monitoring.Monitor{Store: store, MinSeverity: minSev, Keep: *keep}
+	m := &monitoring.Monitor{Store: store, MinSeverity: minSev, Keep: *keep, NotifyAlways: map[string]bool{}}
+	if reg, err := kubernetes.Registry(); err == nil {
+		for _, r := range reg.All() {
+			if r.Metadata().NotifyAlways {
+				m.NotifyAlways[r.Metadata().ID] = true
+			}
+		}
+	}
 	if *baselinePath != "" {
 		if m.Baseline, err = readReport(*baselinePath); err != nil {
 			return fail(err)

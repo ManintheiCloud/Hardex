@@ -181,3 +181,22 @@ func TestUndeliveredEventsAreBounded(t *testing.T) {
 		t.Fatalf("batch of %d, first %q", len(last), last[0].Type)
 	}
 }
+
+// Rules marked NotifyAlways (the kube-system inventory) produce events for
+// new findings below the notification threshold.
+func TestNotifyAlwaysBypassesMinSeverity(t *testing.T) {
+	store, _ := history.Open(t.TempDir())
+	sink := &capture{}
+	m := &Monitor{Store: store, Sinks: []notify.Sink{sink}, MinSeverity: finding.Medium}
+	t0 := time.Date(2026, 10, 1, 0, 0, 0, 0, time.UTC)
+	m.Process(context.Background(), rep(t0, nil))
+	m.Process(context.Background(), rep(t0.Add(time.Hour), map[string]finding.Severity{"new-ds": finding.Info}))
+	if n := types(sink.batches[len(sink.batches)-1])[notify.FindingIntroduced]; n != 0 {
+		t.Fatalf("info finding produced %d events without NotifyAlways", n)
+	}
+	m.NotifyAlways = map[string]bool{"HX-WL-001": true}
+	m.Process(context.Background(), rep(t0.Add(2*time.Hour), map[string]finding.Severity{"new-ds": finding.Info, "another": finding.Info}))
+	if n := types(sink.batches[len(sink.batches)-1])[notify.FindingIntroduced]; n != 1 {
+		t.Errorf("NotifyAlways rule: %d introduced events, want 1", n)
+	}
+}

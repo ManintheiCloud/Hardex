@@ -33,6 +33,9 @@ type Monitor struct {
 	Sinks    []notify.Sink
 	// MinSeverity filters per-finding events (summary events are always sent).
 	MinSeverity finding.Severity
+	// NotifyAlways lists rules whose introduced findings produce events
+	// whatever MinSeverity is.
+	NotifyAlways map[string]bool
 	// Keep bounds the history (0 = unlimited).
 	Keep int
 }
@@ -156,7 +159,7 @@ func (m *Monitor) events(r *finding.Report, res *Result, first bool) []notify.Ev
 	if c := res.SincePrevious; c != nil {
 		for i := range c.Introduced {
 			f := c.Introduced[i]
-			if f.Severity < m.MinSeverity {
+			if f.Severity < m.MinSeverity && !m.NotifyAlways[f.RuleID] {
 				continue
 			}
 			e := base

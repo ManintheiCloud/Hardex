@@ -16,6 +16,7 @@ rules:
   - HX-WL-016
   - HX-WL-017
   - HX-WL-020
+  - HX-WL-022 # host-access workloads in kube-system (info)
   - HX-RBAC-002
   - HX-RBAC-004
   - HX-RBAC-007

@@ -4,6 +4,10 @@ All notable changes are documented here. The format follows [Keep a Changelog](h
 
 ## Unreleased
 
+### Added
+- HX-WL-022 (info): lists workloads in `kube-system` that are privileged, share host namespaces, mount host paths or add capabilities. The workload rules skip `kube-system` by default (its platform components need host access), which also hid anything else placed there, a well-known way to keep access to a cluster. The list makes such additions visible, and `hardex monitor` sends an event for every new entry whatever `--notify-min` is (rules can now be marked `NotifyAlways`). Not reported with `--include-system`, where the full rules apply. In every profile; info findings do not fail scans or lower the score.
+- Accuracy corpus: Calico's and node-problem-detector's DaemonSets appear in this list.
+
 ### Fixed
 - HX-WL-003 graded writable hostPath mounts of several node-takeover paths as high instead of critical: only exact matches of `/usr`, `/bin`, `/lib` and similar counted, so `/usr/local/bin` or `/lib/modules` did not, and CNI plugin binaries (`/opt/cni/bin`, run as root by the container runtime), FlexVolume drivers (`/usr/libexec/kubernetes`), container runtime state and node logs (`/var/log`: a symlink makes the kubelet's log endpoint serve any host file) were not considered at all. A writable mount of any of these, or of anything inside them, is now critical; read-only mounts stay high.
 

@@ -78,6 +78,10 @@ pass "live scan complete; $(jq '.objectsEvaluated' "$WORK/live.json") objects, $
 # kubeadm cluster. A failure here names a default missing from the data.
 sysfind="$(jq -r '[.findings[] | select(.resource.kind | test("Role")) | select(.resource.name | test("^(system|kubeadm):")) | "\(.ruleId) \(.resource.kind)/\(.resource.name)"] | unique | join("; ")' "$WORK/live.json")"
 [ -z "$sysfind" ] || fail "default RBAC objects reported (missing from defaults.json, or modified in kind): $sysfind"
+# kube-system is skipped by the workload rules but listed when it has host
+# access (HX-WL-022, info), so additions there stay visible.
+jq -e '[.findings[] | select(.ruleId == "HX-WL-022" and .resource.namespace == "kube-system" and .resource.name == "kube-proxy")] | length == 1' "$WORK/live.json" >/dev/null \
+  || fail "kube-proxy missing from the kube-system host-access inventory (HX-WL-022)"
 # Findings on everything except the deliberately insecure fixtures, for
 # false-positive review: stock components and Hardex's own deployments.
 jq -r '.findings[] | select((.resource.namespace // "") as $n | $n != "shop" and $n != "ci")
