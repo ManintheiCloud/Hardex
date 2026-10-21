@@ -259,6 +259,17 @@ spec:
 POD
 kubectl apply --dry-run=server -f "$WORK/good-pod.yaml" || fail "enforce mode rejected a hardened pod"
 pass "enforce mode rejects a privileged pod and admits a hardened one"
+# kubectl debug writes to pods/ephemeralcontainers, which "pods" does not
+# cover: a privileged debug container must be denied there too.
+kubectl apply -f "$WORK/good-pod.yaml"
+dbg_out="$(kubectl -n e2e-admission debug pod/good --profile=sysadmin --container=hx-debug \
+  --image=registry.k8s.io/pause:3.10@sha256:ee6521f290b2168b6e0935a181d4cff9be1ac3f505666ef0e3c98fae8199917a 2>&1 || true)"
+echo "$dbg_out"
+echo "$dbg_out" | grep -qi 'denied' || fail "enforce mode admitted a privileged kubectl debug container"
+[ -z "$(kubectl -n e2e-admission get pod good -o jsonpath='{.spec.ephemeralContainers[*].name}')" ] \
+  || fail "the privileged debug container was added despite the denial"
+kubectl -n e2e-admission delete pod good --wait=false
+pass "enforce mode denies a privileged kubectl debug container"
 
 # Enforce mode also applies to platform components outside the excluded
 # namespaces: kind's local-path provisioner runs root hostPath helper pods in

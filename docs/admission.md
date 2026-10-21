@@ -23,7 +23,7 @@ The webhook sees one object at a time, so rules whose verdict depends on other o
 - two replicas spread across nodes, a PodDisruptionBudget, no service account token, Pod Security `restricted`-compatible settings;
 - serving certificate from cert-manager, **reloaded automatically** when rotated (a broken rotation keeps serving the last good certificate);
 - `failurePolicy: Fail` (see HX-CP-009), `timeoutSeconds: 5`, and a namespace selector excluding `kube-system`, `hardex` and `cert-manager` so the webhook and its certificate can always be recovered;
-- guards Pods, workload controllers, Services, ServiceAccounts, RBAC objects and Ingresses on CREATE and UPDATE.
+- guards Pods, workload controllers, Services, ServiceAccounts, RBAC objects and Ingresses on CREATE and UPDATE, and the `pods/ephemeralcontainers` subresource that `kubectl debug` uses (only the debug containers are judged there; the rest of the Pod was admitted already). A webhook configuration that lists only `pods` does not see `kubectl debug`; if you maintain your own, add the subresource.
 
 Roll out in `warn` mode, review the warnings developers see and the decision log, add waivers where risk is accepted, then switch to `--mode=enforce`.
 

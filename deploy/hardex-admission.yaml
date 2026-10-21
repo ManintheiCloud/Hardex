@@ -147,6 +147,12 @@ webhooks:
         apiVersions: [v1]
         operations: [CREATE, UPDATE]
         resources: [pods, services, serviceaccounts]
+      # kubectl debug adds containers through this subresource; "pods"
+      # alone does not cover it.
+      - apiGroups: [""]
+        apiVersions: [v1]
+        operations: [UPDATE]
+        resources: [pods/ephemeralcontainers]
       - apiGroups: [apps]
         apiVersions: [v1]
         operations: [CREATE, UPDATE]
