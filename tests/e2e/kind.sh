@@ -139,7 +139,9 @@ kubectl -n hardex-node rollout status daemonset/hardex-node --timeout 120s
 # may still be being written when the pod is Ready.
 for i in $(seq 1 24); do
   node_logs="$(kubectl -n hardex-node logs daemonset/hardex-node --all-containers 2>/dev/null || true)"
-  report="$(echo "$node_logs" | awk '/^\{/{p=1} p{print} p&&/^\}/{exit}')"
+  # kubectl logs merges stdout (the pretty-printed JSON report) and stderr
+  # (progress lines) without ordering; keep only JSON-shaped lines.
+  report="$(echo "$node_logs" | grep -E '^([{}]|[[:space:]])' | awk '/^\{/{p=1} p{print} p&&/^\}/{exit}')"
   echo "$report" | jq -e . >/dev/null 2>&1 && break
   sleep 5
 done
@@ -147,7 +149,7 @@ echo "$node_logs" | grep '^node:' || true
 echo "$node_logs" | grep -q 'kubelet configuration: /var/lib/kubelet/config.yaml' || fail "node scan did not read the kubelet configuration"
 echo "$node_logs" | grep -q 'static pod manifests: /etc/kubernetes/manifests' || fail "node scan did not read static pod manifests"
 echo "$report" | jq -e '.objectsEvaluated >= 2 and (.inputs | map(select(test("kube-apiserver"))) | length == 1)' >/dev/null \
-  || fail "node scan report is missing the kubelet configuration or the API server manifest: $(echo "$report" | jq -c '{objectsEvaluated, inputs}')"
+  || fail "node scan report is missing the kubelet configuration or the API server manifest: $(echo "$report" | jq -c '{objectsEvaluated, inputs}' 2>&1 | head -c 300); logs begin: $(echo "$node_logs" | head -8 | tr '\n' '|' | head -c 600)"
 echo "$report" | jq -r '.findings[] | "  \(.ruleId) \(.resource.kind) \(.resource.name): \(.message)"' | head -20
 pass "node scan read the real kubelet configuration and control-plane manifests"
 
