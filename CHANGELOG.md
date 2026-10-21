@@ -5,6 +5,7 @@ All notable changes are documented here. The format follows [Keep a Changelog](h
 ## Unreleased
 
 ### Fixed
+- Report files (`scan -o`, `report -o`, `fleet --out`) are written completely or not at all: to a temporary file that replaces the target only after every write succeeded. Before, an interrupted run or a full disk could leave a truncated report where a baseline or diff input was expected, and `fleet --out` ignored write errors entirely. Report files are now readable only by their owner (0600), like history and backups.
 - `hardex monitor`: an alert that could not be delivered (webhook down) was lost. Each assessment is recorded before its events are sent, so the next run compared with it and never repeated the missed "new finding" event. Undelivered events are now kept in the history directory and sent with the next assessment's, marked `"late": true` (Slack: "delayed"); at most 1000 per sink, with an `events.dropped` event if older ones had to go.
 
 ### CI

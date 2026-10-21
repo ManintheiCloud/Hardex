@@ -45,27 +45,21 @@ func cmdReport(args []string, stdout, stderr io.Writer) int {
 	if err != nil {
 		return fail(err)
 	}
-	out := stdout
-	if *output != "" {
-		f, err := os.Create(*output)
-		if err != nil {
-			return fail(err)
-		}
-		defer f.Close()
-		out = f
-	}
 	// The digest is of the file as given, so `sha256sum report.json`
 	// matches the value printed in the evidence report.
 	sum := sha256.Sum256(data)
+	var render func(io.Writer) error
 	switch *format {
 	case "score":
-		err = reporting.JSONValue(out, score.Compute(r, metas))
+		render = func(w io.Writer) error { return reporting.JSONValue(w, score.Compute(r, metas)) }
 	case "html", "markdown":
-		err = reporting.Evidence(out, *format, r, metas, hex.EncodeToString(sum[:]))
+		render = func(w io.Writer) error {
+			return reporting.Evidence(w, *format, r, metas, hex.EncodeToString(sum[:]))
+		}
 	default:
 		return fail(fmt.Errorf("unknown format %q", *format))
 	}
-	if err != nil {
+	if err := writeOutput(*output, stdout, render); err != nil {
 		return fail(err)
 	}
 	return exitOK
