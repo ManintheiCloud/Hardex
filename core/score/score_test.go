@@ -58,3 +58,19 @@ func TestCriticalCapsGradeAndIncompleteIsInvalid(t *testing.T) {
 		t.Errorf("incomplete report graded %s", res.Grade)
 	}
 }
+
+func TestInventoryRulesNotScored(t *testing.T) {
+	r := &finding.Report{Schema: finding.SchemaVersion, RulesEvaluated: []string{"HX-A", "HX-INV"},
+		Findings: []finding.Finding{{RuleID: "HX-INV", Severity: finding.Info}}}
+	r.Summarize()
+	metas := []assessment.Metadata{{ID: "HX-A", Severity: finding.High, Category: "c"}, {ID: "HX-INV", Severity: finding.Info, Category: "c", Inventory: true}}
+	res := Compute(r, metas)
+	if res.Score != 100 {
+		t.Errorf("score = %v; an inventory finding must not lower it", res.Score)
+	}
+	for _, rr := range res.Rules {
+		if rr.ID == "HX-INV" {
+			t.Error("inventory rule listed as a scored control")
+		}
+	}
+}

@@ -234,3 +234,58 @@ func loopback(host string) bool {
 	ip := net.ParseIP(h)
 	return ip != nil && ip.IsLoopback()
 }
+
+// systemHostAccess lists, as information, workloads in kube-system with host
+// access. The other workload rules skip kube-system (its platform
+// components need host access by design) unless --include-system is given;
+// without this inventory a workload placed there, a common way to keep a
+// foothold in a cluster, would be invisible. Monitoring always reports new
+// entries.
+var systemHostAccess = assessment.ObjectRule{
+	Meta: assessment.Metadata{
+		ID:           "HX-WL-022",
+		Title:        "Host-access workload in kube-system",
+		Severity:     finding.Info,
+		Category:     assessment.CategoryWorkloads,
+		Description:  "Lists workloads in kube-system that are privileged, share host namespaces, mount host paths or add capabilities. Information only: kube-system holds platform components that need this. Reported only when the other workload rules skip kube-system (without --include-system). hardex monitor sends an event for every new entry, whatever --notify-min is.",
+		Rationale:    "kube-system is excluded from the workload rules to keep platform components out of reports, which also hides anything else placed there; a privileged DaemonSet in kube-system is a well-known way to keep access to a cluster. Listing every host-access workload there keeps such additions visible, and drift monitoring flags them when they appear.",
+		Remediation:  "Confirm each listed workload is a platform component you run (network plugin, kube-proxy, CSI driver, control plane). Record the reviewed list as a baseline (hardex monitor --baseline) so a new entry stands out; assess kube-system in full with --include-system.",
+		References:   []finding.Reference{refNSAPod},
+		NotifyAlways: true,
+		Inventory:    true,
+	},
+	Kinds: resource.WorkloadKinds(),
+	Check: func(ctx *assessment.Context, obj *resource.Object) {
+		if ctx.Options.IncludeSystem || obj.EffectiveNamespace() != "kube-system" {
+			return
+		}
+		pod, prefix := resource.PodSpec(obj)
+		if pod == nil {
+			return
+		}
+		var access []string
+		for _, ns := range []string{"hostNetwork", "hostPID", "hostIPC"} {
+			if v, _ := resource.Bool(pod, ns); v {
+				access = append(access, ns)
+			}
+		}
+		for _, v := range resource.Maps(pod, "volumes") {
+			if p := resource.String(v, "hostPath", "path"); p != "" {
+				access = append(access, "hostPath "+p)
+			}
+		}
+		for _, c := range resource.Containers(pod) {
+			if v, _ := resource.Bool(c.Spec, "securityContext", "privileged"); v {
+				access = append(access, "privileged "+c.Name)
+			}
+			for _, cp := range resource.Strings(c.Spec, "securityContext", "capabilities", "add") {
+				access = append(access, "capability "+normalizeCap(cp)+" "+c.Name)
+			}
+		}
+		if len(access) == 0 {
+			return
+		}
+		ctx.Report(assessment.Hit{Object: obj, Path: prefix, Observed: strings.Join(access, ", "),
+			Message: "kube-system workload with host access: " + strings.Join(access, ", ")})
+	},
+}

@@ -15,6 +15,7 @@ rules:
   - HX-WL-016 # custom SELinux context
   - HX-WL-017 # unmasked /proc
   - HX-WL-020 # Windows HostProcess
+  - HX-WL-022 # host-access workloads in kube-system (info)
   # RBAC
   - HX-RBAC-002 # cluster-admin bindings
   - HX-RBAC-004 # escalate / bind / impersonate

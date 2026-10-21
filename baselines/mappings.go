@@ -194,6 +194,7 @@ var Mappings = map[string]Mapping{
 	"HX-WL-019":   {NSA: []string{nsaPodEnforcement}},
 	"HX-WL-020":   {CIS: []string{"5.2.10"}, NSA: []string{nsaPodEnforcement}},
 	"HX-WL-021":   {NSA: []string{nsaPodEnforcement}},
+	"HX-WL-022":   {NSA: []string{nsaThreatModel}},
 	"HX-SEC-001":  {CIS: []string{"5.4.2"}, NSA: []string{nsaSecrets}},
 	"HX-SEC-002":  {CIS: []string{"5.4.1"}, NSA: []string{nsaSecrets}},
 	"HX-RBAC-001": {CIS: []string{"5.1.3"}, NSA: []string{nsaRBAC}},

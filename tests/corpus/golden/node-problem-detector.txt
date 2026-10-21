@@ -1,0 +1,1 @@
+HX-WL-022 info DaemonSet kube-system/node-problem-detector | kube-system workload with host access: hostPath /var/log/, hostPath /dev/kmsg, hostPath /etc/localtime, privileged node-problem-detector

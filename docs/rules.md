@@ -62,6 +62,7 @@ Severity is the default; individual findings may be raised or lowered where the 
 | [HX-WL-019](#hx-wl-019) | low | workloads | Non-standard volume type | restricted |
 | [HX-WL-020](#hx-wl-020) | critical | workloads | Windows HostProcess container | baseline, minimal, restricted |
 | [HX-WL-021](#hx-wl-021) | medium | workloads | Probe or lifecycle hook targets another host | baseline, restricted |
+| [HX-WL-022](#hx-wl-022) | info | workloads | Host-access workload in kube-system | baseline, minimal, restricted |
 
 ## HX-CP-001
 
@@ -1043,3 +1044,17 @@ Severity is the default; individual findings may be raised or lowered where the 
 
 - NSA-CISA: [NSA/CISA Kubernetes Hardening Guidance v1.2 (August 2022) — Kubernetes Pod security › Pod security enforcement](https://media.defense.gov/2022/Aug/29/2003066362/1/1/0/CTR_KUBERNETES_HARDENING_GUIDANCE_1.2_20220829.PDF)
 - PSS: [Baseline: Host Probes / Lifecycle Hooks](https://kubernetes.io/docs/concepts/security/pod-security-standards/)
+
+## HX-WL-022
+
+**Host-access workload in kube-system** — info, workloads
+
+**Checks:** Lists workloads in kube-system that are privileged, share host namespaces, mount host paths or add capabilities. Information only: kube-system holds platform components that need this. Reported only when the other workload rules skip kube-system (without --include-system). hardex monitor sends an event for every new entry, whatever --notify-min is.
+
+**Why it matters:** kube-system is excluded from the workload rules to keep platform components out of reports, which also hides anything else placed there; a privileged DaemonSet in kube-system is a well-known way to keep access to a cluster. Listing every host-access workload there keeps such additions visible, and drift monitoring flags them when they appear.
+
+**Remediation:** Confirm each listed workload is a platform component you run (network plugin, kube-proxy, CSI driver, control plane). Record the reviewed list as a baseline (hardex monitor --baseline) so a new entry stands out; assess kube-system in full with --include-system.
+
+**References:**
+
+- NSA-CISA: [NSA/CISA Kubernetes Hardening Guidance v1.2 (August 2022) — Threat model](https://media.defense.gov/2022/Aug/29/2003066362/1/1/0/CTR_KUBERNETES_HARDENING_GUIDANCE_1.2_20220829.PDF)

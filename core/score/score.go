@@ -6,7 +6,8 @@
 // high 5, medium 3, low 1, info 0.5), and the score is the weighted share of
 // rules with no active findings. Instance counts do not move the score —
 // twenty privileged pods and one privileged pod are the same failed control —
-// they are reported alongside it.
+// they are reported alongside it. Inventory rules (lists for review, such as
+// HX-WL-022) are not scored.
 //
 // A score is evidence, not a verdict: passing every rule does not make a
 // cluster secure, and an incomplete assessment has no valid score at all.
@@ -98,8 +99,8 @@ func Compute(r *finding.Report, metas []assessment.Metadata) Result {
 	frameworks := map[string]map[string]*Group{}
 	for _, id := range r.RulesEvaluated {
 		m, ok := byID[id]
-		if !ok {
-			continue
+		if !ok || m.Inventory {
+			continue // inventories list things for review; they are not controls
 		}
 		rr := RuleResult{ID: id, Title: m.Title, Category: m.Category, Severity: m.Severity,
 			Active: active[id], Waived: waived[id], Weight: Weights[m.Severity], Status: Pass}

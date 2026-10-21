@@ -48,6 +48,7 @@ var insecureExpectations = []expectation{
 	{"HX-WL-019", "Deployment shop/insecure-web", finding.Low},
 	{"HX-WL-020", "Pod shop/windows-host [agent]", finding.Critical},
 	{"HX-WL-021", "Deployment shop/insecure-web [web]", finding.Medium},
+	{"HX-WL-022", "Pod kube-system/kube-apiserver-cp1", finding.Info},
 	{"HX-SEC-001", "Secret shop/db-credentials", finding.Medium},
 	{"HX-SEC-002", "Deployment shop/insecure-web [web]", finding.Medium},
 	{"HX-RBAC-001", "ClusterRole god-mode", finding.High},
@@ -136,11 +137,18 @@ func TestEveryRuleHasADetectionExpectation(t *testing.T) {
 	}
 }
 
+// systemInventory (HX-WL-022) lists host-access workloads in kube-system as
+// information; it is expected on any cluster's platform components.
+const systemInventory = "HX-WL-022"
+
 func TestNoFalsePositivesOnHardenedFixtures(t *testing.T) {
 	for _, profile := range []string{"minimal", "baseline", "restricted"} {
 		t.Run(profile, func(t *testing.T) {
 			r := scan(t, profile, "fixtures/hardened")
 			for _, f := range r.Findings {
+				if f.RuleID == systemInventory {
+					continue // an inventory, not a finding against the workload
+				}
 				t.Errorf("false positive: %s %s %s: %s", f.RuleID, f.Resource, f.Path, f.Message)
 			}
 			if r.ObjectsEvaluated == 0 {

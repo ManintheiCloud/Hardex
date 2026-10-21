@@ -45,6 +45,15 @@ type Metadata struct {
 	// Admission control sees one object at a time and skips these rules,
 	// rather than reporting false positives for context it cannot see.
 	NeedsInventory bool
+	// NotifyAlways makes monitoring send an event for every new finding of
+	// this rule, whatever its severity and the notification threshold: for
+	// low-severity inventory rules whose new entries still matter (a new
+	// host-access workload in kube-system).
+	NotifyAlways bool `json:"notifyAlways,omitempty"`
+	// Inventory marks rules that list things for review rather than test a
+	// control (e.g. host-access workloads in kube-system): they are not
+	// scored as passed or failed.
+	Inventory bool `json:"inventory,omitempty"`
 }
 
 // idPattern admits built-in IDs (HX-WL-001) and module IDs (ACME-WL-001).

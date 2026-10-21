@@ -1,6 +1,7 @@
 package tests
 
 import (
+	"github.com/ManintheiCloud/Hardex/core/finding"
 	"testing"
 
 	"github.com/ManintheiCloud/Hardex"
@@ -12,10 +13,16 @@ import (
 // asked for with --include-system.
 func TestPlatformObjectsOnlyWithIncludeSystem(t *testing.T) {
 	quiet := scan(t, "restricted", "fixtures/hardened/platform.yaml")
-	if len(quiet.Findings) != 0 {
-		for _, f := range quiet.Findings {
-			t.Errorf("reported by default: %s %s", f.RuleID, f.Resource)
+	inventoried := 0
+	for _, f := range quiet.Findings {
+		if f.RuleID == systemInventory && f.Severity == finding.Info {
+			inventoried++
+			continue
 		}
+		t.Errorf("reported by default: %s %s", f.RuleID, f.Resource)
+	}
+	if inventoried == 0 {
+		t.Error("host-access platform workloads are not listed in the kube-system inventory (HX-WL-022)")
 	}
 	cfg := policy.DefaultConfig()
 	if err := cfg.Validate(); err != nil {
@@ -28,6 +35,9 @@ func TestPlatformObjectsOnlyWithIncludeSystem(t *testing.T) {
 	}
 	want := map[string]bool{"HX-WL-001": false, "HX-RBAC-007": false, "HX-RBAC-002": false}
 	for _, f := range full.Findings {
+		if f.RuleID == systemInventory {
+			t.Errorf("inventory reported with --include-system, where the full rules apply: %s", f.Resource)
+		}
 		if _, ok := want[f.RuleID]; ok {
 			want[f.RuleID] = true
 		}
