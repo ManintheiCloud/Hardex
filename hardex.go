@@ -13,6 +13,7 @@ import (
 	"github.com/ManintheiCloud/Hardex/core/cloudiam"
 	"github.com/ManintheiCloud/Hardex/core/finding"
 	"github.com/ManintheiCloud/Hardex/core/modules"
+	"github.com/ManintheiCloud/Hardex/core/owners"
 	"github.com/ManintheiCloud/Hardex/core/policy"
 	"github.com/ManintheiCloud/Hardex/core/resource"
 	"github.com/ManintheiCloud/Hardex/kubernetes"
@@ -127,7 +128,13 @@ func Scan(opts ScanOptions) (*finding.Report, []assessment.Metadata, error) {
 	if opts.Stats != nil {
 		opts.Stats.Evaluate, opts.Stats.Objects, opts.Stats.Rules = time.Since(evalStart), len(inv.Objects), res.Timings
 	}
-	active, waived, policyWarnings := policy.Apply(cfg, res.Findings, now)
+	// Findings an owned object shares with its verified owner (a
+	// Deployment's ReplicaSet and Pods) are reported once, on the owner.
+	deduped, omitted := owners.Deduplicate(inv, res.Findings)
+	active, waived, policyWarnings := policy.Apply(cfg, deduped, now)
+	if omitted > 0 {
+		policyWarnings = append(policyWarnings, fmt.Sprintf("%d finding(s) on controller-owned objects (ReplicaSets, Pods, Jobs) omitted: their verified owner reports the same, or the object runs nothing", omitted))
+	}
 
 	report := &finding.Report{
 		Schema:           finding.SchemaVersion,

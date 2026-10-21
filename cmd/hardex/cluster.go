@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"flag"
-	"fmt"
 
 	"github.com/ManintheiCloud/Hardex/core/cluster"
 	"github.com/ManintheiCloud/Hardex/core/policy"
@@ -58,8 +57,7 @@ func (cf *clusterFlags) collect(ctx context.Context, c *cluster.Client) (*cluste
 	if err != nil {
 		return nil, nil, nil, err
 	}
-	warnings := []string{fmt.Sprintf("live cluster: %d controller-owned objects (ReplicaSets, Pods, Jobs) assessed through their owners", col.Skipped)}
-	warnings = append(warnings, col.Warnings...)
+	warnings := append([]string(nil), col.Warnings...)
 	if cf.allowPartial {
 		return col, nil, append(warnings, col.Errors...), nil
 	}

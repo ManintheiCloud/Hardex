@@ -34,3 +34,12 @@ Findings on software that thousands of clusters run unchanged are the best test 
 "True" means the finding describes a real capability an attacker inheriting that workload's identity would have — not that the project is misconfigured. Many components need powerful access; Hardex's job is to make it visible, so it can be isolated (dedicated namespaces with Pod Security enforced, NetworkPolicies, separate node pools) and accepted with a waiver that expires.
 
 Report a false positive with the [issue template](https://github.com/ManintheiCloud/Hardex/issues/new?template=false-result.yml).
+
+## Controller-owned objects
+
+A Deployment's ReplicaSets and Pods carry its pod template, so a problem in the template would otherwise be reported three times. Hardex assesses every object and omits a finding on an owned object only when:
+
+- the owner named by its controlling `ownerReference` is present with the same kind, namespace, name **and UID** (an `ownerReference` anyone can write is not trusted on its own), and the owner reports the same rule, container, value and pod-spec field; or
+- the owned object runs nothing: a ReplicaSet scaled to zero (rollback history), a finished Job, a Pod that has terminated.
+
+Everything else is reported on the object itself: a Pod whose claimed owner does not exist or has another UID, a ReplicaSet whose template was edited after its Deployment created it, an ephemeral container added with `kubectl debug`. The report's warnings say how many findings were omitted.

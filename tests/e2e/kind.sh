@@ -168,6 +168,31 @@ kubectl -n e2e-debug debug "pod/$dbg_pod" --profile=sysadmin --container=hx-debu
 jq -e --arg p "$dbg_pod" '[.findings[] | select(.ruleId == "HX-WL-001" and .resource.kind == "Pod" and .resource.name == $p and .resource.container == "hx-debug")] | length == 1' "$WORK/debug-scan.json" >/dev/null \
   || fail "privileged debug container on $dbg_pod not reported: $(jq -c --arg p "$dbg_pod" '[.findings[] | select(.resource.name == $p)]' "$WORK/debug-scan.json" | head -c 500)"
 pass "a privileged kubectl debug container on a Deployment's pod is reported"
+# A Pod claiming that ReplicaSet as its owner, with its real UID (anyone who
+# can read the ReplicaSet can copy it; the garbage collector then keeps the
+# Pod), but a spec of its own: it must not hide behind the owner.
+rs="$(kubectl -n e2e-debug get rs -l app=app -o jsonpath='{.items[0].metadata.name}')"
+rs_uid="$(kubectl -n e2e-debug get rs "$rs" -o jsonpath='{.metadata.uid}')"
+kubectl -n e2e-debug apply -f - <<POD
+apiVersion: v1
+kind: Pod
+metadata:
+  name: hiding
+  ownerReferences: [{apiVersion: apps/v1, kind: ReplicaSet, name: $rs, uid: $rs_uid, controller: true}]
+spec:
+  containers:
+    - name: c
+      image: registry.k8s.io/pause:3.10@sha256:ee6521f290b2168b6e0935a181d4cff9be1ac3f505666ef0e3c98fae8199917a
+      securityContext: {privileged: true}
+POD
+sleep 5
+kubectl -n e2e-debug get pod hiding >/dev/null || fail "the spoofed pod was removed; the test cannot check it"
+./bin/hardex scan --cluster --kubeconfig "$WORK/reader.kubeconfig" --profile minimal --format json --fail-on none > "$WORK/spoof-scan.json"
+jq -e '[.findings[] | select(.ruleId == "HX-WL-001" and .resource.kind == "Pod" and .resource.name == "hiding")] | length == 1' "$WORK/spoof-scan.json" >/dev/null \
+  || fail "a privileged pod with a copied ownerReference was not reported"
+jq -e '[.findings[] | select(.resource.namespace == "e2e-debug" and .resource.kind == "ReplicaSet")] | length == 0' "$WORK/spoof-scan.json" >/dev/null \
+  || fail "findings shared with the Deployment were reported again on its ReplicaSet"
+pass "a privileged pod claiming a real ReplicaSet as owner is reported; shared findings are not duplicated"
 
 step "admission webhook"
 kubectl apply -f "https://github.com/cert-manager/cert-manager/releases/download/${CERT_MANAGER}/cert-manager.yaml"

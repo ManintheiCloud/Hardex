@@ -2,6 +2,11 @@
 
 All notable changes are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow [Semantic Versioning](https://semver.org/). Before 1.0, minor versions may contain breaking changes.
 
+## Unreleased
+
+### Fixed
+- Live-cluster scans skipped any Pod or ReplicaSet whose `ownerReferences` named a controller, without checking the owner existed or matched. Anyone able to create a Pod could hide it (a privileged one included) by adding a made-up owner reference, and a ReplicaSet whose template was edited after its Deployment created it, with its Pods, was never assessed. Every object is now assessed; a finding on an owned object is omitted only when its owner is verified (same kind, name and UID) and reports the same problem, or when the object runs nothing (a ReplicaSet scaled to zero, a finished Job or Pod). This replaces the 0.10.4 special case for `kubectl debug` containers, which are still reported. Applies to manifests exported from a cluster as well.
+
 ## 0.10.4 — 2026-10-21
 
 ### Fixed
