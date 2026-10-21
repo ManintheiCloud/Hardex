@@ -73,6 +73,11 @@ if jq -e '.warnings // [] | map(select(test("forbidden|cannot list"))) | length 
   fail "reader role is missing permissions: $(jq -c '.warnings' "$WORK/live.json")"
 fi
 pass "live scan complete; $(jq '.objectsEvaluated' "$WORK/live.json") objects, $(jq '.summary.total' "$WORK/live.json") findings"
+# Kubernetes' and kubeadm's own RBAC objects are recognised by content
+# (kubernetes/rbac/defaults.json): none of them may be reported on a stock
+# kubeadm cluster. A failure here names a default missing from the data.
+sysfind="$(jq -r '[.findings[] | select(.resource.kind | test("Role")) | select(.resource.name | test("^(system|kubeadm):")) | "\(.ruleId) \(.resource.kind)/\(.resource.name)"] | unique | join("; ")' "$WORK/live.json")"
+[ -z "$sysfind" ] || fail "default RBAC objects reported (missing from defaults.json, or modified in kind): $sysfind"
 # Findings on everything except the deliberately insecure fixtures, for
 # false-positive review: stock components and Hardex's own deployments.
 jq -r '.findings[] | select((.resource.namespace // "") as $n | $n != "shop" and $n != "ci")

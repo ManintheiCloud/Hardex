@@ -1,0 +1,98 @@
+# RBAC objects kubeadm creates, transcribed from kubernetes/kubernetes
+# cmd/kubeadm/app (release-1.37): phases/bootstraptoken/node/tlsbootstrap.go,
+# phases/bootstraptoken/clusterinfo/clusterinfo.go, phases/kubelet/config.go,
+# phases/uploadconfig/uploadconfig.go, phases/addons/proxy/proxy.go,
+# phases/addons/dns/manifests.go (CoreDNS), phases/kubeconfig/kubeconfig.go,
+# with names from constants/constants.go.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata: {name: "kubeadm:kubelet-bootstrap"}
+roleRef: {apiGroup: rbac.authorization.k8s.io, kind: ClusterRole, name: "system:node-bootstrapper"}
+subjects: [{kind: Group, name: "system:bootstrappers:kubeadm:default-node-token"}]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata: {name: "kubeadm:get-nodes"}
+rules: [{apiGroups: [""], resources: [nodes], verbs: [get]}]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata: {name: "kubeadm:get-nodes"}
+roleRef: {apiGroup: rbac.authorization.k8s.io, kind: ClusterRole, name: "kubeadm:get-nodes"}
+subjects: [{kind: Group, name: "system:bootstrappers:kubeadm:default-node-token"}]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata: {name: "kubeadm:node-autoapprove-bootstrap"}
+roleRef: {apiGroup: rbac.authorization.k8s.io, kind: ClusterRole, name: "system:certificates.k8s.io:certificatesigningrequests:nodeclient"}
+subjects: [{kind: Group, name: "system:bootstrappers:kubeadm:default-node-token"}]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata: {name: "kubeadm:node-autoapprove-certificate-rotation"}
+roleRef: {apiGroup: rbac.authorization.k8s.io, kind: ClusterRole, name: "system:certificates.k8s.io:certificatesigningrequests:selfnodeclient"}
+subjects: [{kind: Group, name: "system:nodes"}]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata: {name: "kubeadm:apiserver-kubelet-client"}
+roleRef: {apiGroup: rbac.authorization.k8s.io, kind: ClusterRole, name: "system:kubelet-api-admin"}
+subjects: [{kind: User, name: "kube-apiserver-kubelet-client"}]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata: {name: "kubeadm:bootstrap-signer-clusterinfo", namespace: kube-public}
+rules: [{apiGroups: [""], resources: [configmaps], resourceNames: [cluster-info], verbs: [get]}]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata: {name: "kubeadm:bootstrap-signer-clusterinfo", namespace: kube-public}
+roleRef: {apiGroup: rbac.authorization.k8s.io, kind: Role, name: "kubeadm:bootstrap-signer-clusterinfo"}
+subjects: [{kind: User, name: "system:anonymous"}]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata: {name: "kubeadm:kubelet-config", namespace: kube-system}
+rules: [{apiGroups: [""], resources: [configmaps], resourceNames: [kubelet-config], verbs: [get]}]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata: {name: "kubeadm:kubelet-config", namespace: kube-system}
+roleRef: {apiGroup: rbac.authorization.k8s.io, kind: Role, name: "kubeadm:kubelet-config"}
+subjects: [{kind: Group, name: "system:nodes"}, {kind: Group, name: "system:bootstrappers:kubeadm:default-node-token"}]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata: {name: "kubeadm:nodes-kubeadm-config", namespace: kube-system}
+rules: [{apiGroups: [""], resources: [configmaps], resourceNames: [kubeadm-config], verbs: [get]}]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata: {name: "kubeadm:nodes-kubeadm-config", namespace: kube-system}
+roleRef: {apiGroup: rbac.authorization.k8s.io, kind: Role, name: "kubeadm:nodes-kubeadm-config"}
+subjects: [{kind: Group, name: "system:bootstrappers:kubeadm:default-node-token"}, {kind: Group, name: "system:nodes"}]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata: {name: "kubeadm:node-proxier"}
+roleRef: {apiGroup: rbac.authorization.k8s.io, kind: ClusterRole, name: "system:node-proxier"}
+subjects: [{kind: ServiceAccount, name: kube-proxy, namespace: kube-system}]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata: {name: "kubeadm:cluster-admins"}
+roleRef: {apiGroup: rbac.authorization.k8s.io, kind: ClusterRole, name: cluster-admin}
+subjects: [{kind: Group, name: "kubeadm:cluster-admins"}]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata: {name: "system:coredns"}
+rules:
+  - {apiGroups: [""], resources: [endpoints, services, pods, namespaces], verbs: [list, watch]}
+  - {apiGroups: [discovery.k8s.io], resources: [endpointslices], verbs: [list, watch]}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata: {name: "system:coredns"}
+roleRef: {apiGroup: rbac.authorization.k8s.io, kind: ClusterRole, name: "system:coredns"}
+subjects: [{kind: ServiceAccount, name: coredns, namespace: kube-system}]

@@ -7,6 +7,9 @@ All notable changes are documented here. The format follows [Keep a Changelog](h
 ### CI
 - The release workflow can be started by hand from `main` (Actions → release → Run workflow), for when GitHub drops the push event that should have started it. It still waits for approval and never rebuilds an existing release.
 
+### Fixed
+- RBAC rules skipped any Role, ClusterRole or binding named `system:…` or `kubeadm:…`, or labelled `kubernetes.io/bootstrapping: rbac-defaults`, to leave Kubernetes' own defaults out. Names and labels are chosen by whoever creates the object, so a ClusterRoleBinding named `system:backdoor` granting `cluster-admin` to a service account was never reported, nor was a subject or permission added to a real default. Defaults are now recognised by content: an object is skipped only if it is one of the defaults Kubernetes (1.34–1.37) or kubeadm creates and grants no more than its default definition. The aggregated `admin`, `edit` and `view` roles are trusted while aggregated; each role they aggregate is assessed on its own.
+
 ## 0.10.5 — 2026-10-21
 
 ### Fixed

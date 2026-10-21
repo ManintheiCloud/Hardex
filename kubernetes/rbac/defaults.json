@@ -1,0 +1,2190 @@
+{
+ "bindings": {
+  "ClusterRoleBinding/cluster-admin": {
+   "roleRef": "ClusterRole/cluster-admin",
+   "subjects": [
+    "Group/system:masters"
+   ]
+  },
+  "ClusterRoleBinding/kubeadm:apiserver-kubelet-client": {
+   "roleRef": "ClusterRole/system:kubelet-api-admin",
+   "subjects": [
+    "User/kube-apiserver-kubelet-client"
+   ]
+  },
+  "ClusterRoleBinding/kubeadm:cluster-admins": {
+   "roleRef": "ClusterRole/cluster-admin",
+   "subjects": [
+    "Group/kubeadm:cluster-admins"
+   ]
+  },
+  "ClusterRoleBinding/kubeadm:get-nodes": {
+   "roleRef": "ClusterRole/kubeadm:get-nodes",
+   "subjects": [
+    "Group/system:bootstrappers:kubeadm:default-node-token"
+   ]
+  },
+  "ClusterRoleBinding/kubeadm:kubelet-bootstrap": {
+   "roleRef": "ClusterRole/system:node-bootstrapper",
+   "subjects": [
+    "Group/system:bootstrappers:kubeadm:default-node-token"
+   ]
+  },
+  "ClusterRoleBinding/kubeadm:node-autoapprove-bootstrap": {
+   "roleRef": "ClusterRole/system:certificates.k8s.io:certificatesigningrequests:nodeclient",
+   "subjects": [
+    "Group/system:bootstrappers:kubeadm:default-node-token"
+   ]
+  },
+  "ClusterRoleBinding/kubeadm:node-autoapprove-certificate-rotation": {
+   "roleRef": "ClusterRole/system:certificates.k8s.io:certificatesigningrequests:selfnodeclient",
+   "subjects": [
+    "Group/system:nodes"
+   ]
+  },
+  "ClusterRoleBinding/kubeadm:node-proxier": {
+   "roleRef": "ClusterRole/system:node-proxier",
+   "subjects": [
+    "ServiceAccount/kube-system/kube-proxy"
+   ]
+  },
+  "ClusterRoleBinding/system:basic-user": {
+   "roleRef": "ClusterRole/system:basic-user",
+   "subjects": [
+    "Group/system:authenticated"
+   ]
+  },
+  "ClusterRoleBinding/system:cluster-trust-bundle-discovery": {
+   "roleRef": "ClusterRole/system:cluster-trust-bundle-discovery",
+   "subjects": [
+    "Group/system:serviceaccounts"
+   ]
+  },
+  "ClusterRoleBinding/system:controller:attachdetach-controller": {
+   "roleRef": "ClusterRole/system:controller:attachdetach-controller",
+   "subjects": [
+    "ServiceAccount/kube-system/attachdetach-controller"
+   ]
+  },
+  "ClusterRoleBinding/system:controller:certificate-controller": {
+   "roleRef": "ClusterRole/system:controller:certificate-controller",
+   "subjects": [
+    "ServiceAccount/kube-system/certificate-controller"
+   ]
+  },
+  "ClusterRoleBinding/system:controller:clusterrole-aggregation-controller": {
+   "roleRef": "ClusterRole/system:controller:clusterrole-aggregation-controller",
+   "subjects": [
+    "ServiceAccount/kube-system/clusterrole-aggregation-controller"
+   ]
+  },
+  "ClusterRoleBinding/system:controller:cronjob-controller": {
+   "roleRef": "ClusterRole/system:controller:cronjob-controller",
+   "subjects": [
+    "ServiceAccount/kube-system/cronjob-controller"
+   ]
+  },
+  "ClusterRoleBinding/system:controller:daemon-set-controller": {
+   "roleRef": "ClusterRole/system:controller:daemon-set-controller",
+   "subjects": [
+    "ServiceAccount/kube-system/daemon-set-controller"
+   ]
+  },
+  "ClusterRoleBinding/system:controller:deployment-controller": {
+   "roleRef": "ClusterRole/system:controller:deployment-controller",
+   "subjects": [
+    "ServiceAccount/kube-system/deployment-controller"
+   ]
+  },
+  "ClusterRoleBinding/system:controller:device-taint-eviction-controller": {
+   "roleRef": "ClusterRole/system:controller:device-taint-eviction-controller",
+   "subjects": [
+    "ServiceAccount/kube-system/device-taint-eviction-controller"
+   ]
+  },
+  "ClusterRoleBinding/system:controller:disruption-controller": {
+   "roleRef": "ClusterRole/system:controller:disruption-controller",
+   "subjects": [
+    "ServiceAccount/kube-system/disruption-controller"
+   ]
+  },
+  "ClusterRoleBinding/system:controller:endpoint-controller": {
+   "roleRef": "ClusterRole/system:controller:endpoint-controller",
+   "subjects": [
+    "ServiceAccount/kube-system/endpoint-controller"
+   ]
+  },
+  "ClusterRoleBinding/system:controller:endpointslice-controller": {
+   "roleRef": "ClusterRole/system:controller:endpointslice-controller",
+   "subjects": [
+    "ServiceAccount/kube-system/endpointslice-controller"
+   ]
+  },
+  "ClusterRoleBinding/system:controller:endpointslicemirroring-controller": {
+   "roleRef": "ClusterRole/system:controller:endpointslicemirroring-controller",
+   "subjects": [
+    "ServiceAccount/kube-system/endpointslicemirroring-controller"
+   ]
+  },
+  "ClusterRoleBinding/system:controller:ephemeral-volume-controller": {
+   "roleRef": "ClusterRole/system:controller:ephemeral-volume-controller",
+   "subjects": [
+    "ServiceAccount/kube-system/ephemeral-volume-controller"
+   ]
+  },
+  "ClusterRoleBinding/system:controller:expand-controller": {
+   "roleRef": "ClusterRole/system:controller:expand-controller",
+   "subjects": [
+    "ServiceAccount/kube-system/expand-controller"
+   ]
+  },
+  "ClusterRoleBinding/system:controller:generic-garbage-collector": {
+   "roleRef": "ClusterRole/system:controller:generic-garbage-collector",
+   "subjects": [
+    "ServiceAccount/kube-system/generic-garbage-collector"
+   ]
+  },
+  "ClusterRoleBinding/system:controller:horizontal-pod-autoscaler": {
+   "roleRef": "ClusterRole/system:controller:horizontal-pod-autoscaler",
+   "subjects": [
+    "ServiceAccount/kube-system/horizontal-pod-autoscaler"
+   ]
+  },
+  "ClusterRoleBinding/system:controller:job-controller": {
+   "roleRef": "ClusterRole/system:controller:job-controller",
+   "subjects": [
+    "ServiceAccount/kube-system/job-controller"
+   ]
+  },
+  "ClusterRoleBinding/system:controller:kube-apiserver-serving-clustertrustbundle-publisher": {
+   "roleRef": "ClusterRole/system:controller:kube-apiserver-serving-clustertrustbundle-publisher",
+   "subjects": [
+    "ServiceAccount/kube-system/kube-apiserver-serving-clustertrustbundle-publisher"
+   ]
+  },
+  "ClusterRoleBinding/system:controller:legacy-service-account-token-cleaner": {
+   "roleRef": "ClusterRole/system:controller:legacy-service-account-token-cleaner",
+   "subjects": [
+    "ServiceAccount/kube-system/legacy-service-account-token-cleaner"
+   ]
+  },
+  "ClusterRoleBinding/system:controller:namespace-controller": {
+   "roleRef": "ClusterRole/system:controller:namespace-controller",
+   "subjects": [
+    "ServiceAccount/kube-system/namespace-controller"
+   ]
+  },
+  "ClusterRoleBinding/system:controller:node-controller": {
+   "roleRef": "ClusterRole/system:controller:node-controller",
+   "subjects": [
+    "ServiceAccount/kube-system/node-controller"
+   ]
+  },
+  "ClusterRoleBinding/system:controller:persistent-volume-binder": {
+   "roleRef": "ClusterRole/system:controller:persistent-volume-binder",
+   "subjects": [
+    "ServiceAccount/kube-system/persistent-volume-binder"
+   ]
+  },
+  "ClusterRoleBinding/system:controller:pod-garbage-collector": {
+   "roleRef": "ClusterRole/system:controller:pod-garbage-collector",
+   "subjects": [
+    "ServiceAccount/kube-system/pod-garbage-collector"
+   ]
+  },
+  "ClusterRoleBinding/system:controller:podcertificaterequestcleaner": {
+   "roleRef": "ClusterRole/system:controller:podcertificaterequestcleaner",
+   "subjects": [
+    "ServiceAccount/kube-system/podcertificaterequestcleaner"
+   ]
+  },
+  "ClusterRoleBinding/system:controller:pv-protection-controller": {
+   "roleRef": "ClusterRole/system:controller:pv-protection-controller",
+   "subjects": [
+    "ServiceAccount/kube-system/pv-protection-controller"
+   ]
+  },
+  "ClusterRoleBinding/system:controller:pvc-protection-controller": {
+   "roleRef": "ClusterRole/system:controller:pvc-protection-controller",
+   "subjects": [
+    "ServiceAccount/kube-system/pvc-protection-controller"
+   ]
+  },
+  "ClusterRoleBinding/system:controller:replicaset-controller": {
+   "roleRef": "ClusterRole/system:controller:replicaset-controller",
+   "subjects": [
+    "ServiceAccount/kube-system/replicaset-controller"
+   ]
+  },
+  "ClusterRoleBinding/system:controller:replication-controller": {
+   "roleRef": "ClusterRole/system:controller:replication-controller",
+   "subjects": [
+    "ServiceAccount/kube-system/replication-controller"
+   ]
+  },
+  "ClusterRoleBinding/system:controller:resource-claim-controller": {
+   "roleRef": "ClusterRole/system:controller:resource-claim-controller",
+   "subjects": [
+    "ServiceAccount/kube-system/resource-claim-controller"
+   ]
+  },
+  "ClusterRoleBinding/system:controller:resourcequota-controller": {
+   "roleRef": "ClusterRole/system:controller:resourcequota-controller",
+   "subjects": [
+    "ServiceAccount/kube-system/resourcequota-controller"
+   ]
+  },
+  "ClusterRoleBinding/system:controller:root-ca-cert-publisher": {
+   "roleRef": "ClusterRole/system:controller:root-ca-cert-publisher",
+   "subjects": [
+    "ServiceAccount/kube-system/root-ca-cert-publisher"
+   ]
+  },
+  "ClusterRoleBinding/system:controller:route-controller": {
+   "roleRef": "ClusterRole/system:controller:route-controller",
+   "subjects": [
+    "ServiceAccount/kube-system/route-controller"
+   ]
+  },
+  "ClusterRoleBinding/system:controller:selinux-warning-controller": {
+   "roleRef": "ClusterRole/system:controller:selinux-warning-controller",
+   "subjects": [
+    "ServiceAccount/kube-system/selinux-warning-controller"
+   ]
+  },
+  "ClusterRoleBinding/system:controller:service-account-controller": {
+   "roleRef": "ClusterRole/system:controller:service-account-controller",
+   "subjects": [
+    "ServiceAccount/kube-system/service-account-controller"
+   ]
+  },
+  "ClusterRoleBinding/system:controller:service-cidrs-controller": {
+   "roleRef": "ClusterRole/system:controller:service-cidrs-controller",
+   "subjects": [
+    "ServiceAccount/kube-system/service-cidrs-controller"
+   ]
+  },
+  "ClusterRoleBinding/system:controller:service-controller": {
+   "roleRef": "ClusterRole/system:controller:service-controller",
+   "subjects": [
+    "ServiceAccount/kube-system/service-controller"
+   ]
+  },
+  "ClusterRoleBinding/system:controller:statefulset-controller": {
+   "roleRef": "ClusterRole/system:controller:statefulset-controller",
+   "subjects": [
+    "ServiceAccount/kube-system/statefulset-controller"
+   ]
+  },
+  "ClusterRoleBinding/system:controller:storage-version-migrator-controller": {
+   "roleRef": "ClusterRole/system:controller:storage-version-migrator-controller",
+   "subjects": [
+    "ServiceAccount/kube-system/storage-version-migrator-controller"
+   ]
+  },
+  "ClusterRoleBinding/system:controller:ttl-after-finished-controller": {
+   "roleRef": "ClusterRole/system:controller:ttl-after-finished-controller",
+   "subjects": [
+    "ServiceAccount/kube-system/ttl-after-finished-controller"
+   ]
+  },
+  "ClusterRoleBinding/system:controller:ttl-controller": {
+   "roleRef": "ClusterRole/system:controller:ttl-controller",
+   "subjects": [
+    "ServiceAccount/kube-system/ttl-controller"
+   ]
+  },
+  "ClusterRoleBinding/system:controller:validatingadmissionpolicy-status-controller": {
+   "roleRef": "ClusterRole/system:controller:validatingadmissionpolicy-status-controller",
+   "subjects": [
+    "ServiceAccount/kube-system/validatingadmissionpolicy-status-controller"
+   ]
+  },
+  "ClusterRoleBinding/system:controller:volumeattributesclass-protection-controller": {
+   "roleRef": "ClusterRole/system:controller:volumeattributesclass-protection-controller",
+   "subjects": [
+    "ServiceAccount/kube-system/volumeattributesclass-protection-controller"
+   ]
+  },
+  "ClusterRoleBinding/system:coredns": {
+   "roleRef": "ClusterRole/system:coredns",
+   "subjects": [
+    "ServiceAccount/kube-system/coredns"
+   ]
+  },
+  "ClusterRoleBinding/system:discovery": {
+   "roleRef": "ClusterRole/system:discovery",
+   "subjects": [
+    "Group/system:authenticated"
+   ]
+  },
+  "ClusterRoleBinding/system:kube-controller-manager": {
+   "roleRef": "ClusterRole/system:kube-controller-manager",
+   "subjects": [
+    "User/system:kube-controller-manager"
+   ]
+  },
+  "ClusterRoleBinding/system:kube-dns": {
+   "roleRef": "ClusterRole/system:kube-dns",
+   "subjects": [
+    "ServiceAccount/kube-system/kube-dns"
+   ]
+  },
+  "ClusterRoleBinding/system:kube-scheduler": {
+   "roleRef": "ClusterRole/system:kube-scheduler",
+   "subjects": [
+    "User/system:kube-scheduler"
+   ]
+  },
+  "ClusterRoleBinding/system:monitoring": {
+   "roleRef": "ClusterRole/system:monitoring",
+   "subjects": [
+    "Group/system:monitoring"
+   ]
+  },
+  "ClusterRoleBinding/system:node": {
+   "roleRef": "ClusterRole/system:node",
+   "subjects": []
+  },
+  "ClusterRoleBinding/system:node-proxier": {
+   "roleRef": "ClusterRole/system:node-proxier",
+   "subjects": [
+    "User/system:kube-proxy"
+   ]
+  },
+  "ClusterRoleBinding/system:public-info-viewer": {
+   "roleRef": "ClusterRole/system:public-info-viewer",
+   "subjects": [
+    "Group/system:authenticated",
+    "Group/system:unauthenticated"
+   ]
+  },
+  "ClusterRoleBinding/system:service-account-issuer-discovery": {
+   "roleRef": "ClusterRole/system:service-account-issuer-discovery",
+   "subjects": [
+    "Group/system:serviceaccounts"
+   ]
+  },
+  "ClusterRoleBinding/system:volume-scheduler": {
+   "roleRef": "ClusterRole/system:volume-scheduler",
+   "subjects": [
+    "User/system:kube-scheduler"
+   ]
+  },
+  "RoleBinding/kube-public/kubeadm:bootstrap-signer-clusterinfo": {
+   "roleRef": "Role/kubeadm:bootstrap-signer-clusterinfo",
+   "subjects": [
+    "User/system:anonymous"
+   ]
+  },
+  "RoleBinding/kube-public/system:controller:bootstrap-signer": {
+   "roleRef": "Role/system:controller:bootstrap-signer",
+   "subjects": [
+    "ServiceAccount/kube-system/bootstrap-signer"
+   ]
+  },
+  "RoleBinding/kube-system/kubeadm:kubelet-config": {
+   "roleRef": "Role/kubeadm:kubelet-config",
+   "subjects": [
+    "Group/system:bootstrappers:kubeadm:default-node-token",
+    "Group/system:nodes"
+   ]
+  },
+  "RoleBinding/kube-system/kubeadm:nodes-kubeadm-config": {
+   "roleRef": "Role/kubeadm:nodes-kubeadm-config",
+   "subjects": [
+    "Group/system:bootstrappers:kubeadm:default-node-token",
+    "Group/system:nodes"
+   ]
+  },
+  "RoleBinding/kube-system/system::extension-apiserver-authentication-reader": {
+   "roleRef": "Role/extension-apiserver-authentication-reader",
+   "subjects": [
+    "User/system:kube-controller-manager",
+    "User/system:kube-scheduler"
+   ]
+  },
+  "RoleBinding/kube-system/system::leader-locking-kube-controller-manager": {
+   "roleRef": "Role/system::leader-locking-kube-controller-manager",
+   "subjects": [
+    "ServiceAccount/kube-system/kube-controller-manager",
+    "ServiceAccount/kube-system/leader-election-controller",
+    "User/system:kube-controller-manager"
+   ]
+  },
+  "RoleBinding/kube-system/system::leader-locking-kube-scheduler": {
+   "roleRef": "Role/system::leader-locking-kube-scheduler",
+   "subjects": [
+    "ServiceAccount/kube-system/kube-scheduler",
+    "User/system:kube-scheduler"
+   ]
+  },
+  "RoleBinding/kube-system/system:controller:bootstrap-signer": {
+   "roleRef": "Role/system:controller:bootstrap-signer",
+   "subjects": [
+    "ServiceAccount/kube-system/bootstrap-signer"
+   ]
+  },
+  "RoleBinding/kube-system/system:controller:cloud-provider": {
+   "roleRef": "Role/system:controller:cloud-provider",
+   "subjects": [
+    "ServiceAccount/kube-system/cloud-provider"
+   ]
+  },
+  "RoleBinding/kube-system/system:controller:token-cleaner": {
+   "roleRef": "Role/system:controller:token-cleaner",
+   "subjects": [
+    "ServiceAccount/kube-system/token-cleaner"
+   ]
+  }
+ },
+ "roles": {
+  "ClusterRole/admin": [
+   "aggregated"
+  ],
+  "ClusterRole/cluster-admin": [
+   "*|*|*|*",
+   "url|*|*"
+  ],
+  "ClusterRole/edit": [
+   "aggregated"
+  ],
+  "ClusterRole/kubeadm:get-nodes": [
+   "|nodes|*|get"
+  ],
+  "ClusterRole/system:aggregate-to-admin": [
+   "authorization.k8s.io|localsubjectaccessreviews|*|create",
+   "rbac.authorization.k8s.io|rolebindings|*|create",
+   "rbac.authorization.k8s.io|rolebindings|*|delete",
+   "rbac.authorization.k8s.io|rolebindings|*|deletecollection",
+   "rbac.authorization.k8s.io|rolebindings|*|get",
+   "rbac.authorization.k8s.io|rolebindings|*|list",
+   "rbac.authorization.k8s.io|rolebindings|*|patch",
+   "rbac.authorization.k8s.io|rolebindings|*|update",
+   "rbac.authorization.k8s.io|rolebindings|*|watch",
+   "rbac.authorization.k8s.io|roles|*|create",
+   "rbac.authorization.k8s.io|roles|*|delete",
+   "rbac.authorization.k8s.io|roles|*|deletecollection",
+   "rbac.authorization.k8s.io|roles|*|get",
+   "rbac.authorization.k8s.io|roles|*|list",
+   "rbac.authorization.k8s.io|roles|*|patch",
+   "rbac.authorization.k8s.io|roles|*|update",
+   "rbac.authorization.k8s.io|roles|*|watch"
+  ],
+  "ClusterRole/system:aggregate-to-edit": [
+   "apps|daemonsets|*|create",
+   "apps|daemonsets|*|delete",
+   "apps|daemonsets|*|deletecollection",
+   "apps|daemonsets|*|patch",
+   "apps|daemonsets|*|update",
+   "apps|deployments/rollback|*|create",
+   "apps|deployments/rollback|*|delete",
+   "apps|deployments/rollback|*|deletecollection",
+   "apps|deployments/rollback|*|patch",
+   "apps|deployments/rollback|*|update",
+   "apps|deployments/scale|*|create",
+   "apps|deployments/scale|*|delete",
+   "apps|deployments/scale|*|deletecollection",
+   "apps|deployments/scale|*|patch",
+   "apps|deployments/scale|*|update",
+   "apps|deployments|*|create",
+   "apps|deployments|*|delete",
+   "apps|deployments|*|deletecollection",
+   "apps|deployments|*|patch",
+   "apps|deployments|*|update",
+   "apps|replicasets/scale|*|create",
+   "apps|replicasets/scale|*|delete",
+   "apps|replicasets/scale|*|deletecollection",
+   "apps|replicasets/scale|*|patch",
+   "apps|replicasets/scale|*|update",
+   "apps|replicasets|*|create",
+   "apps|replicasets|*|delete",
+   "apps|replicasets|*|deletecollection",
+   "apps|replicasets|*|patch",
+   "apps|replicasets|*|update",
+   "apps|statefulsets/scale|*|create",
+   "apps|statefulsets/scale|*|delete",
+   "apps|statefulsets/scale|*|deletecollection",
+   "apps|statefulsets/scale|*|patch",
+   "apps|statefulsets/scale|*|update",
+   "apps|statefulsets|*|create",
+   "apps|statefulsets|*|delete",
+   "apps|statefulsets|*|deletecollection",
+   "apps|statefulsets|*|patch",
+   "apps|statefulsets|*|update",
+   "autoscaling|horizontalpodautoscalers|*|create",
+   "autoscaling|horizontalpodautoscalers|*|delete",
+   "autoscaling|horizontalpodautoscalers|*|deletecollection",
+   "autoscaling|horizontalpodautoscalers|*|patch",
+   "autoscaling|horizontalpodautoscalers|*|update",
+   "batch|cronjobs|*|create",
+   "batch|cronjobs|*|delete",
+   "batch|cronjobs|*|deletecollection",
+   "batch|cronjobs|*|patch",
+   "batch|cronjobs|*|update",
+   "batch|jobs|*|create",
+   "batch|jobs|*|delete",
+   "batch|jobs|*|deletecollection",
+   "batch|jobs|*|patch",
+   "batch|jobs|*|update",
+   "coordination.k8s.io|leases|*|create",
+   "coordination.k8s.io|leases|*|delete",
+   "coordination.k8s.io|leases|*|deletecollection",
+   "coordination.k8s.io|leases|*|get",
+   "coordination.k8s.io|leases|*|list",
+   "coordination.k8s.io|leases|*|patch",
+   "coordination.k8s.io|leases|*|update",
+   "coordination.k8s.io|leases|*|watch",
+   "events.k8s.io|events|*|create",
+   "events.k8s.io|events|*|delete",
+   "events.k8s.io|events|*|deletecollection",
+   "events.k8s.io|events|*|patch",
+   "events.k8s.io|events|*|update",
+   "extensions|daemonsets|*|create",
+   "extensions|daemonsets|*|delete",
+   "extensions|daemonsets|*|deletecollection",
+   "extensions|daemonsets|*|patch",
+   "extensions|daemonsets|*|update",
+   "extensions|deployments/rollback|*|create",
+   "extensions|deployments/rollback|*|delete",
+   "extensions|deployments/rollback|*|deletecollection",
+   "extensions|deployments/rollback|*|patch",
+   "extensions|deployments/rollback|*|update",
+   "extensions|deployments/scale|*|create",
+   "extensions|deployments/scale|*|delete",
+   "extensions|deployments/scale|*|deletecollection",
+   "extensions|deployments/scale|*|patch",
+   "extensions|deployments/scale|*|update",
+   "extensions|deployments|*|create",
+   "extensions|deployments|*|delete",
+   "extensions|deployments|*|deletecollection",
+   "extensions|deployments|*|patch",
+   "extensions|deployments|*|update",
+   "extensions|ingresses|*|create",
+   "extensions|ingresses|*|delete",
+   "extensions|ingresses|*|deletecollection",
+   "extensions|ingresses|*|patch",
+   "extensions|ingresses|*|update",
+   "extensions|networkpolicies|*|create",
+   "extensions|networkpolicies|*|delete",
+   "extensions|networkpolicies|*|deletecollection",
+   "extensions|networkpolicies|*|patch",
+   "extensions|networkpolicies|*|update",
+   "extensions|replicasets/scale|*|create",
+   "extensions|replicasets/scale|*|delete",
+   "extensions|replicasets/scale|*|deletecollection",
+   "extensions|replicasets/scale|*|patch",
+   "extensions|replicasets/scale|*|update",
+   "extensions|replicasets|*|create",
+   "extensions|replicasets|*|delete",
+   "extensions|replicasets|*|deletecollection",
+   "extensions|replicasets|*|patch",
+   "extensions|replicasets|*|update",
+   "extensions|replicationcontrollers/scale|*|create",
+   "extensions|replicationcontrollers/scale|*|delete",
+   "extensions|replicationcontrollers/scale|*|deletecollection",
+   "extensions|replicationcontrollers/scale|*|patch",
+   "extensions|replicationcontrollers/scale|*|update",
+   "lifecycle.k8s.io|evictionrequests|*|create",
+   "lifecycle.k8s.io|evictionrequests|*|delete",
+   "lifecycle.k8s.io|evictionrequests|*|deletecollection",
+   "lifecycle.k8s.io|evictionrequests|*|patch",
+   "lifecycle.k8s.io|evictionrequests|*|update",
+   "networking.k8s.io|ingresses|*|create",
+   "networking.k8s.io|ingresses|*|delete",
+   "networking.k8s.io|ingresses|*|deletecollection",
+   "networking.k8s.io|ingresses|*|patch",
+   "networking.k8s.io|ingresses|*|update",
+   "networking.k8s.io|networkpolicies|*|create",
+   "networking.k8s.io|networkpolicies|*|delete",
+   "networking.k8s.io|networkpolicies|*|deletecollection",
+   "networking.k8s.io|networkpolicies|*|patch",
+   "networking.k8s.io|networkpolicies|*|update",
+   "policy|poddisruptionbudgets|*|create",
+   "policy|poddisruptionbudgets|*|delete",
+   "policy|poddisruptionbudgets|*|deletecollection",
+   "policy|poddisruptionbudgets|*|patch",
+   "policy|poddisruptionbudgets|*|update",
+   "resource.k8s.io|resourceclaims|*|create",
+   "resource.k8s.io|resourceclaims|*|delete",
+   "resource.k8s.io|resourceclaims|*|deletecollection",
+   "resource.k8s.io|resourceclaims|*|patch",
+   "resource.k8s.io|resourceclaims|*|update",
+   "resource.k8s.io|resourceclaimtemplates|*|create",
+   "resource.k8s.io|resourceclaimtemplates|*|delete",
+   "resource.k8s.io|resourceclaimtemplates|*|deletecollection",
+   "resource.k8s.io|resourceclaimtemplates|*|patch",
+   "resource.k8s.io|resourceclaimtemplates|*|update",
+   "scheduling.k8s.io|compositepodgroups|*|create",
+   "scheduling.k8s.io|compositepodgroups|*|delete",
+   "scheduling.k8s.io|compositepodgroups|*|deletecollection",
+   "scheduling.k8s.io|compositepodgroups|*|patch",
+   "scheduling.k8s.io|compositepodgroups|*|update",
+   "scheduling.k8s.io|podgroups|*|create",
+   "scheduling.k8s.io|podgroups|*|delete",
+   "scheduling.k8s.io|podgroups|*|deletecollection",
+   "scheduling.k8s.io|podgroups|*|patch",
+   "scheduling.k8s.io|podgroups|*|update",
+   "scheduling.k8s.io|workloads|*|create",
+   "scheduling.k8s.io|workloads|*|delete",
+   "scheduling.k8s.io|workloads|*|deletecollection",
+   "scheduling.k8s.io|workloads|*|patch",
+   "scheduling.k8s.io|workloads|*|update",
+   "|configmaps|*|create",
+   "|configmaps|*|delete",
+   "|configmaps|*|deletecollection",
+   "|configmaps|*|patch",
+   "|configmaps|*|update",
+   "|events|*|create",
+   "|events|*|delete",
+   "|events|*|deletecollection",
+   "|events|*|patch",
+   "|events|*|update",
+   "|persistentvolumeclaims|*|create",
+   "|persistentvolumeclaims|*|delete",
+   "|persistentvolumeclaims|*|deletecollection",
+   "|persistentvolumeclaims|*|patch",
+   "|persistentvolumeclaims|*|update",
+   "|pods/attach|*|create",
+   "|pods/attach|*|delete",
+   "|pods/attach|*|deletecollection",
+   "|pods/attach|*|get",
+   "|pods/attach|*|list",
+   "|pods/attach|*|patch",
+   "|pods/attach|*|update",
+   "|pods/attach|*|watch",
+   "|pods/eviction|*|create",
+   "|pods/exec|*|create",
+   "|pods/exec|*|delete",
+   "|pods/exec|*|deletecollection",
+   "|pods/exec|*|get",
+   "|pods/exec|*|list",
+   "|pods/exec|*|patch",
+   "|pods/exec|*|update",
+   "|pods/exec|*|watch",
+   "|pods/portforward|*|create",
+   "|pods/portforward|*|delete",
+   "|pods/portforward|*|deletecollection",
+   "|pods/portforward|*|get",
+   "|pods/portforward|*|list",
+   "|pods/portforward|*|patch",
+   "|pods/portforward|*|update",
+   "|pods/portforward|*|watch",
+   "|pods/proxy|*|create",
+   "|pods/proxy|*|delete",
+   "|pods/proxy|*|deletecollection",
+   "|pods/proxy|*|get",
+   "|pods/proxy|*|list",
+   "|pods/proxy|*|patch",
+   "|pods/proxy|*|update",
+   "|pods/proxy|*|watch",
+   "|pods|*|create",
+   "|pods|*|delete",
+   "|pods|*|deletecollection",
+   "|pods|*|patch",
+   "|pods|*|update",
+   "|replicationcontrollers/scale|*|create",
+   "|replicationcontrollers/scale|*|delete",
+   "|replicationcontrollers/scale|*|deletecollection",
+   "|replicationcontrollers/scale|*|patch",
+   "|replicationcontrollers/scale|*|update",
+   "|replicationcontrollers|*|create",
+   "|replicationcontrollers|*|delete",
+   "|replicationcontrollers|*|deletecollection",
+   "|replicationcontrollers|*|patch",
+   "|replicationcontrollers|*|update",
+   "|secrets|*|create",
+   "|secrets|*|delete",
+   "|secrets|*|deletecollection",
+   "|secrets|*|get",
+   "|secrets|*|list",
+   "|secrets|*|patch",
+   "|secrets|*|update",
+   "|secrets|*|watch",
+   "|serviceaccounts/token|*|create",
+   "|serviceaccounts|*|create",
+   "|serviceaccounts|*|delete",
+   "|serviceaccounts|*|deletecollection",
+   "|serviceaccounts|*|impersonate",
+   "|serviceaccounts|*|patch",
+   "|serviceaccounts|*|update",
+   "|services/proxy|*|create",
+   "|services/proxy|*|delete",
+   "|services/proxy|*|deletecollection",
+   "|services/proxy|*|get",
+   "|services/proxy|*|list",
+   "|services/proxy|*|patch",
+   "|services/proxy|*|update",
+   "|services/proxy|*|watch",
+   "|services|*|create",
+   "|services|*|delete",
+   "|services|*|deletecollection",
+   "|services|*|patch",
+   "|services|*|update"
+  ],
+  "ClusterRole/system:aggregate-to-view": [
+   "apps|controllerrevisions|*|get",
+   "apps|controllerrevisions|*|list",
+   "apps|controllerrevisions|*|watch",
+   "apps|daemonsets/status|*|get",
+   "apps|daemonsets/status|*|list",
+   "apps|daemonsets/status|*|watch",
+   "apps|daemonsets|*|get",
+   "apps|daemonsets|*|list",
+   "apps|daemonsets|*|watch",
+   "apps|deployments/scale|*|get",
+   "apps|deployments/scale|*|list",
+   "apps|deployments/scale|*|watch",
+   "apps|deployments/status|*|get",
+   "apps|deployments/status|*|list",
+   "apps|deployments/status|*|watch",
+   "apps|deployments|*|get",
+   "apps|deployments|*|list",
+   "apps|deployments|*|watch",
+   "apps|replicasets/scale|*|get",
+   "apps|replicasets/scale|*|list",
+   "apps|replicasets/scale|*|watch",
+   "apps|replicasets/status|*|get",
+   "apps|replicasets/status|*|list",
+   "apps|replicasets/status|*|watch",
+   "apps|replicasets|*|get",
+   "apps|replicasets|*|list",
+   "apps|replicasets|*|watch",
+   "apps|statefulsets/scale|*|get",
+   "apps|statefulsets/scale|*|list",
+   "apps|statefulsets/scale|*|watch",
+   "apps|statefulsets/status|*|get",
+   "apps|statefulsets/status|*|list",
+   "apps|statefulsets/status|*|watch",
+   "apps|statefulsets|*|get",
+   "apps|statefulsets|*|list",
+   "apps|statefulsets|*|watch",
+   "autoscaling|horizontalpodautoscalers/status|*|get",
+   "autoscaling|horizontalpodautoscalers/status|*|list",
+   "autoscaling|horizontalpodautoscalers/status|*|watch",
+   "autoscaling|horizontalpodautoscalers|*|get",
+   "autoscaling|horizontalpodautoscalers|*|list",
+   "autoscaling|horizontalpodautoscalers|*|watch",
+   "batch|cronjobs/status|*|get",
+   "batch|cronjobs/status|*|list",
+   "batch|cronjobs/status|*|watch",
+   "batch|cronjobs|*|get",
+   "batch|cronjobs|*|list",
+   "batch|cronjobs|*|watch",
+   "batch|jobs/status|*|get",
+   "batch|jobs/status|*|list",
+   "batch|jobs/status|*|watch",
+   "batch|jobs|*|get",
+   "batch|jobs|*|list",
+   "batch|jobs|*|watch",
+   "discovery.k8s.io|endpointslices|*|get",
+   "discovery.k8s.io|endpointslices|*|list",
+   "discovery.k8s.io|endpointslices|*|watch",
+   "events.k8s.io|events|*|get",
+   "events.k8s.io|events|*|list",
+   "events.k8s.io|events|*|watch",
+   "extensions|daemonsets/status|*|get",
+   "extensions|daemonsets/status|*|list",
+   "extensions|daemonsets/status|*|watch",
+   "extensions|daemonsets|*|get",
+   "extensions|daemonsets|*|list",
+   "extensions|daemonsets|*|watch",
+   "extensions|deployments/scale|*|get",
+   "extensions|deployments/scale|*|list",
+   "extensions|deployments/scale|*|watch",
+   "extensions|deployments/status|*|get",
+   "extensions|deployments/status|*|list",
+   "extensions|deployments/status|*|watch",
+   "extensions|deployments|*|get",
+   "extensions|deployments|*|list",
+   "extensions|deployments|*|watch",
+   "extensions|ingresses/status|*|get",
+   "extensions|ingresses/status|*|list",
+   "extensions|ingresses/status|*|watch",
+   "extensions|ingresses|*|get",
+   "extensions|ingresses|*|list",
+   "extensions|ingresses|*|watch",
+   "extensions|networkpolicies|*|get",
+   "extensions|networkpolicies|*|list",
+   "extensions|networkpolicies|*|watch",
+   "extensions|replicasets/scale|*|get",
+   "extensions|replicasets/scale|*|list",
+   "extensions|replicasets/scale|*|watch",
+   "extensions|replicasets/status|*|get",
+   "extensions|replicasets/status|*|list",
+   "extensions|replicasets/status|*|watch",
+   "extensions|replicasets|*|get",
+   "extensions|replicasets|*|list",
+   "extensions|replicasets|*|watch",
+   "extensions|replicationcontrollers/scale|*|get",
+   "extensions|replicationcontrollers/scale|*|list",
+   "extensions|replicationcontrollers/scale|*|watch",
+   "lifecycle.k8s.io|evictionrequests|*|get",
+   "lifecycle.k8s.io|evictionrequests|*|list",
+   "lifecycle.k8s.io|evictionrequests|*|watch",
+   "lifecycle.k8s.io|evictions|*|get",
+   "lifecycle.k8s.io|evictions|*|list",
+   "lifecycle.k8s.io|evictions|*|watch",
+   "networking.k8s.io|ingresses/status|*|get",
+   "networking.k8s.io|ingresses/status|*|list",
+   "networking.k8s.io|ingresses/status|*|watch",
+   "networking.k8s.io|ingresses|*|get",
+   "networking.k8s.io|ingresses|*|list",
+   "networking.k8s.io|ingresses|*|watch",
+   "networking.k8s.io|networkpolicies|*|get",
+   "networking.k8s.io|networkpolicies|*|list",
+   "networking.k8s.io|networkpolicies|*|watch",
+   "policy|poddisruptionbudgets/status|*|get",
+   "policy|poddisruptionbudgets/status|*|list",
+   "policy|poddisruptionbudgets/status|*|watch",
+   "policy|poddisruptionbudgets|*|get",
+   "policy|poddisruptionbudgets|*|list",
+   "policy|poddisruptionbudgets|*|watch",
+   "resource.k8s.io|resourceclaims/status|*|get",
+   "resource.k8s.io|resourceclaims/status|*|list",
+   "resource.k8s.io|resourceclaims/status|*|watch",
+   "resource.k8s.io|resourceclaims|*|get",
+   "resource.k8s.io|resourceclaims|*|list",
+   "resource.k8s.io|resourceclaims|*|watch",
+   "resource.k8s.io|resourceclaimtemplates|*|get",
+   "resource.k8s.io|resourceclaimtemplates|*|list",
+   "resource.k8s.io|resourceclaimtemplates|*|watch",
+   "scheduling.k8s.io|compositepodgroups/status|*|get",
+   "scheduling.k8s.io|compositepodgroups/status|*|list",
+   "scheduling.k8s.io|compositepodgroups/status|*|watch",
+   "scheduling.k8s.io|compositepodgroups|*|get",
+   "scheduling.k8s.io|compositepodgroups|*|list",
+   "scheduling.k8s.io|compositepodgroups|*|watch",
+   "scheduling.k8s.io|podgroups/status|*|get",
+   "scheduling.k8s.io|podgroups/status|*|list",
+   "scheduling.k8s.io|podgroups/status|*|watch",
+   "scheduling.k8s.io|podgroups|*|get",
+   "scheduling.k8s.io|podgroups|*|list",
+   "scheduling.k8s.io|podgroups|*|watch",
+   "scheduling.k8s.io|workloads|*|get",
+   "scheduling.k8s.io|workloads|*|list",
+   "scheduling.k8s.io|workloads|*|watch",
+   "|bindings|*|get",
+   "|bindings|*|list",
+   "|bindings|*|watch",
+   "|configmaps|*|get",
+   "|configmaps|*|list",
+   "|configmaps|*|watch",
+   "|endpoints|*|get",
+   "|endpoints|*|list",
+   "|endpoints|*|watch",
+   "|events|*|get",
+   "|events|*|list",
+   "|events|*|watch",
+   "|limitranges|*|get",
+   "|limitranges|*|list",
+   "|limitranges|*|watch",
+   "|namespaces/status|*|get",
+   "|namespaces/status|*|list",
+   "|namespaces/status|*|watch",
+   "|namespaces|*|get",
+   "|namespaces|*|list",
+   "|namespaces|*|watch",
+   "|persistentvolumeclaims/status|*|get",
+   "|persistentvolumeclaims/status|*|list",
+   "|persistentvolumeclaims/status|*|watch",
+   "|persistentvolumeclaims|*|get",
+   "|persistentvolumeclaims|*|list",
+   "|persistentvolumeclaims|*|watch",
+   "|pods/log|*|get",
+   "|pods/log|*|list",
+   "|pods/log|*|watch",
+   "|pods/status|*|get",
+   "|pods/status|*|list",
+   "|pods/status|*|watch",
+   "|pods|*|get",
+   "|pods|*|list",
+   "|pods|*|watch",
+   "|replicationcontrollers/scale|*|get",
+   "|replicationcontrollers/scale|*|list",
+   "|replicationcontrollers/scale|*|watch",
+   "|replicationcontrollers/status|*|get",
+   "|replicationcontrollers/status|*|list",
+   "|replicationcontrollers/status|*|watch",
+   "|replicationcontrollers|*|get",
+   "|replicationcontrollers|*|list",
+   "|replicationcontrollers|*|watch",
+   "|resourcequotas/status|*|get",
+   "|resourcequotas/status|*|list",
+   "|resourcequotas/status|*|watch",
+   "|resourcequotas|*|get",
+   "|resourcequotas|*|list",
+   "|resourcequotas|*|watch",
+   "|serviceaccounts|*|get",
+   "|serviceaccounts|*|list",
+   "|serviceaccounts|*|watch",
+   "|services/status|*|get",
+   "|services/status|*|list",
+   "|services/status|*|watch",
+   "|services|*|get",
+   "|services|*|list",
+   "|services|*|watch"
+  ],
+  "ClusterRole/system:auth-delegator": [
+   "authentication.k8s.io|tokenreviews|*|create",
+   "authorization.k8s.io|subjectaccessreviews|*|create"
+  ],
+  "ClusterRole/system:basic-user": [
+   "authentication.k8s.io|selfsubjectreviews|*|create",
+   "authorization.k8s.io|selfsubjectaccessreviews|*|create",
+   "authorization.k8s.io|selfsubjectrulesreviews|*|create"
+  ],
+  "ClusterRole/system:certificates.k8s.io:certificatesigningrequests:nodeclient": [
+   "certificates.k8s.io|certificatesigningrequests/nodeclient|*|create"
+  ],
+  "ClusterRole/system:certificates.k8s.io:certificatesigningrequests:selfnodeclient": [
+   "certificates.k8s.io|certificatesigningrequests/selfnodeclient|*|create"
+  ],
+  "ClusterRole/system:certificates.k8s.io:kube-apiserver-client-approver": [
+   "certificates.k8s.io|signers|kubernetes.io/kube-apiserver-client|approve"
+  ],
+  "ClusterRole/system:certificates.k8s.io:kube-apiserver-client-kubelet-approver": [
+   "certificates.k8s.io|signers|kubernetes.io/kube-apiserver-client-kubelet|approve"
+  ],
+  "ClusterRole/system:certificates.k8s.io:kubelet-serving-approver": [
+   "certificates.k8s.io|signers|kubernetes.io/kubelet-serving|approve"
+  ],
+  "ClusterRole/system:certificates.k8s.io:legacy-unknown-approver": [
+   "certificates.k8s.io|signers|kubernetes.io/legacy-unknown|approve"
+  ],
+  "ClusterRole/system:cluster-trust-bundle-discovery": [
+   "certificates.k8s.io|clustertrustbundles|*|get",
+   "certificates.k8s.io|clustertrustbundles|*|list",
+   "certificates.k8s.io|clustertrustbundles|*|watch"
+  ],
+  "ClusterRole/system:controller:attachdetach-controller": [
+   "events.k8s.io|events|*|create",
+   "events.k8s.io|events|*|patch",
+   "events.k8s.io|events|*|update",
+   "storage.k8s.io|csidrivers|*|get",
+   "storage.k8s.io|csidrivers|*|list",
+   "storage.k8s.io|csidrivers|*|watch",
+   "storage.k8s.io|csinodes|*|get",
+   "storage.k8s.io|csinodes|*|list",
+   "storage.k8s.io|csinodes|*|watch",
+   "storage.k8s.io|volumeattachments|*|create",
+   "storage.k8s.io|volumeattachments|*|delete",
+   "storage.k8s.io|volumeattachments|*|get",
+   "storage.k8s.io|volumeattachments|*|list",
+   "storage.k8s.io|volumeattachments|*|watch",
+   "|events|*|create",
+   "|events|*|patch",
+   "|events|*|update",
+   "|nodes/status|*|patch",
+   "|nodes/status|*|update",
+   "|nodes|*|get",
+   "|nodes|*|list",
+   "|nodes|*|watch",
+   "|persistentvolumeclaims|*|list",
+   "|persistentvolumeclaims|*|watch",
+   "|persistentvolumes|*|list",
+   "|persistentvolumes|*|watch",
+   "|pods|*|list",
+   "|pods|*|watch"
+  ],
+  "ClusterRole/system:controller:certificate-controller": [
+   "authorization.k8s.io|subjectaccessreviews|*|create",
+   "certificates.k8s.io|certificatesigningrequests/approval|*|update",
+   "certificates.k8s.io|certificatesigningrequests/status|*|update",
+   "certificates.k8s.io|certificatesigningrequests|*|delete",
+   "certificates.k8s.io|certificatesigningrequests|*|get",
+   "certificates.k8s.io|certificatesigningrequests|*|list",
+   "certificates.k8s.io|certificatesigningrequests|*|watch",
+   "certificates.k8s.io|signers|kubernetes.io/kube-apiserver-client-kubelet|approve",
+   "certificates.k8s.io|signers|kubernetes.io/kube-apiserver-client-kubelet|sign",
+   "certificates.k8s.io|signers|kubernetes.io/kube-apiserver-client|sign",
+   "certificates.k8s.io|signers|kubernetes.io/kubelet-serving|sign",
+   "certificates.k8s.io|signers|kubernetes.io/legacy-unknown|sign",
+   "events.k8s.io|events|*|create",
+   "events.k8s.io|events|*|patch",
+   "events.k8s.io|events|*|update",
+   "|events|*|create",
+   "|events|*|patch",
+   "|events|*|update"
+  ],
+  "ClusterRole/system:controller:clusterrole-aggregation-controller": [
+   "rbac.authorization.k8s.io|clusterroles|*|escalate",
+   "rbac.authorization.k8s.io|clusterroles|*|get",
+   "rbac.authorization.k8s.io|clusterroles|*|list",
+   "rbac.authorization.k8s.io|clusterroles|*|patch",
+   "rbac.authorization.k8s.io|clusterroles|*|update",
+   "rbac.authorization.k8s.io|clusterroles|*|watch"
+  ],
+  "ClusterRole/system:controller:cronjob-controller": [
+   "batch|cronjobs/finalizers|*|update",
+   "batch|cronjobs/status|*|update",
+   "batch|cronjobs|*|get",
+   "batch|cronjobs|*|list",
+   "batch|cronjobs|*|update",
+   "batch|cronjobs|*|watch",
+   "batch|jobs|*|create",
+   "batch|jobs|*|delete",
+   "batch|jobs|*|get",
+   "batch|jobs|*|list",
+   "batch|jobs|*|patch",
+   "batch|jobs|*|update",
+   "batch|jobs|*|watch",
+   "events.k8s.io|events|*|create",
+   "events.k8s.io|events|*|patch",
+   "events.k8s.io|events|*|update",
+   "|events|*|create",
+   "|events|*|patch",
+   "|events|*|update",
+   "|pods|*|delete",
+   "|pods|*|list",
+   "|pods|*|watch"
+  ],
+  "ClusterRole/system:controller:daemon-set-controller": [
+   "apps|controllerrevisions|*|create",
+   "apps|controllerrevisions|*|delete",
+   "apps|controllerrevisions|*|get",
+   "apps|controllerrevisions|*|list",
+   "apps|controllerrevisions|*|patch",
+   "apps|controllerrevisions|*|update",
+   "apps|controllerrevisions|*|watch",
+   "apps|daemonsets/finalizers|*|update",
+   "apps|daemonsets/status|*|update",
+   "apps|daemonsets|*|get",
+   "apps|daemonsets|*|list",
+   "apps|daemonsets|*|watch",
+   "events.k8s.io|events|*|create",
+   "events.k8s.io|events|*|patch",
+   "events.k8s.io|events|*|update",
+   "extensions|daemonsets/finalizers|*|update",
+   "extensions|daemonsets/status|*|update",
+   "extensions|daemonsets|*|get",
+   "extensions|daemonsets|*|list",
+   "extensions|daemonsets|*|watch",
+   "|events|*|create",
+   "|events|*|patch",
+   "|events|*|update",
+   "|nodes|*|list",
+   "|nodes|*|watch",
+   "|pods/binding|*|create",
+   "|pods|*|create",
+   "|pods|*|delete",
+   "|pods|*|list",
+   "|pods|*|patch",
+   "|pods|*|watch"
+  ],
+  "ClusterRole/system:controller:deployment-controller": [
+   "apps|deployments/finalizers|*|update",
+   "apps|deployments/status|*|update",
+   "apps|deployments|*|get",
+   "apps|deployments|*|list",
+   "apps|deployments|*|update",
+   "apps|deployments|*|watch",
+   "apps|replicasets|*|create",
+   "apps|replicasets|*|delete",
+   "apps|replicasets|*|get",
+   "apps|replicasets|*|list",
+   "apps|replicasets|*|patch",
+   "apps|replicasets|*|update",
+   "apps|replicasets|*|watch",
+   "events.k8s.io|events|*|create",
+   "events.k8s.io|events|*|patch",
+   "events.k8s.io|events|*|update",
+   "extensions|deployments/finalizers|*|update",
+   "extensions|deployments/status|*|update",
+   "extensions|deployments|*|get",
+   "extensions|deployments|*|list",
+   "extensions|deployments|*|update",
+   "extensions|deployments|*|watch",
+   "extensions|replicasets|*|create",
+   "extensions|replicasets|*|delete",
+   "extensions|replicasets|*|get",
+   "extensions|replicasets|*|list",
+   "extensions|replicasets|*|patch",
+   "extensions|replicasets|*|update",
+   "extensions|replicasets|*|watch",
+   "|events|*|create",
+   "|events|*|patch",
+   "|events|*|update",
+   "|pods|*|get",
+   "|pods|*|list",
+   "|pods|*|update",
+   "|pods|*|watch"
+  ],
+  "ClusterRole/system:controller:device-taint-eviction-controller": [
+   "events.k8s.io|events|*|create",
+   "events.k8s.io|events|*|patch",
+   "events.k8s.io|events|*|update",
+   "resource.k8s.io|deviceclasses|*|get",
+   "resource.k8s.io|deviceclasses|*|list",
+   "resource.k8s.io|deviceclasses|*|watch",
+   "resource.k8s.io|devicetaintrules/status|*|patch",
+   "resource.k8s.io|devicetaintrules/status|*|update",
+   "resource.k8s.io|devicetaintrules|*|get",
+   "resource.k8s.io|devicetaintrules|*|list",
+   "resource.k8s.io|devicetaintrules|*|watch",
+   "resource.k8s.io|resourceclaims|*|get",
+   "resource.k8s.io|resourceclaims|*|list",
+   "resource.k8s.io|resourceclaims|*|watch",
+   "resource.k8s.io|resourceslices|*|get",
+   "resource.k8s.io|resourceslices|*|list",
+   "resource.k8s.io|resourceslices|*|watch",
+   "|events|*|create",
+   "|events|*|patch",
+   "|events|*|update",
+   "|pods/status|*|patch",
+   "|pods/status|*|update",
+   "|pods|*|delete",
+   "|pods|*|get",
+   "|pods|*|list",
+   "|pods|*|watch"
+  ],
+  "ClusterRole/system:controller:disruption-controller": [
+   "*|*/scale|*|get",
+   "apps|deployments|*|get",
+   "apps|deployments|*|list",
+   "apps|deployments|*|watch",
+   "apps|replicasets|*|get",
+   "apps|replicasets|*|list",
+   "apps|replicasets|*|watch",
+   "apps|statefulsets|*|get",
+   "apps|statefulsets|*|list",
+   "apps|statefulsets|*|watch",
+   "events.k8s.io|events|*|create",
+   "events.k8s.io|events|*|patch",
+   "events.k8s.io|events|*|update",
+   "extensions|deployments|*|get",
+   "extensions|deployments|*|list",
+   "extensions|deployments|*|watch",
+   "extensions|replicasets|*|get",
+   "extensions|replicasets|*|list",
+   "extensions|replicasets|*|watch",
+   "policy|poddisruptionbudgets/status|*|update",
+   "policy|poddisruptionbudgets|*|get",
+   "policy|poddisruptionbudgets|*|list",
+   "policy|poddisruptionbudgets|*|watch",
+   "|events|*|create",
+   "|events|*|patch",
+   "|events|*|update",
+   "|pods/status|*|patch",
+   "|pods/status|*|update",
+   "|replicationcontrollers|*|get",
+   "|replicationcontrollers|*|list",
+   "|replicationcontrollers|*|watch"
+  ],
+  "ClusterRole/system:controller:endpoint-controller": [
+   "events.k8s.io|events|*|create",
+   "events.k8s.io|events|*|patch",
+   "events.k8s.io|events|*|update",
+   "|endpoints/restricted|*|create",
+   "|endpoints|*|create",
+   "|endpoints|*|delete",
+   "|endpoints|*|get",
+   "|endpoints|*|list",
+   "|endpoints|*|update",
+   "|endpoints|*|watch",
+   "|events|*|create",
+   "|events|*|patch",
+   "|events|*|update",
+   "|pods|*|get",
+   "|pods|*|list",
+   "|pods|*|watch",
+   "|services|*|get",
+   "|services|*|list",
+   "|services|*|watch"
+  ],
+  "ClusterRole/system:controller:endpointslice-controller": [
+   "discovery.k8s.io|endpointslices|*|create",
+   "discovery.k8s.io|endpointslices|*|delete",
+   "discovery.k8s.io|endpointslices|*|get",
+   "discovery.k8s.io|endpointslices|*|list",
+   "discovery.k8s.io|endpointslices|*|update",
+   "discovery.k8s.io|endpointslices|*|watch",
+   "events.k8s.io|events|*|create",
+   "events.k8s.io|events|*|patch",
+   "events.k8s.io|events|*|update",
+   "|events|*|create",
+   "|events|*|patch",
+   "|events|*|update",
+   "|nodes|*|get",
+   "|nodes|*|list",
+   "|nodes|*|watch",
+   "|pods|*|get",
+   "|pods|*|list",
+   "|pods|*|watch",
+   "|services/finalizers|*|update",
+   "|services|*|get",
+   "|services|*|list",
+   "|services|*|watch"
+  ],
+  "ClusterRole/system:controller:endpointslicemirroring-controller": [
+   "discovery.k8s.io|endpointslices|*|create",
+   "discovery.k8s.io|endpointslices|*|delete",
+   "discovery.k8s.io|endpointslices|*|get",
+   "discovery.k8s.io|endpointslices|*|list",
+   "discovery.k8s.io|endpointslices|*|update",
+   "discovery.k8s.io|endpointslices|*|watch",
+   "events.k8s.io|events|*|create",
+   "events.k8s.io|events|*|patch",
+   "events.k8s.io|events|*|update",
+   "|endpoints/finalizers|*|update",
+   "|endpoints|*|get",
+   "|endpoints|*|list",
+   "|endpoints|*|watch",
+   "|events|*|create",
+   "|events|*|patch",
+   "|events|*|update",
+   "|services/finalizers|*|update",
+   "|services|*|get",
+   "|services|*|list",
+   "|services|*|watch"
+  ],
+  "ClusterRole/system:controller:ephemeral-volume-controller": [
+   "events.k8s.io|events|*|create",
+   "events.k8s.io|events|*|patch",
+   "events.k8s.io|events|*|update",
+   "|events|*|create",
+   "|events|*|patch",
+   "|events|*|update",
+   "|persistentvolumeclaims|*|create",
+   "|persistentvolumeclaims|*|get",
+   "|persistentvolumeclaims|*|list",
+   "|persistentvolumeclaims|*|watch",
+   "|pods/finalizers|*|update",
+   "|pods|*|get",
+   "|pods|*|list",
+   "|pods|*|watch"
+  ],
+  "ClusterRole/system:controller:expand-controller": [
+   "events.k8s.io|events|*|create",
+   "events.k8s.io|events|*|patch",
+   "events.k8s.io|events|*|update",
+   "|events|*|create",
+   "|events|*|patch",
+   "|events|*|update",
+   "|persistentvolumeclaims/status|*|patch",
+   "|persistentvolumeclaims/status|*|update",
+   "|persistentvolumeclaims|*|get",
+   "|persistentvolumeclaims|*|list",
+   "|persistentvolumeclaims|*|watch",
+   "|persistentvolumes|*|get",
+   "|persistentvolumes|*|list",
+   "|persistentvolumes|*|patch",
+   "|persistentvolumes|*|update",
+   "|persistentvolumes|*|watch",
+   "|services|*|get"
+  ],
+  "ClusterRole/system:controller:generic-garbage-collector": [
+   "*|*|*|delete",
+   "*|*|*|get",
+   "*|*|*|list",
+   "*|*|*|patch",
+   "*|*|*|update",
+   "*|*|*|watch",
+   "events.k8s.io|events|*|create",
+   "events.k8s.io|events|*|patch",
+   "events.k8s.io|events|*|update",
+   "|events|*|create",
+   "|events|*|patch",
+   "|events|*|update"
+  ],
+  "ClusterRole/system:controller:horizontal-pod-autoscaler": [
+   "*|*/scale|*|get",
+   "*|*/scale|*|update",
+   "autoscaling|horizontalpodautoscalers/status|*|update",
+   "autoscaling|horizontalpodautoscalers|*|get",
+   "autoscaling|horizontalpodautoscalers|*|list",
+   "autoscaling|horizontalpodautoscalers|*|watch",
+   "custom.metrics.k8s.io|*|*|get",
+   "custom.metrics.k8s.io|*|*|list",
+   "custom.metrics.k8s.io|*|*|watch",
+   "events.k8s.io|events|*|create",
+   "events.k8s.io|events|*|patch",
+   "events.k8s.io|events|*|update",
+   "external.metrics.k8s.io|*|*|get",
+   "external.metrics.k8s.io|*|*|list",
+   "external.metrics.k8s.io|*|*|watch",
+   "metrics.k8s.io|pods|*|list",
+   "metrics.k8s.io|pods|*|watch",
+   "|events|*|create",
+   "|events|*|patch",
+   "|events|*|update",
+   "|pods|*|list",
+   "|pods|*|watch"
+  ],
+  "ClusterRole/system:controller:job-controller": [
+   "batch|jobs/finalizers|*|update",
+   "batch|jobs/status|*|update",
+   "batch|jobs|*|get",
+   "batch|jobs|*|list",
+   "batch|jobs|*|patch",
+   "batch|jobs|*|update",
+   "batch|jobs|*|watch",
+   "events.k8s.io|events|*|create",
+   "events.k8s.io|events|*|patch",
+   "events.k8s.io|events|*|update",
+   "|events|*|create",
+   "|events|*|patch",
+   "|events|*|update",
+   "|pods|*|create",
+   "|pods|*|delete",
+   "|pods|*|list",
+   "|pods|*|patch",
+   "|pods|*|watch"
+  ],
+  "ClusterRole/system:controller:kube-apiserver-serving-clustertrustbundle-publisher": [
+   "certificates.k8s.io|clustertrustbundles|*|create",
+   "certificates.k8s.io|clustertrustbundles|*|delete",
+   "certificates.k8s.io|clustertrustbundles|*|list",
+   "certificates.k8s.io|clustertrustbundles|*|update",
+   "certificates.k8s.io|clustertrustbundles|*|watch",
+   "certificates.k8s.io|signers|kubernetes.io/kube-apiserver-serving|attest",
+   "events.k8s.io|events|*|create",
+   "events.k8s.io|events|*|patch",
+   "events.k8s.io|events|*|update",
+   "|events|*|create",
+   "|events|*|patch",
+   "|events|*|update"
+  ],
+  "ClusterRole/system:controller:legacy-service-account-token-cleaner": [
+   "|configmaps|kube-apiserver-legacy-service-account-token-tracking|get",
+   "|secrets|*|delete",
+   "|secrets|*|patch"
+  ],
+  "ClusterRole/system:controller:namespace-controller": [
+   "*|*|*|delete",
+   "*|*|*|deletecollection",
+   "*|*|*|get",
+   "*|*|*|list",
+   "*|*|*|watch",
+   "|namespaces/finalize|*|update",
+   "|namespaces/status|*|update",
+   "|namespaces|*|delete",
+   "|namespaces|*|get",
+   "|namespaces|*|list",
+   "|namespaces|*|watch"
+  ],
+  "ClusterRole/system:controller:node-controller": [
+   "coordination.k8s.io|leases|*|get",
+   "coordination.k8s.io|leases|*|list",
+   "coordination.k8s.io|leases|*|watch",
+   "events.k8s.io|events|*|create",
+   "events.k8s.io|events|*|patch",
+   "events.k8s.io|events|*|update",
+   "|events|*|create",
+   "|events|*|patch",
+   "|events|*|update",
+   "|nodes/status|*|patch",
+   "|nodes/status|*|update",
+   "|nodes|*|delete",
+   "|nodes|*|get",
+   "|nodes|*|list",
+   "|nodes|*|patch",
+   "|nodes|*|update",
+   "|nodes|*|watch",
+   "|pods/status|*|patch",
+   "|pods/status|*|update",
+   "|pods|*|delete",
+   "|pods|*|get",
+   "|pods|*|list",
+   "|pods|*|watch"
+  ],
+  "ClusterRole/system:controller:persistent-volume-binder": [
+   "events.k8s.io|events|*|create",
+   "events.k8s.io|events|*|patch",
+   "events.k8s.io|events|*|update",
+   "storage.k8s.io|storageclasses|*|get",
+   "storage.k8s.io|storageclasses|*|list",
+   "storage.k8s.io|storageclasses|*|watch",
+   "|events|*|create",
+   "|events|*|patch",
+   "|events|*|update",
+   "|events|*|watch",
+   "|nodes|*|list",
+   "|nodes|*|watch",
+   "|persistentvolumeclaims/status|*|update",
+   "|persistentvolumeclaims|*|get",
+   "|persistentvolumeclaims|*|list",
+   "|persistentvolumeclaims|*|update",
+   "|persistentvolumeclaims|*|watch",
+   "|persistentvolumes/status|*|update",
+   "|persistentvolumes|*|create",
+   "|persistentvolumes|*|delete",
+   "|persistentvolumes|*|get",
+   "|persistentvolumes|*|list",
+   "|persistentvolumes|*|update",
+   "|persistentvolumes|*|watch",
+   "|pods|*|create",
+   "|pods|*|delete",
+   "|pods|*|get",
+   "|pods|*|list",
+   "|pods|*|watch",
+   "|services|*|get"
+  ],
+  "ClusterRole/system:controller:pod-garbage-collector": [
+   "|nodes|*|get",
+   "|nodes|*|list",
+   "|nodes|*|watch",
+   "|pods/status|*|patch",
+   "|pods|*|delete",
+   "|pods|*|list",
+   "|pods|*|watch"
+  ],
+  "ClusterRole/system:controller:podcertificaterequestcleaner": [
+   "certificates.k8s.io|podcertificaterequests|*|delete",
+   "certificates.k8s.io|podcertificaterequests|*|get",
+   "certificates.k8s.io|podcertificaterequests|*|list",
+   "certificates.k8s.io|podcertificaterequests|*|watch"
+  ],
+  "ClusterRole/system:controller:pv-protection-controller": [
+   "events.k8s.io|events|*|create",
+   "events.k8s.io|events|*|patch",
+   "events.k8s.io|events|*|update",
+   "|events|*|create",
+   "|events|*|patch",
+   "|events|*|update",
+   "|persistentvolumes|*|get",
+   "|persistentvolumes|*|list",
+   "|persistentvolumes|*|update",
+   "|persistentvolumes|*|watch"
+  ],
+  "ClusterRole/system:controller:pvc-protection-controller": [
+   "events.k8s.io|events|*|create",
+   "events.k8s.io|events|*|patch",
+   "events.k8s.io|events|*|update",
+   "|events|*|create",
+   "|events|*|patch",
+   "|events|*|update",
+   "|persistentvolumeclaims/status|*|update",
+   "|persistentvolumeclaims|*|get",
+   "|persistentvolumeclaims|*|list",
+   "|persistentvolumeclaims|*|update",
+   "|persistentvolumeclaims|*|watch",
+   "|pods|*|get",
+   "|pods|*|list",
+   "|pods|*|watch"
+  ],
+  "ClusterRole/system:controller:replicaset-controller": [
+   "apps|replicasets/finalizers|*|update",
+   "apps|replicasets/status|*|update",
+   "apps|replicasets|*|get",
+   "apps|replicasets|*|list",
+   "apps|replicasets|*|update",
+   "apps|replicasets|*|watch",
+   "events.k8s.io|events|*|create",
+   "events.k8s.io|events|*|patch",
+   "events.k8s.io|events|*|update",
+   "extensions|replicasets/finalizers|*|update",
+   "extensions|replicasets/status|*|update",
+   "extensions|replicasets|*|get",
+   "extensions|replicasets|*|list",
+   "extensions|replicasets|*|update",
+   "extensions|replicasets|*|watch",
+   "|events|*|create",
+   "|events|*|patch",
+   "|events|*|update",
+   "|pods|*|create",
+   "|pods|*|delete",
+   "|pods|*|list",
+   "|pods|*|patch",
+   "|pods|*|watch"
+  ],
+  "ClusterRole/system:controller:replication-controller": [
+   "events.k8s.io|events|*|create",
+   "events.k8s.io|events|*|patch",
+   "events.k8s.io|events|*|update",
+   "|events|*|create",
+   "|events|*|patch",
+   "|events|*|update",
+   "|pods|*|create",
+   "|pods|*|delete",
+   "|pods|*|list",
+   "|pods|*|patch",
+   "|pods|*|watch",
+   "|replicationcontrollers/finalizers|*|update",
+   "|replicationcontrollers/status|*|update",
+   "|replicationcontrollers|*|get",
+   "|replicationcontrollers|*|list",
+   "|replicationcontrollers|*|update",
+   "|replicationcontrollers|*|watch"
+  ],
+  "ClusterRole/system:controller:resource-claim-controller": [
+   "events.k8s.io|events|*|create",
+   "events.k8s.io|events|*|patch",
+   "events.k8s.io|events|*|update",
+   "resource.k8s.io|resourceclaims/binding|*|patch",
+   "resource.k8s.io|resourceclaims/binding|*|update",
+   "resource.k8s.io|resourceclaims/status|*|patch",
+   "resource.k8s.io|resourceclaims/status|*|update",
+   "resource.k8s.io|resourceclaims|*|create",
+   "resource.k8s.io|resourceclaims|*|delete",
+   "resource.k8s.io|resourceclaims|*|get",
+   "resource.k8s.io|resourceclaims|*|list",
+   "resource.k8s.io|resourceclaims|*|patch",
+   "resource.k8s.io|resourceclaims|*|update",
+   "resource.k8s.io|resourceclaims|*|watch",
+   "|events|*|create",
+   "|events|*|patch",
+   "|events|*|update",
+   "|pods/finalizers|*|update",
+   "|pods/status|*|patch",
+   "|pods/status|*|update",
+   "|pods|*|get",
+   "|pods|*|list",
+   "|pods|*|watch"
+  ],
+  "ClusterRole/system:controller:resourcequota-controller": [
+   "*|*|*|list",
+   "*|*|*|watch",
+   "events.k8s.io|events|*|create",
+   "events.k8s.io|events|*|patch",
+   "events.k8s.io|events|*|update",
+   "|events|*|create",
+   "|events|*|patch",
+   "|events|*|update",
+   "|resourcequotas/status|*|update"
+  ],
+  "ClusterRole/system:controller:root-ca-cert-publisher": [
+   "events.k8s.io|events|*|create",
+   "events.k8s.io|events|*|patch",
+   "events.k8s.io|events|*|update",
+   "|configmaps|*|create",
+   "|configmaps|*|update",
+   "|events|*|create",
+   "|events|*|patch",
+   "|events|*|update"
+  ],
+  "ClusterRole/system:controller:route-controller": [
+   "events.k8s.io|events|*|create",
+   "events.k8s.io|events|*|patch",
+   "events.k8s.io|events|*|update",
+   "|events|*|create",
+   "|events|*|patch",
+   "|events|*|update",
+   "|nodes/status|*|patch",
+   "|nodes|*|list",
+   "|nodes|*|watch"
+  ],
+  "ClusterRole/system:controller:selinux-warning-controller": [
+   "events.k8s.io|events|*|create",
+   "events.k8s.io|events|*|patch",
+   "events.k8s.io|events|*|update",
+   "storage.k8s.io|csidrivers|*|get",
+   "storage.k8s.io|csidrivers|*|list",
+   "storage.k8s.io|csidrivers|*|watch",
+   "|events|*|create",
+   "|events|*|patch",
+   "|events|*|update",
+   "|persistentvolumeclaims|*|get",
+   "|persistentvolumeclaims|*|list",
+   "|persistentvolumeclaims|*|watch",
+   "|persistentvolumes|*|get",
+   "|persistentvolumes|*|list",
+   "|persistentvolumes|*|watch",
+   "|pods|*|get",
+   "|pods|*|list",
+   "|pods|*|watch"
+  ],
+  "ClusterRole/system:controller:service-account-controller": [
+   "events.k8s.io|events|*|create",
+   "events.k8s.io|events|*|patch",
+   "events.k8s.io|events|*|update",
+   "|events|*|create",
+   "|events|*|patch",
+   "|events|*|update",
+   "|serviceaccounts|*|create"
+  ],
+  "ClusterRole/system:controller:service-cidrs-controller": [
+   "events.k8s.io|events|*|create",
+   "events.k8s.io|events|*|patch",
+   "events.k8s.io|events|*|update",
+   "networking.k8s.io|ipaddresses|*|get",
+   "networking.k8s.io|ipaddresses|*|list",
+   "networking.k8s.io|ipaddresses|*|watch",
+   "networking.k8s.io|servicecidrs/finalizers|*|patch",
+   "networking.k8s.io|servicecidrs/finalizers|*|update",
+   "networking.k8s.io|servicecidrs/status|*|patch",
+   "networking.k8s.io|servicecidrs/status|*|update",
+   "networking.k8s.io|servicecidrs|*|get",
+   "networking.k8s.io|servicecidrs|*|list",
+   "networking.k8s.io|servicecidrs|*|patch",
+   "networking.k8s.io|servicecidrs|*|update",
+   "networking.k8s.io|servicecidrs|*|watch",
+   "|events|*|create",
+   "|events|*|patch",
+   "|events|*|update"
+  ],
+  "ClusterRole/system:controller:service-controller": [
+   "events.k8s.io|events|*|create",
+   "events.k8s.io|events|*|patch",
+   "events.k8s.io|events|*|update",
+   "|events|*|create",
+   "|events|*|patch",
+   "|events|*|update",
+   "|nodes|*|list",
+   "|nodes|*|watch",
+   "|services/status|*|patch",
+   "|services/status|*|update",
+   "|services|*|get",
+   "|services|*|list",
+   "|services|*|watch"
+  ],
+  "ClusterRole/system:controller:statefulset-controller": [
+   "apps|controllerrevisions|*|create",
+   "apps|controllerrevisions|*|delete",
+   "apps|controllerrevisions|*|get",
+   "apps|controllerrevisions|*|list",
+   "apps|controllerrevisions|*|patch",
+   "apps|controllerrevisions|*|update",
+   "apps|controllerrevisions|*|watch",
+   "apps|statefulsets/finalizers|*|update",
+   "apps|statefulsets/status|*|update",
+   "apps|statefulsets|*|get",
+   "apps|statefulsets|*|list",
+   "apps|statefulsets|*|watch",
+   "events.k8s.io|events|*|create",
+   "events.k8s.io|events|*|patch",
+   "events.k8s.io|events|*|update",
+   "|events|*|create",
+   "|events|*|patch",
+   "|events|*|update",
+   "|persistentvolumeclaims|*|create",
+   "|persistentvolumeclaims|*|delete",
+   "|persistentvolumeclaims|*|get",
+   "|persistentvolumeclaims|*|list",
+   "|persistentvolumeclaims|*|update",
+   "|persistentvolumeclaims|*|watch",
+   "|pods/finalizers|*|update",
+   "|pods|*|create",
+   "|pods|*|delete",
+   "|pods|*|get",
+   "|pods|*|list",
+   "|pods|*|patch",
+   "|pods|*|update",
+   "|pods|*|watch"
+  ],
+  "ClusterRole/system:controller:storage-version-migrator-controller": [
+   "*|*|*|list",
+   "*|*|*|patch",
+   "apiextensions.k8s.io|customresourcedefinitions/status|*|patch",
+   "apiextensions.k8s.io|customresourcedefinitions|*|get",
+   "storagemigration.k8s.io|storageversionmigrations/status|*|update"
+  ],
+  "ClusterRole/system:controller:ttl-after-finished-controller": [
+   "batch|jobs|*|delete",
+   "batch|jobs|*|get",
+   "batch|jobs|*|list",
+   "batch|jobs|*|watch",
+   "events.k8s.io|events|*|create",
+   "events.k8s.io|events|*|patch",
+   "events.k8s.io|events|*|update",
+   "|events|*|create",
+   "|events|*|patch",
+   "|events|*|update"
+  ],
+  "ClusterRole/system:controller:ttl-controller": [
+   "events.k8s.io|events|*|create",
+   "events.k8s.io|events|*|patch",
+   "events.k8s.io|events|*|update",
+   "|events|*|create",
+   "|events|*|patch",
+   "|events|*|update",
+   "|nodes|*|list",
+   "|nodes|*|patch",
+   "|nodes|*|update",
+   "|nodes|*|watch"
+  ],
+  "ClusterRole/system:controller:validatingadmissionpolicy-status-controller": [
+   "admissionregistration.k8s.io|validatingadmissionpolicies/status|*|get",
+   "admissionregistration.k8s.io|validatingadmissionpolicies/status|*|patch",
+   "admissionregistration.k8s.io|validatingadmissionpolicies/status|*|update",
+   "admissionregistration.k8s.io|validatingadmissionpolicies|*|get",
+   "admissionregistration.k8s.io|validatingadmissionpolicies|*|list",
+   "admissionregistration.k8s.io|validatingadmissionpolicies|*|watch",
+   "events.k8s.io|events|*|create",
+   "events.k8s.io|events|*|patch",
+   "events.k8s.io|events|*|update",
+   "|events|*|create",
+   "|events|*|patch",
+   "|events|*|update"
+  ],
+  "ClusterRole/system:controller:volumeattributesclass-protection-controller": [
+   "events.k8s.io|events|*|create",
+   "events.k8s.io|events|*|patch",
+   "events.k8s.io|events|*|update",
+   "storage.k8s.io|volumeattributesclasses|*|get",
+   "storage.k8s.io|volumeattributesclasses|*|list",
+   "storage.k8s.io|volumeattributesclasses|*|update",
+   "storage.k8s.io|volumeattributesclasses|*|watch",
+   "|events|*|create",
+   "|events|*|patch",
+   "|events|*|update",
+   "|persistentvolumeclaims|*|get",
+   "|persistentvolumeclaims|*|list",
+   "|persistentvolumeclaims|*|watch",
+   "|persistentvolumes|*|get",
+   "|persistentvolumes|*|list",
+   "|persistentvolumes|*|watch"
+  ],
+  "ClusterRole/system:coredns": [
+   "discovery.k8s.io|endpointslices|*|list",
+   "discovery.k8s.io|endpointslices|*|watch",
+   "|endpoints|*|list",
+   "|endpoints|*|watch",
+   "|namespaces|*|list",
+   "|namespaces|*|watch",
+   "|pods|*|list",
+   "|pods|*|watch",
+   "|services|*|list",
+   "|services|*|watch"
+  ],
+  "ClusterRole/system:discovery": [
+   "url|/api/*|get",
+   "url|/apis/*|get",
+   "url|/apis|get",
+   "url|/api|get",
+   "url|/healthz|get",
+   "url|/livez|get",
+   "url|/openapi/*|get",
+   "url|/openapi|get",
+   "url|/readyz|get",
+   "url|/version/|get",
+   "url|/version|get"
+  ],
+  "ClusterRole/system:heapster": [
+   "extensions|deployments|*|get",
+   "extensions|deployments|*|list",
+   "extensions|deployments|*|watch",
+   "|events|*|get",
+   "|events|*|list",
+   "|events|*|watch",
+   "|namespaces|*|get",
+   "|namespaces|*|list",
+   "|namespaces|*|watch",
+   "|nodes|*|get",
+   "|nodes|*|list",
+   "|nodes|*|watch",
+   "|pods|*|get",
+   "|pods|*|list",
+   "|pods|*|watch"
+  ],
+  "ClusterRole/system:kube-aggregator": [
+   "|endpoints|*|get",
+   "|endpoints|*|list",
+   "|endpoints|*|watch",
+   "|services|*|get",
+   "|services|*|list",
+   "|services|*|watch"
+  ],
+  "ClusterRole/system:kube-controller-manager": [
+   "*|*|*|list",
+   "*|*|*|watch",
+   "authentication.k8s.io|tokenreviews|*|create",
+   "authorization.k8s.io|subjectaccessreviews|*|create",
+   "coordination.k8s.io|leases|*|create",
+   "coordination.k8s.io|leases|kube-controller-manager|get",
+   "coordination.k8s.io|leases|kube-controller-manager|update",
+   "events.k8s.io|events|*|create",
+   "events.k8s.io|events|*|patch",
+   "events.k8s.io|events|*|update",
+   "|configmaps|*|get",
+   "|events|*|create",
+   "|events|*|patch",
+   "|events|*|update",
+   "|namespaces|*|get",
+   "|secrets|*|create",
+   "|secrets|*|delete",
+   "|secrets|*|get",
+   "|secrets|*|update",
+   "|serviceaccounts/token|*|create",
+   "|serviceaccounts|*|create",
+   "|serviceaccounts|*|get",
+   "|serviceaccounts|*|update"
+  ],
+  "ClusterRole/system:kube-dns": [
+   "|endpoints|*|list",
+   "|endpoints|*|watch",
+   "|services|*|list",
+   "|services|*|watch"
+  ],
+  "ClusterRole/system:kube-scheduler": [
+   "apps|replicasets|*|get",
+   "apps|replicasets|*|list",
+   "apps|replicasets|*|watch",
+   "apps|statefulsets|*|get",
+   "apps|statefulsets|*|list",
+   "apps|statefulsets|*|watch",
+   "authentication.k8s.io|tokenreviews|*|create",
+   "authorization.k8s.io|subjectaccessreviews|*|create",
+   "coordination.k8s.io|leasecandidates|*|create",
+   "coordination.k8s.io|leasecandidates|*|delete",
+   "coordination.k8s.io|leasecandidates|*|deletecollection",
+   "coordination.k8s.io|leasecandidates|*|get",
+   "coordination.k8s.io|leasecandidates|*|list",
+   "coordination.k8s.io|leasecandidates|*|patch",
+   "coordination.k8s.io|leasecandidates|*|update",
+   "coordination.k8s.io|leasecandidates|*|watch",
+   "coordination.k8s.io|leases|*|create",
+   "coordination.k8s.io|leases|kube-scheduler|get",
+   "coordination.k8s.io|leases|kube-scheduler|list",
+   "coordination.k8s.io|leases|kube-scheduler|update",
+   "coordination.k8s.io|leases|kube-scheduler|watch",
+   "events.k8s.io|events|*|create",
+   "events.k8s.io|events|*|patch",
+   "events.k8s.io|events|*|update",
+   "extensions|replicasets|*|get",
+   "extensions|replicasets|*|list",
+   "extensions|replicasets|*|watch",
+   "policy|poddisruptionbudgets|*|get",
+   "policy|poddisruptionbudgets|*|list",
+   "policy|poddisruptionbudgets|*|watch",
+   "resource.k8s.io|deviceclasses|*|get",
+   "resource.k8s.io|deviceclasses|*|list",
+   "resource.k8s.io|deviceclasses|*|watch",
+   "resource.k8s.io|devicetaintrules|*|get",
+   "resource.k8s.io|devicetaintrules|*|list",
+   "resource.k8s.io|devicetaintrules|*|watch",
+   "resource.k8s.io|resourceclaims/binding|*|patch",
+   "resource.k8s.io|resourceclaims/binding|*|update",
+   "resource.k8s.io|resourceclaims/status|*|get",
+   "resource.k8s.io|resourceclaims/status|*|list",
+   "resource.k8s.io|resourceclaims/status|*|patch",
+   "resource.k8s.io|resourceclaims/status|*|update",
+   "resource.k8s.io|resourceclaims/status|*|watch",
+   "resource.k8s.io|resourceclaims|*|create",
+   "resource.k8s.io|resourceclaims|*|delete",
+   "resource.k8s.io|resourceclaims|*|get",
+   "resource.k8s.io|resourceclaims|*|list",
+   "resource.k8s.io|resourceclaims|*|patch",
+   "resource.k8s.io|resourceclaims|*|update",
+   "resource.k8s.io|resourceclaims|*|watch",
+   "resource.k8s.io|resourceslices|*|get",
+   "resource.k8s.io|resourceslices|*|list",
+   "resource.k8s.io|resourceslices|*|watch",
+   "scheduling.k8s.io|compositepodgroups/status|*|patch",
+   "scheduling.k8s.io|compositepodgroups/status|*|update",
+   "scheduling.k8s.io|compositepodgroups|*|get",
+   "scheduling.k8s.io|compositepodgroups|*|list",
+   "scheduling.k8s.io|compositepodgroups|*|watch",
+   "scheduling.k8s.io|podgroups/status|*|patch",
+   "scheduling.k8s.io|podgroups/status|*|update",
+   "scheduling.k8s.io|podgroups|*|get",
+   "scheduling.k8s.io|podgroups|*|list",
+   "scheduling.k8s.io|podgroups|*|watch",
+   "scheduling.k8s.io|workloads|*|get",
+   "scheduling.k8s.io|workloads|*|list",
+   "scheduling.k8s.io|workloads|*|watch",
+   "storage.k8s.io|csidrivers|*|get",
+   "storage.k8s.io|csidrivers|*|list",
+   "storage.k8s.io|csidrivers|*|watch",
+   "storage.k8s.io|csinodes|*|get",
+   "storage.k8s.io|csinodes|*|list",
+   "storage.k8s.io|csinodes|*|watch",
+   "storage.k8s.io|csistoragecapacities|*|get",
+   "storage.k8s.io|csistoragecapacities|*|list",
+   "storage.k8s.io|csistoragecapacities|*|watch",
+   "storage.k8s.io|volumeattachments|*|get",
+   "storage.k8s.io|volumeattachments|*|list",
+   "storage.k8s.io|volumeattachments|*|watch",
+   "|bindings|*|create",
+   "|events|*|create",
+   "|events|*|patch",
+   "|events|*|update",
+   "|namespaces|*|get",
+   "|namespaces|*|list",
+   "|namespaces|*|watch",
+   "|nodes|*|get",
+   "|nodes|*|list",
+   "|nodes|*|watch",
+   "|persistentvolumeclaims|*|get",
+   "|persistentvolumeclaims|*|list",
+   "|persistentvolumeclaims|*|watch",
+   "|persistentvolumes|*|get",
+   "|persistentvolumes|*|list",
+   "|persistentvolumes|*|watch",
+   "|pods/binding|*|create",
+   "|pods/finalizers|*|update",
+   "|pods/status|*|patch",
+   "|pods/status|*|update",
+   "|pods|*|delete",
+   "|pods|*|get",
+   "|pods|*|list",
+   "|pods|*|watch",
+   "|replicationcontrollers|*|get",
+   "|replicationcontrollers|*|list",
+   "|replicationcontrollers|*|watch",
+   "|services|*|get",
+   "|services|*|list",
+   "|services|*|watch"
+  ],
+  "ClusterRole/system:kubelet-api-admin": [
+   "|nodes/configz|*|*",
+   "|nodes/healthz|*|*",
+   "|nodes/log|*|*",
+   "|nodes/metrics|*|*",
+   "|nodes/pods|*|*",
+   "|nodes/proxy|*|*",
+   "|nodes/stats|*|*",
+   "|nodes|*|get",
+   "|nodes|*|list",
+   "|nodes|*|proxy",
+   "|nodes|*|watch"
+  ],
+  "ClusterRole/system:monitoring": [
+   "url|/flagz|get",
+   "url|/healthz/*|get",
+   "url|/healthz|get",
+   "url|/livez/*|get",
+   "url|/livez|get",
+   "url|/metrics/slis|get",
+   "url|/metrics|get",
+   "url|/readyz/*|get",
+   "url|/readyz|get",
+   "url|/statusz|get",
+   "|nodes/metrics|*|get"
+  ],
+  "ClusterRole/system:node": [
+   "authentication.k8s.io|tokenreviews|*|create",
+   "authorization.k8s.io|localsubjectaccessreviews|*|create",
+   "authorization.k8s.io|subjectaccessreviews|*|create",
+   "certificates.k8s.io|certificatesigningrequests|*|create",
+   "certificates.k8s.io|certificatesigningrequests|*|get",
+   "certificates.k8s.io|certificatesigningrequests|*|list",
+   "certificates.k8s.io|certificatesigningrequests|*|watch",
+   "certificates.k8s.io|clustertrustbundles|*|get",
+   "certificates.k8s.io|clustertrustbundles|*|list",
+   "certificates.k8s.io|clustertrustbundles|*|watch",
+   "certificates.k8s.io|podcertificaterequests|*|create",
+   "certificates.k8s.io|podcertificaterequests|*|get",
+   "certificates.k8s.io|podcertificaterequests|*|list",
+   "certificates.k8s.io|podcertificaterequests|*|watch",
+   "coordination.k8s.io|leases|*|create",
+   "coordination.k8s.io|leases|*|delete",
+   "coordination.k8s.io|leases|*|get",
+   "coordination.k8s.io|leases|*|patch",
+   "coordination.k8s.io|leases|*|update",
+   "events.k8s.io|events|*|create",
+   "events.k8s.io|events|*|patch",
+   "events.k8s.io|events|*|update",
+   "node.k8s.io|runtimeclasses|*|get",
+   "node.k8s.io|runtimeclasses|*|list",
+   "node.k8s.io|runtimeclasses|*|watch",
+   "resource.k8s.io|resourceclaims|*|get",
+   "resource.k8s.io|resourceslices|*|deletecollection",
+   "storage.k8s.io|csidrivers|*|get",
+   "storage.k8s.io|csidrivers|*|list",
+   "storage.k8s.io|csidrivers|*|watch",
+   "storage.k8s.io|csinodes/status|*|get",
+   "storage.k8s.io|csinodes/status|*|patch",
+   "storage.k8s.io|csinodes/status|*|update",
+   "storage.k8s.io|csinodes|*|create",
+   "storage.k8s.io|csinodes|*|delete",
+   "storage.k8s.io|csinodes|*|get",
+   "storage.k8s.io|csinodes|*|patch",
+   "storage.k8s.io|csinodes|*|update",
+   "storage.k8s.io|volumeattachments|*|get",
+   "|configmaps|*|get",
+   "|configmaps|*|list",
+   "|configmaps|*|watch",
+   "|endpoints|*|get",
+   "|events|*|create",
+   "|events|*|patch",
+   "|events|*|update",
+   "|nodes/status|*|patch",
+   "|nodes/status|*|update",
+   "|nodes|*|create",
+   "|nodes|*|get",
+   "|nodes|*|list",
+   "|nodes|*|patch",
+   "|nodes|*|update",
+   "|nodes|*|watch",
+   "|persistentvolumeclaims/status|*|get",
+   "|persistentvolumeclaims/status|*|patch",
+   "|persistentvolumeclaims/status|*|update",
+   "|persistentvolumeclaims|*|get",
+   "|persistentvolumes|*|get",
+   "|pods/eviction|*|create",
+   "|pods/status|*|patch",
+   "|pods/status|*|update",
+   "|pods|*|create",
+   "|pods|*|delete",
+   "|pods|*|get",
+   "|pods|*|list",
+   "|pods|*|watch",
+   "|secrets|*|get",
+   "|secrets|*|list",
+   "|secrets|*|watch",
+   "|serviceaccounts/token|*|create",
+   "|serviceaccounts|*|get",
+   "|services|*|get",
+   "|services|*|list",
+   "|services|*|watch"
+  ],
+  "ClusterRole/system:node-bootstrapper": [
+   "certificates.k8s.io|certificatesigningrequests|*|create",
+   "certificates.k8s.io|certificatesigningrequests|*|get",
+   "certificates.k8s.io|certificatesigningrequests|*|list",
+   "certificates.k8s.io|certificatesigningrequests|*|watch"
+  ],
+  "ClusterRole/system:node-problem-detector": [
+   "events.k8s.io|events|*|create",
+   "events.k8s.io|events|*|patch",
+   "events.k8s.io|events|*|update",
+   "|events|*|create",
+   "|events|*|patch",
+   "|events|*|update",
+   "|nodes/status|*|patch",
+   "|nodes|*|get"
+  ],
+  "ClusterRole/system:node-proxier": [
+   "discovery.k8s.io|endpointslices|*|list",
+   "discovery.k8s.io|endpointslices|*|watch",
+   "events.k8s.io|events|*|create",
+   "events.k8s.io|events|*|patch",
+   "events.k8s.io|events|*|update",
+   "networking.k8s.io|servicecidrs|*|list",
+   "networking.k8s.io|servicecidrs|*|watch",
+   "|endpoints|*|list",
+   "|endpoints|*|watch",
+   "|events|*|create",
+   "|events|*|patch",
+   "|events|*|update",
+   "|nodes|*|get",
+   "|nodes|*|list",
+   "|nodes|*|watch",
+   "|services|*|list",
+   "|services|*|watch"
+  ],
+  "ClusterRole/system:persistent-volume-provisioner": [
+   "events.k8s.io|events|*|create",
+   "events.k8s.io|events|*|patch",
+   "events.k8s.io|events|*|update",
+   "storage.k8s.io|storageclasses|*|get",
+   "storage.k8s.io|storageclasses|*|list",
+   "storage.k8s.io|storageclasses|*|watch",
+   "|events|*|create",
+   "|events|*|patch",
+   "|events|*|update",
+   "|events|*|watch",
+   "|persistentvolumeclaims|*|get",
+   "|persistentvolumeclaims|*|list",
+   "|persistentvolumeclaims|*|update",
+   "|persistentvolumeclaims|*|watch",
+   "|persistentvolumes|*|create",
+   "|persistentvolumes|*|delete",
+   "|persistentvolumes|*|get",
+   "|persistentvolumes|*|list",
+   "|persistentvolumes|*|watch"
+  ],
+  "ClusterRole/system:public-info-viewer": [
+   "url|/healthz|get",
+   "url|/livez|get",
+   "url|/readyz|get",
+   "url|/version/|get",
+   "url|/version|get"
+  ],
+  "ClusterRole/system:service-account-issuer-discovery": [
+   "url|/.well-known/openid-configuration/|get",
+   "url|/.well-known/openid-configuration|get",
+   "url|/openid/v1/jwks/|get",
+   "url|/openid/v1/jwks|get"
+  ],
+  "ClusterRole/system:volume-scheduler": [
+   "storage.k8s.io|storageclasses|*|get",
+   "storage.k8s.io|storageclasses|*|list",
+   "storage.k8s.io|storageclasses|*|watch",
+   "|persistentvolumeclaims|*|get",
+   "|persistentvolumeclaims|*|list",
+   "|persistentvolumeclaims|*|patch",
+   "|persistentvolumeclaims|*|update",
+   "|persistentvolumeclaims|*|watch",
+   "|persistentvolumes|*|get",
+   "|persistentvolumes|*|list",
+   "|persistentvolumes|*|patch",
+   "|persistentvolumes|*|update",
+   "|persistentvolumes|*|watch"
+  ],
+  "ClusterRole/view": [
+   "aggregated"
+  ],
+  "Role/kube-public/kubeadm:bootstrap-signer-clusterinfo": [
+   "|configmaps|cluster-info|get"
+  ],
+  "Role/kube-public/system:controller:bootstrap-signer": [
+   "events.k8s.io|events|*|create",
+   "events.k8s.io|events|*|patch",
+   "events.k8s.io|events|*|update",
+   "|configmaps|*|get",
+   "|configmaps|*|list",
+   "|configmaps|*|watch",
+   "|configmaps|cluster-info|update",
+   "|events|*|create",
+   "|events|*|patch",
+   "|events|*|update"
+  ],
+  "Role/kube-system/extension-apiserver-authentication-reader": [
+   "|configmaps|extension-apiserver-authentication|get",
+   "|configmaps|extension-apiserver-authentication|list",
+   "|configmaps|extension-apiserver-authentication|watch"
+  ],
+  "Role/kube-system/kubeadm:kubelet-config": [
+   "|configmaps|kubelet-config|get"
+  ],
+  "Role/kube-system/kubeadm:nodes-kubeadm-config": [
+   "|configmaps|kubeadm-config|get"
+  ],
+  "Role/kube-system/system::leader-locking-kube-controller-manager": [
+   "coordination.k8s.io|leasecandidates|*|create",
+   "coordination.k8s.io|leasecandidates|*|get",
+   "coordination.k8s.io|leasecandidates|*|list",
+   "coordination.k8s.io|leasecandidates|*|update",
+   "coordination.k8s.io|leasecandidates|*|watch",
+   "coordination.k8s.io|leases|*|create",
+   "coordination.k8s.io|leases|*|get",
+   "coordination.k8s.io|leases|*|list",
+   "coordination.k8s.io|leases|*|update",
+   "coordination.k8s.io|leases|*|watch",
+   "|configmaps|*|watch",
+   "|configmaps|kube-controller-manager|get",
+   "|configmaps|kube-controller-manager|update"
+  ],
+  "Role/kube-system/system::leader-locking-kube-scheduler": [
+   "coordination.k8s.io|leasecandidates|*|create",
+   "coordination.k8s.io|leasecandidates|*|get",
+   "coordination.k8s.io|leasecandidates|*|list",
+   "coordination.k8s.io|leasecandidates|*|update",
+   "coordination.k8s.io|leasecandidates|*|watch",
+   "coordination.k8s.io|leases|*|create",
+   "coordination.k8s.io|leases|*|get",
+   "coordination.k8s.io|leases|*|list",
+   "coordination.k8s.io|leases|*|update",
+   "coordination.k8s.io|leases|*|watch",
+   "|configmaps|*|watch",
+   "|configmaps|kube-scheduler|get",
+   "|configmaps|kube-scheduler|update"
+  ],
+  "Role/kube-system/system:controller:bootstrap-signer": [
+   "|secrets|*|get",
+   "|secrets|*|list",
+   "|secrets|*|watch"
+  ],
+  "Role/kube-system/system:controller:cloud-provider": [
+   "|configmaps|*|create",
+   "|configmaps|*|get",
+   "|configmaps|*|list",
+   "|configmaps|*|watch"
+  ],
+  "Role/kube-system/system:controller:token-cleaner": [
+   "events.k8s.io|events|*|create",
+   "events.k8s.io|events|*|patch",
+   "events.k8s.io|events|*|update",
+   "|events|*|create",
+   "|events|*|patch",
+   "|events|*|update",
+   "|secrets|*|delete",
+   "|secrets|*|get",
+   "|secrets|*|list",
+   "|secrets|*|watch"
+  ]
+ },
+ "source": "kubernetes bootstrappolicy testdata (1.34, 1.35, 1.36, 1.37) and kubeadm"
+}
