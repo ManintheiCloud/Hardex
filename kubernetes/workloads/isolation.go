@@ -11,53 +11,63 @@ import (
 	"github.com/ManintheiCloud/Hardex/core/resource"
 )
 
-var seccomp = eachContainer(assessment.Metadata{
+var seccomp = eachPod(assessment.Metadata{
 	ID:          "HX-WL-008",
 	Title:       "Seccomp profile not enforced",
 	Severity:    finding.Medium,
 	Category:    assessment.CategoryWorkloads,
-	Description: "Detects Linux containers whose effective seccomp profile is not RuntimeDefault or Localhost. An explicit Unconfined profile is raised to high.",
+	Description: "Detects Linux containers whose effective seccomp profile is not RuntimeDefault or Localhost. An explicit Unconfined profile is raised to high, on Windows pods too. A pod-level Unconfined profile is reported even when every container overrides it: containers added later inherit it.",
 	Rationale:   "Seccomp filters the system calls a container may make. Without it, the full kernel syscall surface is reachable, and many container-escape exploits rely on syscalls that the runtime default profile blocks.",
 	Remediation: "Set securityContext.seccompProfile.type: RuntimeDefault at pod level (or Localhost with a reviewed profile).",
 	References:  []finding.Reference{baselines.PSS("Baseline", "Seccomp"), baselines.PSS("Restricted", "Seccomp"), refNSAPod, refCISPods},
 	Limitations: "Clusters with the kubelet's seccompDefault feature enabled apply RuntimeDefault implicitly; Hardex cannot observe that from manifests and reports the unset profile.",
-}, func(ctx *assessment.Context, obj *resource.Object, pod map[string]any, prefix string, c resource.Container) {
-	if isWindows(pod) {
-		return
+}, func(ctx *assessment.Context, obj *resource.Object, pod map[string]any, prefix string) {
+	if v, path, ok := overriddenPodLevel(pod, prefix, "seccompProfile", "type"); ok && v == "Unconfined" {
+		ctx.Report(assessment.Hit{Object: obj, Path: path, Observed: "Unconfined",
+			Message: "the pod-level seccomp profile is Unconfined" + inheritedNote})
 	}
-	v, path, set := effective(pod, prefix, c, "seccompProfile", "type")
-	typ, _ := v.(string)
-	switch {
-	case typ == "RuntimeDefault" || typ == "Localhost":
-		return
-	case set && typ == "Unconfined":
-		ctx.Report(assessment.Hit{Object: obj, Container: c.Name, Path: path, Observed: typ, Severity: sevHigh,
-			Message: fmt.Sprintf("container %q explicitly disables seccomp", c.Name)})
-	default:
-		ctx.Report(assessment.Hit{Object: obj, Container: c.Name, Path: path, Observed: show(v),
-			Message: fmt.Sprintf("container %q has no seccomp profile", c.Name)})
+	for _, c := range resource.Containers(pod) {
+		v, path, set := effective(pod, prefix, c, "seccompProfile", "type")
+		typ, _ := v.(string)
+		switch {
+		case typ == "RuntimeDefault" || typ == "Localhost":
+		case set && typ == "Unconfined":
+			// Baseline forbids Unconfined on every OS; only the Restricted
+			// requirement to set a profile is Linux-only.
+			ctx.Report(assessment.Hit{Object: obj, Container: c.Name, Path: path, Observed: typ, Severity: sevHigh,
+				Message: fmt.Sprintf("container %q explicitly disables seccomp", c.Name)})
+		case !isWindows(pod):
+			ctx.Report(assessment.Hit{Object: obj, Container: c.Name, Path: path, Observed: show(v),
+				Message: fmt.Sprintf("container %q has no seccomp profile", c.Name)})
+		}
 	}
 })
 
-var appArmor = eachContainer(assessment.Metadata{
+var appArmor = eachPod(assessment.Metadata{
 	ID:          "HX-WL-015",
 	Title:       "AppArmor disabled",
 	Severity:    finding.High,
 	Category:    assessment.CategoryWorkloads,
-	Description: "Detects containers whose AppArmor profile is explicitly set to Unconfined, through the securityContext field or the legacy annotation.",
+	Description: "Detects containers whose AppArmor profile is explicitly set to Unconfined, through the securityContext field or the legacy annotation. A pod-level Unconfined profile is reported even when every container overrides it: containers added later inherit it.",
 	Rationale:   "AppArmor confines file, mount and capability use even for root. Disabling it removes a layer that blocks several known escape techniques.",
 	Remediation: "Remove the Unconfined setting so the runtime default applies, or set securityContext.appArmorProfile.type: RuntimeDefault.",
 	References:  []finding.Reference{baselines.PSS("Baseline", "AppArmor"), refNSAPod, refCISPods},
-}, func(ctx *assessment.Context, obj *resource.Object, pod map[string]any, prefix string, c resource.Container) {
-	if v, path, _ := effective(pod, prefix, c, "appArmorProfile", "type"); v == "Unconfined" {
-		ctx.Report(assessment.Hit{Object: obj, Container: c.Name, Path: path, Observed: "Unconfined",
-			Message: fmt.Sprintf("container %q runs without AppArmor", c.Name)})
-		return
+}, func(ctx *assessment.Context, obj *resource.Object, pod map[string]any, prefix string) {
+	if v, path, ok := overriddenPodLevel(pod, prefix, "appArmorProfile", "type"); ok && v == "Unconfined" {
+		ctx.Report(assessment.Hit{Object: obj, Path: path, Observed: "Unconfined", Severity: sevMedium,
+			Message: "the pod-level AppArmor profile is Unconfined" + inheritedNote})
 	}
-	key := "container.apparmor.security.beta.kubernetes.io/" + c.Name
-	if v := annotationOfPod(obj, key); v == "unconfined" {
-		ctx.Report(assessment.Hit{Object: obj, Container: c.Name, Path: "metadata.annotations[" + key + "]", Observed: v,
-			Message: fmt.Sprintf("container %q runs without AppArmor (legacy annotation)", c.Name)})
+	for _, c := range resource.Containers(pod) {
+		if v, path, _ := effective(pod, prefix, c, "appArmorProfile", "type"); v == "Unconfined" {
+			ctx.Report(assessment.Hit{Object: obj, Container: c.Name, Path: path, Observed: "Unconfined",
+				Message: fmt.Sprintf("container %q runs without AppArmor", c.Name)})
+			continue
+		}
+		key := "container.apparmor.security.beta.kubernetes.io/" + c.Name
+		if v := annotationOfPod(obj, key); v == "unconfined" {
+			ctx.Report(assessment.Hit{Object: obj, Container: c.Name, Path: "metadata.annotations[" + key + "]", Observed: v,
+				Message: fmt.Sprintf("container %q runs without AppArmor (legacy annotation)", c.Name)})
+		}
 	}
 })
 
@@ -79,29 +89,37 @@ var allowedSELinuxTypes = map[string]bool{
 	"": true, "container_t": true, "container_init_t": true, "container_kvm_t": true, "container_engine_t": true,
 }
 
-var seLinux = eachContainer(assessment.Metadata{
+var seLinux = eachPod(assessment.Metadata{
 	ID:          "HX-WL-016",
 	Title:       "Custom SELinux context",
 	Severity:    finding.High,
 	Category:    assessment.CategoryWorkloads,
-	Description: "Detects containers that set an SELinux type outside the container types allowed by the Pod Security Standards, or that set a custom SELinux user or role.",
+	Description: "Detects containers that set an SELinux type outside the container types allowed by the Pod Security Standards, or that set a custom SELinux user or role. Pod-level options are checked even when every container overrides them: containers added later inherit them.",
 	Rationale:   "Changing the SELinux context can place a container in a domain with host-level access (e.g. spc_t or unconfined_t), defeating mandatory access control.",
 	Remediation: "Remove seLinuxOptions.user and .role, and use one of container_t, container_init_t, container_kvm_t or container_engine_t (or leave type unset).",
 	References:  []finding.Reference{baselines.PSS("Baseline", "SELinux"), refNSAPod, refCISPods},
-}, func(ctx *assessment.Context, obj *resource.Object, pod map[string]any, prefix string, c resource.Container) {
-	v, path, set := effective(pod, prefix, c, "seLinuxOptions")
-	opts, _ := v.(map[string]any)
-	if !set || opts == nil {
-		return
+}, func(ctx *assessment.Context, obj *resource.Object, pod map[string]any, prefix string) {
+	report := func(opts map[string]any, path, container, who, note string, sev *finding.Severity) {
+		if t := resource.String(opts, "type"); !allowedSELinuxTypes[t] {
+			ctx.Report(assessment.Hit{Object: obj, Container: container, Path: path + ".type", Observed: t, Severity: sev,
+				Message: fmt.Sprintf("%s uses SELinux type %s%s", who, t, note)})
+		}
+		for _, f := range []string{"user", "role"} {
+			if s := resource.String(opts, f); s != "" {
+				ctx.Report(assessment.Hit{Object: obj, Container: container, Path: path + "." + f, Observed: s, Severity: sev,
+					Message: fmt.Sprintf("%s sets a custom SELinux %s%s", who, f, note)})
+			}
+		}
 	}
-	if t := resource.String(opts, "type"); !allowedSELinuxTypes[t] {
-		ctx.Report(assessment.Hit{Object: obj, Container: c.Name, Path: path + ".type", Observed: t,
-			Message: fmt.Sprintf("container %q uses SELinux type %s", c.Name, t)})
+	if v, path, ok := overriddenPodLevel(pod, prefix, "seLinuxOptions"); ok {
+		if opts, _ := v.(map[string]any); opts != nil {
+			report(opts, path, "", "the pod level", inheritedNote, sevMedium)
+		}
 	}
-	for _, f := range []string{"user", "role"} {
-		if s := resource.String(opts, f); s != "" {
-			ctx.Report(assessment.Hit{Object: obj, Container: c.Name, Path: path + "." + f, Observed: s,
-				Message: fmt.Sprintf("container %q sets a custom SELinux %s", c.Name, f)})
+	for _, c := range resource.Containers(pod) {
+		v, path, set := effective(pod, prefix, c, "seLinuxOptions")
+		if opts, _ := v.(map[string]any); set && opts != nil {
+			report(opts, path, c.Name, fmt.Sprintf("container %q", c.Name), "", nil)
 		}
 	}
 })

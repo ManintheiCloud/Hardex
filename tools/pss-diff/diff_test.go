@@ -108,7 +108,12 @@ func TestAgainstPodSecurityAdmission(t *testing.T) {
 		head, first string
 	}
 	groups := map[string]*group{}
+	skipped := 0
 	for _, p := range pods {
+		if invalid(p) {
+			skipped++
+			continue
+		}
 		var hxBaseline, hxRestricted bool
 		rules := map[string]bool{}
 		for _, f := range found[p.Name] {
@@ -169,7 +174,7 @@ func TestAgainstPodSecurityAdmission(t *testing.T) {
 	for _, k := range keys {
 		t.Errorf("%s (%d pods with this cause)%s", groups[k].head, groups[k].count, groups[k].first)
 	}
-	t.Logf("%d causes of disagreement", len(groups))
+	t.Logf("%d causes of disagreement; %d pods skipped as invalid (Windows pods with Linux-only fields)", len(groups), skipped)
 }
 
 func ptr[T any](v T) *T { return &v }
@@ -202,12 +207,59 @@ func compliant(name string) *corev1.Pod {
 
 // container picks one of the pod's containers, init containers included.
 func container(r *rand.Rand, p *corev1.Pod) *corev1.Container {
-	all := []*corev1.Container{&p.Spec.InitContainers[0], &p.Spec.Containers[0], &p.Spec.Containers[1]}
+	all := allContainers(p)
 	c := all[r.Intn(len(all))]
 	if c.SecurityContext == nil {
 		c.SecurityContext = &corev1.SecurityContext{}
 	}
 	return c
+}
+
+// allContainers returns every container of the pod, ephemeral ones included.
+func allContainers(p *corev1.Pod) []*corev1.Container {
+	var out []*corev1.Container
+	for i := range p.Spec.InitContainers {
+		out = append(out, &p.Spec.InitContainers[i])
+	}
+	for i := range p.Spec.Containers {
+		out = append(out, &p.Spec.Containers[i])
+	}
+	for i := range p.Spec.EphemeralContainers {
+		out = append(out, (*corev1.Container)(&p.Spec.EphemeralContainers[i].EphemeralContainerCommon))
+	}
+	return out
+}
+
+// stripLinuxOnly removes the fields that API validation rejects in a
+// Windows pod.
+func stripLinuxOnly(p *corev1.Pod) {
+	p.Spec.HostUsers = nil
+	if psc := p.Spec.SecurityContext; psc != nil {
+		psc.SELinuxOptions, psc.SeccompProfile, psc.AppArmorProfile, psc.Sysctls = nil, nil, nil, nil
+		psc.RunAsUser, psc.RunAsGroup, psc.FSGroup, psc.SupplementalGroups = nil, nil, nil, nil
+	}
+	for _, c := range allContainers(p) {
+		if sc := c.SecurityContext; sc != nil {
+			sc.SELinuxOptions, sc.SeccompProfile, sc.AppArmorProfile, sc.Capabilities = nil, nil, nil, nil
+			sc.Privileged, sc.AllowPrivilegeEscalation, sc.ProcMount, sc.ReadOnlyRootFilesystem = nil, nil, nil, nil
+			sc.RunAsUser, sc.RunAsGroup = nil, nil
+		}
+	}
+}
+
+// invalid reports whether the API server would reject the pod outright, so
+// that no admission verdict applies: a Windows pod with Linux-only fields.
+// (PodSecurity relies on that validation; its Restricted capability check,
+// for one, skips Windows pods.)
+func invalid(p *corev1.Pod) bool {
+	if p.Spec.OS == nil || p.Spec.OS.Name != corev1.Windows {
+		return false
+	}
+	q := p.DeepCopy()
+	stripLinuxOnly(q)
+	b1, _ := json.Marshal(p.Spec)
+	b2, _ := json.Marshal(q.Spec)
+	return string(b1) != string(b2)
 }
 
 func pick[T any](r *rand.Rand, xs ...T) T { return xs[r.Intn(len(xs))] }
@@ -384,6 +436,7 @@ var mutations = []mutation{
 	}},
 	{"windows", func(r *rand.Rand, p *corev1.Pod) {
 		p.Spec.OS = &corev1.PodOS{Name: corev1.Windows}
+		stripLinuxOnly(p)
 		if r.Intn(2) == 0 {
 			o := &corev1.WindowsSecurityContextOptions{HostProcess: ptr(r.Intn(3) != 0)}
 			if r.Intn(2) == 0 {
@@ -425,6 +478,43 @@ var mutations = []mutation{
 			p.Spec.SecurityContext.RunAsUser = ptr(uid)
 		} else {
 			container(r, p).SecurityContext.RunAsUser = ptr(uid)
+		}
+	}},
+	// A disallowed pod-level value that every container overrides.
+	{"podOverride", func(r *rand.Rand, p *corev1.Pod) {
+		scs := []*corev1.SecurityContext{}
+		for _, c := range allContainers(p) {
+			if c.SecurityContext == nil {
+				c.SecurityContext = &corev1.SecurityContext{}
+			}
+			scs = append(scs, c.SecurityContext)
+		}
+		switch r.Intn(5) {
+		case 0:
+			p.Spec.SecurityContext.SeccompProfile = &corev1.SeccompProfile{Type: corev1.SeccompProfileTypeUnconfined}
+			for _, sc := range scs {
+				sc.SeccompProfile = &corev1.SeccompProfile{Type: corev1.SeccompProfileTypeRuntimeDefault}
+			}
+		case 1:
+			p.Spec.SecurityContext.AppArmorProfile = &corev1.AppArmorProfile{Type: corev1.AppArmorProfileTypeUnconfined}
+			for _, sc := range scs {
+				sc.AppArmorProfile = &corev1.AppArmorProfile{Type: corev1.AppArmorProfileTypeRuntimeDefault}
+			}
+		case 2:
+			p.Spec.SecurityContext.SELinuxOptions = &corev1.SELinuxOptions{Type: pick(r, "spc_t", "unconfined_t"), User: pick(r, "", "system_u")}
+			for _, sc := range scs {
+				sc.SELinuxOptions = &corev1.SELinuxOptions{Type: "container_t"}
+			}
+		case 3:
+			p.Spec.SecurityContext.RunAsNonRoot = ptr(false)
+			for _, sc := range scs {
+				sc.RunAsNonRoot = ptr(true)
+			}
+		default:
+			p.Spec.SecurityContext.RunAsUser = ptr(int64(0))
+			for _, sc := range scs {
+				sc.RunAsUser = ptr(int64(1000))
+			}
 		}
 	}},
 	{"ephemeral", func(r *rand.Rand, p *corev1.Pod) {

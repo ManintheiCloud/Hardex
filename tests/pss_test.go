@@ -88,6 +88,31 @@ func TestPSSRecentChanges(t *testing.T) {
   containers: [{name: c, image: x}]
 `)
 
+	// A bad pod-level value that every container overrides: PodSecurity
+	// rejects it, and a container added later inherits it.
+	write("pod-level-overridden", `
+  securityContext:
+    seccompProfile: {type: Unconfined}
+    appArmorProfile: {type: Unconfined}
+    seLinuxOptions: {type: spc_t}
+    runAsNonRoot: false
+    runAsUser: 0
+  containers:
+    - name: c
+      image: x
+      securityContext:
+        seccompProfile: {type: RuntimeDefault}
+        appArmorProfile: {type: RuntimeDefault}
+        seLinuxOptions: {type: container_t}
+        runAsNonRoot: true
+        runAsUser: 1000
+`)
+	write("windows-unconfined", `
+  os: {name: windows}
+  securityContext: {seccompProfile: {type: Unconfined}, runAsNonRoot: true}
+  containers: [{name: c, image: x}]
+`)
+
 	r := scan(t, "restricted", dir)
 	got := map[string][]finding.Finding{}
 	for _, f := range r.Findings {
@@ -146,6 +171,23 @@ func TestPSSRecentChanges(t *testing.T) {
 	}
 	if count("HX-WL-019", "image-volume") != 0 {
 		t.Error("HX-WL-019 reported an image volume, which Restricted allows")
+	}
+
+	for _, rule := range []string{"HX-WL-005", "HX-WL-008", "HX-WL-015", "HX-WL-016"} {
+		atPod := 0
+		for _, f := range got[rule+" pod-level-overridden"] {
+			if strings.HasPrefix(f.Path, "spec.securityContext.") {
+				atPod++
+			} else {
+				t.Errorf("%s reported a container that overrides the pod level: %s", rule, f.Path)
+			}
+		}
+		if want := map[string]int{"HX-WL-005": 2}[rule]; atPod != max(want, 1) {
+			t.Errorf("%s: %d findings at the pod level, want %d", rule, atPod, max(want, 1))
+		}
+	}
+	if fs := got["HX-WL-008 windows-unconfined"]; len(fs) != 1 || fs[0].Observed != "Unconfined" {
+		t.Errorf("HX-WL-008 for a Windows pod with seccomp Unconfined: %+v, want one Unconfined finding", fs)
 	}
 
 	// 1.34: host in probes and lifecycle hooks; an empty host is allowed.

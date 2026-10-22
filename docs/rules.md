@@ -759,7 +759,7 @@ Severity is the default; individual findings may be raised or lowered where the 
 
 **Container may run as root** — medium, workloads
 
-**Checks:** Detects containers that are not required to run as a non-root user (runAsNonRoot is not true at container or pod level), and containers explicitly configured to run as UID 0. Pods with their own user namespace (hostUsers: false) are exempt, as in the Pod Security Standards since Kubernetes 1.35.
+**Checks:** Detects containers that are not required to run as a non-root user (runAsNonRoot is not true at container or pod level), and containers explicitly configured to run as UID 0. Pods with their own user namespace (hostUsers: false) are exempt, as in the Pod Security Standards since Kubernetes 1.35. A pod-level runAsNonRoot: false or runAsUser: 0 is reported even when every container overrides it: containers added later inherit it.
 
 **Why it matters:** Root inside a container is root on the node's kernel interfaces. Combined with any container escape, misconfigured mount or kernel vulnerability, it maximises the attacker's starting privilege.
 
@@ -814,7 +814,7 @@ Severity is the default; individual findings may be raised or lowered where the 
 
 **Seccomp profile not enforced** — medium, workloads
 
-**Checks:** Detects Linux containers whose effective seccomp profile is not RuntimeDefault or Localhost. An explicit Unconfined profile is raised to high.
+**Checks:** Detects Linux containers whose effective seccomp profile is not RuntimeDefault or Localhost. An explicit Unconfined profile is raised to high, on Windows pods too. A pod-level Unconfined profile is reported even when every container overrides it: containers added later inherit it.
 
 **Why it matters:** Seccomp filters the system calls a container may make. Without it, the full kernel syscall surface is reachable, and many container-escape exploits rely on syscalls that the runtime default profile blocks.
 
@@ -930,7 +930,7 @@ Severity is the default; individual findings may be raised or lowered where the 
 
 **AppArmor disabled** — high, workloads
 
-**Checks:** Detects containers whose AppArmor profile is explicitly set to Unconfined, through the securityContext field or the legacy annotation.
+**Checks:** Detects containers whose AppArmor profile is explicitly set to Unconfined, through the securityContext field or the legacy annotation. A pod-level Unconfined profile is reported even when every container overrides it: containers added later inherit it.
 
 **Why it matters:** AppArmor confines file, mount and capability use even for root. Disabling it removes a layer that blocks several known escape techniques.
 
@@ -947,7 +947,7 @@ Severity is the default; individual findings may be raised or lowered where the 
 
 **Custom SELinux context** — high, workloads
 
-**Checks:** Detects containers that set an SELinux type outside the container types allowed by the Pod Security Standards, or that set a custom SELinux user or role.
+**Checks:** Detects containers that set an SELinux type outside the container types allowed by the Pod Security Standards, or that set a custom SELinux user or role. Pod-level options are checked even when every container overrides them: containers added later inherit them.
 
 **Why it matters:** Changing the SELinux context can place a container in a domain with host-level access (e.g. spc_t or unconfined_t), defeating mandatory access control.
 

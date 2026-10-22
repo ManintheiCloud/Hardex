@@ -16,6 +16,7 @@ var (
 	refCISPods  = baselines.CIS("5.2", "Pod Security Standards")
 	sevCritical = assessment.SeverityOverride(finding.Critical)
 	sevHigh     = assessment.SeverityOverride(finding.High)
+	sevMedium   = assessment.SeverityOverride(finding.Medium)
 	sevLow      = assessment.SeverityOverride(finding.Low)
 	sevInfo     = assessment.SeverityOverride(finding.Info)
 )
@@ -232,22 +233,38 @@ var privilegeEscalation = eachContainer(assessment.Metadata{
 		Message: fmt.Sprintf("container %q may gain more privileges than its parent process", c.Name)})
 })
 
-var runAsNonRoot = eachContainer(assessment.Metadata{
+var runAsNonRoot = eachPod(assessment.Metadata{
 	ID:          "HX-WL-005",
 	Title:       "Container may run as root",
 	Severity:    finding.Medium,
 	Category:    assessment.CategoryWorkloads,
-	Description: "Detects containers that are not required to run as a non-root user (runAsNonRoot is not true at container or pod level), and containers explicitly configured to run as UID 0. Pods with their own user namespace (hostUsers: false) are exempt, as in the Pod Security Standards since Kubernetes 1.35.",
+	Description: "Detects containers that are not required to run as a non-root user (runAsNonRoot is not true at container or pod level), and containers explicitly configured to run as UID 0. Pods with their own user namespace (hostUsers: false) are exempt, as in the Pod Security Standards since Kubernetes 1.35. A pod-level runAsNonRoot: false or runAsUser: 0 is reported even when every container overrides it: containers added later inherit it.",
 	Rationale:   "Root inside a container is root on the node's kernel interfaces. Combined with any container escape, misconfigured mount or kernel vulnerability, it maximises the attacker's starting privilege.",
 	Remediation: "Set securityContext.runAsNonRoot: true (pod or container level) and a non-zero runAsUser, and build images that run as a non-root USER.",
 	References:  []finding.Reference{baselines.PSS("Restricted", "Running as Non-root"), baselines.PSS("Restricted", "Running as Non-root user"), refNSAPod, refCISPods},
 	Limitations: "If runAsNonRoot is unset, the effective user depends on the image's USER directive, which Hardex does not inspect.",
-}, func(ctx *assessment.Context, obj *resource.Object, pod map[string]any, prefix string, c resource.Container) {
+}, func(ctx *assessment.Context, obj *resource.Object, pod map[string]any, prefix string) {
 	// Unlike the seccomp, capability and privilege-escalation controls,
 	// these apply to Windows pods too (as in PodSecurity admission).
 	if userNamespaced(pod) {
 		return
 	}
+	if v, path, ok := overriddenPodLevel(pod, prefix, "runAsUser"); ok {
+		if n, isNum := v.(float64); isNum && n == 0 {
+			ctx.Report(assessment.Hit{Object: obj, Path: path, Observed: "0",
+				Message: "the pod level sets runAsUser 0 (root)" + inheritedNote})
+		}
+	}
+	if v, path, ok := overriddenPodLevel(pod, prefix, "runAsNonRoot"); ok && v == false {
+		ctx.Report(assessment.Hit{Object: obj, Path: path, Observed: "false", Severity: sevLow,
+			Message: "the pod level sets runAsNonRoot: false" + inheritedNote})
+	}
+	for _, c := range resource.Containers(pod) {
+		runAsNonRootContainer(ctx, obj, pod, prefix, c)
+	}
+})
+
+func runAsNonRootContainer(ctx *assessment.Context, obj *resource.Object, pod map[string]any, prefix string, c resource.Container) {
 	uid, uidPath, uidSet := effective(pod, prefix, c, "runAsUser")
 	if n, ok := uid.(float64); uidSet && ok && n == 0 {
 		ctx.Report(assessment.Hit{Object: obj, Container: c.Name, Path: uidPath, Observed: "0", Severity: sevHigh,
@@ -265,7 +282,7 @@ var runAsNonRoot = eachContainer(assessment.Metadata{
 		hit.Message = fmt.Sprintf("container %q sets runAsUser %v but not runAsNonRoot; set both so the kubelet enforces it", c.Name, n)
 	}
 	ctx.Report(hit)
-})
+}
 
 // PSS Baseline permits these capabilities to be added; anything else is a
 // Baseline violation.

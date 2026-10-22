@@ -62,6 +62,29 @@ func effective(pod map[string]any, prefix string, c resource.Container, field ..
 	return nil, c.Path(prefix) + "." + strings.Join(cPath, "."), false
 }
 
+// overriddenPodLevel returns a pod-level security context field that every
+// container overrides with its own value, so that no running container uses
+// it. The Pod Security Standards (and PodSecurity admission) still forbid a
+// disallowed value there, and with reason: an ephemeral container added
+// later (kubectl debug) that does not set the field inherits it.
+func overriddenPodLevel(pod map[string]any, prefix string, field ...string) (any, string, bool) {
+	path := append([]string{"securityContext"}, field...)
+	v, ok := resource.Lookup(pod, path...)
+	cs := resource.Containers(pod)
+	if !ok || len(cs) == 0 {
+		return nil, "", false
+	}
+	for _, c := range cs {
+		if _, set := resource.Lookup(c.Spec, path...); !set {
+			return nil, "", false
+		}
+	}
+	return v, prefix + "." + strings.Join(path, "."), true
+}
+
+// inheritedNote is appended to findings on an overridden pod-level value.
+const inheritedNote = "; every container sets its own value, but a container added later (kubectl debug) inherits this one"
+
 // isWindows reports whether the pod declares a Windows OS. Several Linux-only
 // controls do not apply to Windows pods (per the Pod Security Standards).
 func isWindows(pod map[string]any) bool {
