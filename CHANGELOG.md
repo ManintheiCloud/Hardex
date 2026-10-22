@@ -2,7 +2,9 @@
 
 All notable changes are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow [Semantic Versioning](https://semver.org/). Before 1.0, minor versions may contain breaking changes.
 
-## Unreleased
+## 0.11.0 — 2026-10-22
+
+Scans may report findings that 0.10 did not: capability names spelled differently from the standard, disallowed pod-level settings that every container overrides, Windows pods without `runAsNonRoot`, and writable mounts of more host paths as critical. Each matches what PodSecurity admission enforces or a real node-takeover path; see below. Baselines recorded with `hardex monitor --baseline` show them as new.
 
 ### Added
 - HX-WL-022 (info): lists workloads in `kube-system` that are privileged, share host namespaces, mount host paths or add capabilities. The workload rules skip `kube-system` by default (its platform components need host access), which also hid anything else placed there, a well-known way to keep access to a cluster. The list makes such additions visible, and `hardex monitor` sends an event for every new entry whatever `--notify-min` is (rules can now be marked `NotifyAlways`). Not reported with `--include-system`, where the full rules apply. In every profile; info findings do not fail scans or lower the score.
