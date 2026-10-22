@@ -1,0 +1,44 @@
+name: pss-diff
+
+# Differential test: random pods near each Pod Security Standards control,
+# judged by both Hardex and the PodSecurity admission controller's own
+# policy package (k8s.io/pod-security-admission). Every pod where they
+# disagree at Baseline or Restricted fails the job, with the pod and both
+# verdicts. A new seed each run; the seed is in the log for reproduction.
+# See tools/pss-diff/README.md.
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    - cron: "23 5 * * 2"
+
+permissions:
+  contents: read
+
+jobs:
+  pss-diff:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: tools/pss-diff/go.mod
+          cache-dependency-path: tools/pss-diff/go.sum
+      - name: Compare with k8s.io/pod-security-admission
+        working-directory: tools/pss-diff
+        run: |
+          if [ ! -f go.sum ]; then
+            go mod tidy
+            echo "go.sum (verified against sum.golang.org); commit it:"
+            cat go.sum
+            missing=1
+          fi
+          go test -count=1 -v ./... 2>&1 | tee pss-diff.log
+          status=${PIPESTATUS[0]}
+          grep -o 'seed [0-9]*' pss-diff.log | head -1 | sed 's/^/::notice title=pss-diff::/'
+          grep -c '^ *diff_test.go:[0-9]*: pod ' pss-diff.log | sed 's/^/::notice title=pss-diff::mismatching verdicts: /'
+          [ -z "$missing" ] || { echo "::error title=pss-diff::go.sum is not committed"; exit 1; }
+          exit $status
