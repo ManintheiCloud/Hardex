@@ -25,7 +25,7 @@ $ hardex scan --profile restricted ./manifests
 Summary: 76 findings (critical 13, high 24, medium 23, low 14, info 2), 0 waived
 ```
 
-- **Assessment** of workloads, RBAC, network segmentation, Secrets handling, control-plane static pods, and kubelet configuration — [55 rules](docs/rules.md), each with rationale, remediation, known limitations and references.
+- **Assessment** of workloads (the built-in kinds, and custom resources that embed a pod template: Argo Rollouts, Knative Services, KEDA ScaledJobs, OpenKruise CloneSets), RBAC, network segmentation, Secrets handling, control-plane static pods, and kubelet configuration — [55 rules](docs/rules.md), each with rationale, remediation, known limitations and references.
 - **Live-cluster scanning** (`--cluster`) with a minimal read-only client: no Secrets access, TLS required, least-privilege [reader role](deploy/hardex-reader.yaml) provided. **Node scanning** (`--node`) reads kubelet configuration, its flag overrides and static pod manifests from the node, without `nodes/proxy` ([docs/node-scanning.md](docs/node-scanning.md)).
 - **RBAC reachability**: follows each workload's service account through bindings to the permissions its token really carries (HX-RBAC-008).
 - **Remediation** (`hardex fix`): dry-run plans with risk ratings and a predicted result; patched manifests written to a new directory; on a cluster, explicitly authorised apply with backup, automatic all-or-nothing rollback on failure, post-change verification, and `hardex rollback`. See [docs/remediation.md](docs/remediation.md).

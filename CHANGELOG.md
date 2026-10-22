@@ -2,6 +2,11 @@
 
 All notable changes are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow [Semantic Versioning](https://semver.org/). Before 1.0, minor versions may contain breaking changes.
 
+## Unreleased
+
+### Fixed
+- Custom resources that embed a pod template were not assessed: a privileged Argo `Rollout`, Knative `Service`, `Configuration` or `Revision`, KEDA `ScaledJob`, or OpenKruise `CloneSet` or `BroadcastJob` in a manifest produced no workload findings, though their controllers create exactly those pods. They are now assessed like Deployments, recognised by API group and kind (Knative's `Service` is not the core `Service`). Live-cluster scans were less affected: they assess the ReplicaSets and Pods the controllers create.
+
 ## 0.12.0 — 2026-10-22
 
 RBAC findings change: workloads bound to the default `edit` or `admin` roles are now critical (those roles can impersonate service accounts in their namespace), bindings to `admin` are no longer reported as able to escalate, and permissions granted through aggregated ClusterRoles are reported. Baselines recorded with `hardex monitor --baseline` show the new findings as new.
