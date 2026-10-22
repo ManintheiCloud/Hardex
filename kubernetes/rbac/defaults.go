@@ -24,6 +24,15 @@ type defaultsData struct {
 		RoleRef  string   `json:"roleRef"`
 		Subjects []string `json:"subjects"`
 	} `json:"bindings"`
+	// Aggregated holds, for each default aggregated ClusterRole, the
+	// permissions it has once aggregated and the selectors it uses.
+	Aggregated map[string]struct {
+		Selectors   []map[string]any `json:"selectors"`
+		Permissions []string         `json:"permissions"`
+	} `json:"aggregated"`
+	// AggregationLabels holds the aggregate-to-* labels of default
+	// ClusterRoles (view is aggregated into edit, edit into admin).
+	AggregationLabels map[string]map[string]string `json:"aggregationLabels"`
 }
 
 var (

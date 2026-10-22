@@ -44,24 +44,6 @@ var capabilities = []capability{
 	}},
 }
 
-// Default ClusterRoles that are usually not part of a manifest set but are
-// commonly bound. Their rules are summarised by the capabilities they carry.
-var builtinRoles = map[string][]map[string]any{
-	"cluster-admin": {rule([]string{"*"}, []string{"*"}, []string{"*"})},
-	"admin": {
-		rule([]string{""}, []string{"secrets"}, []string{"get", "list", "watch"}),
-		rule([]string{""}, []string{"pods/exec", "pods/attach"}, []string{"create", "get"}),
-		rule([]string{""}, []string{"pods"}, []string{"create"}),
-		rule([]string{"rbac.authorization.k8s.io"}, []string{"roles"}, []string{"bind", "escalate"}),
-	},
-	"edit": {
-		rule([]string{""}, []string{"secrets"}, []string{"get", "list", "watch"}),
-		rule([]string{""}, []string{"pods/exec", "pods/attach"}, []string{"create", "get"}),
-		rule([]string{""}, []string{"pods"}, []string{"create"}),
-	},
-	"view": {},
-}
-
 func rule(groups, resources, verbs []string) map[string]any {
 	toAny := func(s []string) []any {
 		out := make([]any, len(s))
@@ -176,9 +158,10 @@ type indexedBinding struct {
 func NewIndex(inv *resource.Inventory) *Index {
 	idx := &Index{inv: inv, bySubject: map[string][]*indexedBinding{}, automount: map[string]bool{}, cache: map[string][]Permission{}}
 	roles := map[string]*resource.Object{}
-	for _, r := range inv.OfKind("Role", "ClusterRole") {
+	for _, r := range inv.OfKind("Role") {
 		roles[r.Kind+"/"+r.EffectiveNamespace()+"/"+r.Name] = r
 	}
+	res := newResolver(inv)
 	for _, b := range inv.OfKind("RoleBinding", "ClusterRoleBinding") {
 		refKind, refName := resource.String(b.Raw, "roleRef", "kind"), resource.String(b.Raw, "roleRef", "name")
 		ib := indexedBinding{obj: b, role: refKind + " " + refName}
@@ -186,12 +169,20 @@ func NewIndex(inv *resource.Inventory) *Index {
 		if refKind == "Role" {
 			lookupNS = b.EffectiveNamespace()
 		}
-		if r, ok := roles[refKind+"/"+lookupNS+"/"+refName]; ok {
-			ib.rules = resource.Maps(r.Raw, "rules")
-		} else if builtin, ok := builtinRoles[refName]; ok && refKind == "ClusterRole" {
-			ib.rules = builtin
-		} else {
-			continue // role not in input; nothing can be concluded
+		// Effective rules: aggregation resolved, and a ClusterRole that is
+		// not in the input but is a Kubernetes default taken from the
+		// upstream bootstrap policy.
+		switch r, isRole := roles[refKind+"/"+lookupNS+"/"+refName]; {
+		case refKind == "Role" && isRole:
+			ib.rules = res.rules(r)
+		case refKind == "ClusterRole":
+			rules, known := res.clusterRole(refName)
+			if !known {
+				continue // role not in input; nothing can be concluded
+			}
+			ib.rules = rules
+		default:
+			continue
 		}
 		bound := &ib
 		seen := map[string]bool{}
@@ -311,7 +302,7 @@ var reachableWorkloads = assessment.InventoryRule{
 		Rationale:      "Container compromise is common; what matters is what the stolen token can do next. A web server whose service account can read every secret turns one application bug into a cluster-wide breach.",
 		Remediation:    "Give the workload a dedicated service account bound only to what it needs, or set automountServiceAccountToken: false if it never calls the API. Remove broad grants found through the listed binding.",
 		References:     []finding.Reference{refCISRBAC, refNSAAuth, baselines.K8s("RBAC good practices", "https://kubernetes.io/docs/concepts/security/rbac-good-practices/")},
-		Limitations:    "Only bindings and roles present in the input are followed (plus the default cluster-admin, admin, edit and view ClusterRoles). Aggregated ClusterRoles, cloud IAM mappings and webhook authorizers are not evaluated. Workloads in kube-system are skipped unless --include-system is set.",
+		Limitations:    "Only bindings and roles present in the input are followed, plus the default ClusterRoles of Kubernetes 1.34–1.37 and kubeadm, which are taken from the upstream bootstrap policy when not in the input. Aggregated ClusterRoles are resolved (the input's roles their selectors match, and for admin, edit and view the upstream defaults). Cloud IAM mappings and webhook authorizers are not evaluated. Workloads in kube-system are skipped unless --include-system is set.",
 		NeedsInventory: true,
 	},
 	Check: func(ctx *assessment.Context) {

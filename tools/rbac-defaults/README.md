@@ -2,6 +2,8 @@
 
 `kubernetes/rbac/defaults.json` lists the RBAC objects that Kubernetes and kubeadm create by default. Hardex does not report them, but only if an object in the cluster grants no more than its default definition: names (`system:…`, `kubeadm:…`) and the `kubernetes.io/bootstrapping: rbac-defaults` label are not trusted on their own.
 
+It also records what each aggregated default (`admin`, `edit`, `view`) grants once aggregated, its selectors, and the aggregation labels of the defaults (`view` is aggregated into `edit`, `edit` into `admin`). Hardex uses them for bindings to default roles that are not in the input, and to follow roles of the input that are labelled into a default.
+
 Regenerate when a supported Kubernetes version is added or one is dropped (union over the supported versions):
 
 ```sh

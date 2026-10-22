@@ -639,7 +639,7 @@ Severity is the default; individual findings may be raised or lowered where the 
 
 **Remediation:** Give the workload a dedicated service account bound only to what it needs, or set automountServiceAccountToken: false if it never calls the API. Remove broad grants found through the listed binding.
 
-**Known limitations:** Only bindings and roles present in the input are followed (plus the default cluster-admin, admin, edit and view ClusterRoles). Aggregated ClusterRoles, cloud IAM mappings and webhook authorizers are not evaluated. Workloads in kube-system are skipped unless --include-system is set.
+**Known limitations:** Only bindings and roles present in the input are followed, plus the default ClusterRoles of Kubernetes 1.34–1.37 and kubeadm, which are taken from the upstream bootstrap policy when not in the input. Aggregated ClusterRoles are resolved (the input's roles their selectors match, and for admin, edit and view the upstream defaults). Cloud IAM mappings and webhook authorizers are not evaluated. Workloads in kube-system are skipped unless --include-system is set.
 
 **References:**
 

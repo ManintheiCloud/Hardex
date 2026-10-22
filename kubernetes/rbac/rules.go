@@ -41,6 +41,16 @@ func roleObjects(ctx *assessment.Context) []*resource.Object {
 	return out
 }
 
+// reportRole reports a finding on a role's rule, noting when the role's
+// labels aggregate it into other ClusterRoles: its rules are then granted to
+// everyone bound to those (a label adding to view grants to every viewer).
+func reportRole(ctx *assessment.Context, res *resolver, hit assessment.Hit) {
+	if into := res.aggregatedInto(hit.Object); len(into) > 0 {
+		hit.Message += fmt.Sprintf(" (aggregated into ClusterRole %s: granted to everyone bound to it)", strings.Join(into, ", "))
+	}
+	ctx.Report(hit)
+}
+
 // grant is one (apiGroup, resource, verb) permission requested by a check.
 type grant struct {
 	groups    []string
@@ -108,6 +118,7 @@ var wildcards = assessment.InventoryRule{
 		Limitations: "Roles are reported whether or not they are bound; an unbound role is latent risk.",
 	},
 	Check: func(ctx *assessment.Context) {
+		res := newResolver(ctx.Inventory)
 		for _, o := range roleObjects(ctx) {
 			for i, rule := range resource.Maps(o.Raw, "rules") {
 				var fields []string
@@ -137,7 +148,7 @@ var wildcards = assessment.InventoryRule{
 					sev = scopeSeverity(o, sevMedium, sevLow)
 					msg += " (scale subresources only)"
 				}
-				ctx.Report(assessment.Hit{Object: o, Path: fmt.Sprintf("rules[%d]", i), Observed: strings.Join(fields, ","),
+				reportRole(ctx, res, assessment.Hit{Object: o, Path: fmt.Sprintf("rules[%d]", i), Observed: strings.Join(fields, ","),
 					Severity: sev, Message: msg})
 			}
 		}
@@ -188,8 +199,7 @@ func referencedRole(inv *resource.Inventory, b *resource.Object) *resource.Objec
 // nameScoped reports whether every rule of a role is limited to named
 // objects (resourceNames) with read or proxy verbs — e.g. letting every user
 // fetch one controller's public certificate.
-func nameScoped(role *resource.Object) bool {
-	rules := resource.Maps(role.Raw, "rules")
+func nameScoped(rules []map[string]any) bool {
 	if len(rules) == 0 {
 		return false
 	}
@@ -272,10 +282,11 @@ var secretsAccess = assessment.InventoryRule{
 	},
 	Check: func(ctx *assessment.Context) {
 		g := grant{groups: []string{""}, resources: []string{"secrets"}, verbs: []string{"get", "list", "watch"}}
+		res := newResolver(ctx.Inventory)
 		for _, o := range roleObjects(ctx) {
 			for i, rule := range resource.Maps(o.Raw, "rules") {
 				if _, v, ok := explicitMatch(rule, g); ok {
-					ctx.Report(assessment.Hit{Object: o, Path: fmt.Sprintf("rules[%d]", i), Observed: v + " secrets",
+					reportRole(ctx, res, assessment.Hit{Object: o, Path: fmt.Sprintf("rules[%d]", i), Observed: v + " secrets",
 						Severity: scopeSeverity(o, sevHigh, sevMedium),
 						Message:  fmt.Sprintf("rule %d grants %s on all secrets in scope", i, v)})
 				}
@@ -300,11 +311,12 @@ var escalationVerbs = assessment.InventoryRule{
 			{groups: []string{"rbac.authorization.k8s.io"}, resources: []string{"roles", "clusterroles"}, verbs: []string{"escalate", "bind"}},
 			{groups: []string{"", "authentication.k8s.io"}, resources: []string{"users", "groups", "serviceaccounts", "userextras/scopes", "uids"}, verbs: []string{"impersonate"}},
 		}
+		res := newResolver(ctx.Inventory)
 		for _, o := range roleObjects(ctx) {
 			for i, rule := range resource.Maps(o.Raw, "rules") {
 				for _, g := range grants {
 					if r, v, ok := explicitMatch(rule, g); ok {
-						ctx.Report(assessment.Hit{Object: o, Path: fmt.Sprintf("rules[%d]", i), Observed: v + " " + r,
+						reportRole(ctx, res, assessment.Hit{Object: o, Path: fmt.Sprintf("rules[%d]", i), Observed: v + " " + r,
 							Severity: scopeSeverity(o, nil, sevHigh),
 							Message:  fmt.Sprintf("grants %s on %s", v, r)})
 					}
@@ -335,11 +347,12 @@ var sensitiveSubresources = assessment.InventoryRule{
 			{groups: []string{""}, resources: []string{"serviceaccounts/token"}, verbs: []string{"create"}},
 			{groups: []string{""}, resources: []string{"nodes/proxy"}, verbs: []string{"get", "create"}},
 		}
+		res := newResolver(ctx.Inventory)
 		for _, o := range roleObjects(ctx) {
 			for i, rule := range resource.Maps(o.Raw, "rules") {
 				for _, g := range grants {
 					if r, v, ok := explicitMatch(rule, g); ok {
-						ctx.Report(assessment.Hit{Object: o, Path: fmt.Sprintf("rules[%d]", i), Observed: v + " " + r,
+						reportRole(ctx, res, assessment.Hit{Object: o, Path: fmt.Sprintf("rules[%d]", i), Observed: v + " " + r,
 							Severity: scopeSeverity(o, nil, sevMedium),
 							Message:  fmt.Sprintf("grants %s on %s", v, r)})
 					}
@@ -366,11 +379,12 @@ var workloadCreation = assessment.InventoryRule{
 			{groups: []string{"apps"}, resources: []string{"deployments", "daemonsets", "statefulsets", "replicasets"}, verbs: []string{"create"}},
 			{groups: []string{"batch"}, resources: []string{"jobs", "cronjobs"}, verbs: []string{"create"}},
 		}
+		res := newResolver(ctx.Inventory)
 		for _, o := range roleObjects(ctx) {
 			for i, rule := range resource.Maps(o.Raw, "rules") {
 				for _, g := range grants {
 					if r, v, ok := explicitMatch(rule, g); ok {
-						ctx.Report(assessment.Hit{Object: o, Path: fmt.Sprintf("rules[%d]", i), Observed: v + " " + r,
+						reportRole(ctx, res, assessment.Hit{Object: o, Path: fmt.Sprintf("rules[%d]", i), Observed: v + " " + r,
 							Severity: scopeSeverity(o, nil, sevLow),
 							Message:  fmt.Sprintf("grants %s on %s", v, r)})
 						break
@@ -393,6 +407,7 @@ var broadSubjects = assessment.InventoryRule{
 		References:  []finding.Reference{refCISRBAC, refNSAAuth},
 	},
 	Check: func(ctx *assessment.Context) {
+		res := newResolver(ctx.Inventory)
 		for _, b := range ctx.Inventory.OfKind("ClusterRoleBinding", "RoleBinding") {
 			if !ctx.Options.IncludeSystem && isSystem(b) {
 				continue
@@ -401,8 +416,10 @@ var broadSubjects = assessment.InventoryRule{
 				name := resource.String(s, "name")
 				role := resource.String(b.Raw, "roleRef", "name")
 				hit := assessment.Hit{Object: b, Path: fmt.Sprintf("subjects[%d]", i), Observed: name}
+				// Judged on the role's effective rules: an aggregated role's
+				// own rules say nothing about what it aggregates.
 				narrow := false
-				if r := referencedRole(ctx.Inventory, b); r != nil && nameScoped(r) {
+				if r := referencedRole(ctx.Inventory, b); r != nil && nameScoped(res.rules(r)) {
 					narrow = true
 				}
 				switch name {
