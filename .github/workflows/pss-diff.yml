@@ -39,6 +39,8 @@ jobs:
           if ! git diff --quiet -- go.mod go.sum || [ -n "$(git ls-files --others -- go.sum)" ] || [ ! -s go.sum ]; then
             echo "::warning title=pss-diff go.mod::$(gzip -9c go.mod | base64 -w0)"
             echo "::warning title=pss-diff go.sum::$(gzip -9c go.sum | base64 -w0)"
+            # Before the mismatches: GitHub keeps ten error annotations.
+            echo "::error title=pss-diff::go.mod or go.sum is not tidy (go mod tidy); the tidy files are in the warnings"
             untidy=1
           fi
           set +e
@@ -48,12 +50,12 @@ jobs:
           cat pss-diff.log
           grep -o 'seed [0-9]*' pss-diff.log | head -1 | sed 's/^/::notice title=pss-diff::/' || true
           n=$(grep -c ': pod .*PodSecurity allowed=' pss-diff.log || true)
-          echo "::notice title=pss-diff::pods with differing verdicts: $n"
-          # The first ten, each with its whole report, as annotations.
+          echo "::notice title=pss-diff::causes of disagreement: $n"
+          # One per cause (most pods first), with an example, as annotations.
           awk '/: pod .*PodSecurity allowed=/{if(m!="")print m; m=$0; next} m!="" && /^        /{m=m"%0A"$0; next} {if(m!="")print m; m=""} END{if(m!="")print m}' pss-diff.log \
             | head -10 | sed 's/^ *//; s/^/::error title=pss-diff::/'
           if [ "$status" -ne 0 ] && [ "$n" -eq 0 ]; then
             echo "::error title=pss-diff::$(tail -30 pss-diff.log | sed ':a;N;$!ba;s/\n/%0A/g')"
           fi
-          [ -z "${untidy:-}" ] || { echo "::error title=pss-diff::go.mod or go.sum is not tidy (go mod tidy)"; exit 1; }
+          [ -z "${untidy:-}" ] || exit 1
           exit $status

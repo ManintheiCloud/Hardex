@@ -779,7 +779,7 @@ Severity is the default; individual findings may be raised or lowered where the 
 
 **Dangerous Linux capability added** — high, workloads
 
-**Checks:** Detects containers that add Linux capabilities outside the Pod Security Standards Baseline allow-list. Capabilities that commonly enable escape (SYS_ADMIN, SYS_MODULE, SYS_PTRACE, BPF, ALL, ...) are critical.
+**Checks:** Detects containers that add Linux capabilities outside the Pod Security Standards Baseline allow-list. Capabilities that commonly enable escape (SYS_ADMIN, SYS_MODULE, SYS_PTRACE, BPF, ALL, ...) are critical, in any spelling (sys_admin, CAP_SYS_ADMIN). An allowed capability spelled differently (chown, CAP_CHOWN) is low: the standard and PodSecurity admission accept only the exact name.
 
 **Why it matters:** Capabilities split root's power into pieces; several of those pieces are each sufficient to escape the container or tamper with the node.
 
@@ -797,7 +797,7 @@ Severity is the default; individual findings may be raised or lowered where the 
 
 **Capabilities not reduced to minimum** — low, workloads
 
-**Checks:** Detects Linux containers that do not drop ALL capabilities, or that add any capability other than NET_BIND_SERVICE.
+**Checks:** Detects Linux containers that do not drop ALL capabilities, or that add any capability other than NET_BIND_SERVICE. Names must be spelled exactly as in the standard (ALL, NET_BIND_SERVICE), as PodSecurity admission requires.
 
 **Why it matters:** Container runtimes grant a default capability set that most applications never use. Dropping them removes kernel attack surface at no cost to the workload.
 

@@ -30,7 +30,7 @@ Profiles are nested (`minimal ⊂ baseline ⊂ restricted`); a test enforces thi
 | Baseline | HostProcess | HX-WL-020 |
 | Baseline | Host Namespaces | HX-WL-002 |
 | Baseline | Privileged Containers | HX-WL-001 |
-| Baseline | Capabilities | HX-WL-006 |
+| Baseline | Capabilities | HX-WL-006 (names matched exactly, as by PodSecurity: `chown` or `CAP_CHOWN` is not the allowed `CHOWN` → low) |
 | Baseline | HostPath Volumes | HX-WL-003 |
 | Baseline | Host Ports | HX-WL-014 |
 | Baseline | Host Probes / Lifecycle Hooks (v1.34+) | HX-WL-021 (loopback in a hostNetwork pod → low) |
@@ -39,14 +39,14 @@ Profiles are nested (`minimal ⊂ baseline ⊂ restricted`); a test enforces thi
 | Baseline | /proc Mount Type | HX-WL-017 (in a user namespace, `hostUsers: false` → low: Baseline allows it since v1.35, Restricted does not) |
 | Baseline | Seccomp | HX-WL-008 (explicit Unconfined → high) |
 | Baseline | Sysctls | HX-WL-018 (safe set as of v1.37) |
-| Restricted | Volume Types | HX-WL-019 (+ HX-WL-003) |
+| Restricted | Volume Types | HX-WL-019 (+ HX-WL-003; image volumes are allowed) |
 | Restricted | Privilege Escalation | HX-WL-004 |
-| Restricted | Running as Non-root | HX-WL-005 (not reported for `hostUsers: false` pods, as since v1.35) |
+| Restricted | Running as Non-root | HX-WL-005 (not reported for `hostUsers: false` pods, as since v1.35; reported for Windows pods too) |
 | Restricted | Running as Non-root user | HX-WL-005 (UID 0 → high; not reported for `hostUsers: false` pods) |
 | Restricted | Seccomp | HX-WL-008 (unset → medium) |
-| Restricted | Capabilities | HX-WL-007 |
+| Restricted | Capabilities | HX-WL-007 (`drop` must name `ALL` exactly) |
 
-The table follows the standard as of Kubernetes 1.37, checked against the `PodSecurity` admission controller's policy package (`k8s.io/pod-security-admission/policy`), including the user-namespace relaxations that the published page describes on the [user namespaces](https://kubernetes.io/docs/concepts/workloads/pods/user-namespaces/#integration-with-pod-security-admission-checks) page.
+The table follows the standard as of Kubernetes 1.37, checked against the `PodSecurity` admission controller's policy package (`k8s.io/pod-security-admission/policy`), including the user-namespace relaxations that the published page describes on the [user namespaces](https://kubernetes.io/docs/concepts/workloads/pods/user-namespaces/#integration-with-pod-security-admission-checks) page. CI checks it continuously: [`tools/pss-diff`](../tools/pss-diff/README.md) builds thousands of pods near each control's boundary and fails if Hardex and that policy package disagree on any of them, at Baseline or Restricted.
 
 Differences from the in-cluster `PodSecurity` admission controller, by design:
 

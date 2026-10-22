@@ -3,6 +3,7 @@ package tests
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/ManintheiCloud/Hardex/core/finding"
@@ -68,6 +69,25 @@ func TestPSSRecentChanges(t *testing.T) {
       readinessProbe: {httpGet: {host: 169.254.169.254, path: /, port: 80}}
 `)
 
+	// Found by tools/pss-diff: PodSecurity matches capability names exactly,
+	// applies the non-root controls to Windows pods, and allows image
+	// volumes.
+	write("cap-spelling", `
+  securityContext: {runAsNonRoot: true, seccompProfile: {type: RuntimeDefault}}
+  containers:
+    - {name: a, image: x, securityContext: {allowPrivilegeEscalation: false, capabilities: {drop: [ALL], add: [net_bind_service]}}}
+    - {name: b, image: x, securityContext: {allowPrivilegeEscalation: false, capabilities: {drop: [all], add: [CAP_SYS_ADMIN]}}}
+`)
+	write("windows-root", `
+  os: {name: windows}
+  securityContext: {runAsNonRoot: false}
+  containers: [{name: c, image: x}]
+`)
+	write("image-volume", `
+  volumes: [{name: v, image: {reference: registry.example/data:1}}]
+  containers: [{name: c, image: x}]
+`)
+
 	r := scan(t, "restricted", dir)
 	got := map[string][]finding.Finding{}
 	for _, f := range r.Findings {
@@ -96,6 +116,36 @@ func TestPSSRecentChanges(t *testing.T) {
 	// Safe sysctls up to 1.37 pass; somaxconn is not in the safe set.
 	if fs := got["HX-WL-018 sysctls"]; len(fs) != 1 || fs[0].Observed != "net.core.somaxconn" {
 		t.Errorf("HX-WL-018: %+v, want only net.core.somaxconn", fs)
+	}
+
+	sevOf := func(rule, pod, observed string) string {
+		for _, f := range got[rule+" "+pod] {
+			if f.Observed == observed {
+				return f.Severity.String()
+			}
+		}
+		return "not reported"
+	}
+	if s := sevOf("HX-WL-006", "cap-spelling", "net_bind_service"); s != finding.Low.String() {
+		t.Errorf("HX-WL-006 for net_bind_service: %s, want low (PodSecurity rejects the spelling)", s)
+	}
+	if s := sevOf("HX-WL-006", "cap-spelling", "CAP_SYS_ADMIN"); s != finding.Critical.String() {
+		t.Errorf("HX-WL-006 for CAP_SYS_ADMIN: %s, want critical", s)
+	}
+	drops := 0
+	for _, f := range got["HX-WL-007 cap-spelling"] {
+		if strings.HasSuffix(f.Path, "containers[1].securityContext.capabilities.drop") {
+			drops++
+		}
+	}
+	if drops != 1 {
+		t.Errorf(`HX-WL-007 for drop: [all]: %d findings, want 1`, drops)
+	}
+	if count("HX-WL-005", "windows-root") != 1 {
+		t.Error("HX-WL-005 not reported for a Windows pod with runAsNonRoot: false")
+	}
+	if count("HX-WL-019", "image-volume") != 0 {
+		t.Error("HX-WL-019 reported an image volume, which Restricted allows")
 	}
 
 	// 1.34: host in probes and lifecycle hooks; an empty host is allowed.

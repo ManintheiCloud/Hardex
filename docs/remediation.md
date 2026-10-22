@@ -59,6 +59,7 @@ Writing requires credentials that can `patch` the affected workloads; the read-o
 | HX-WL-002 | `hostNetwork`/`hostPID`/`hostIPC: false` | high |
 | HX-WL-004 | `allowPrivilegeEscalation: false` | low |
 | HX-WL-005 | `runAsNonRoot: true` (not when UID 0 is set explicitly) | medium |
+| HX-WL-006 | an allowed capability spelled differently (`net_bind_service`, `CAP_CHOWN`) is spelled as the standard requires; any other added capability is left to you | low |
 | HX-WL-007 | `capabilities.drop: ["ALL"]` | medium |
 | HX-WL-008 | `seccompProfile.type: RuntimeDefault` | low (medium if replacing `Unconfined`) |
 | HX-WL-009 | `readOnlyRootFilesystem: true` | high |

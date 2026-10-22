@@ -243,7 +243,9 @@ var runAsNonRoot = eachContainer(assessment.Metadata{
 	References:  []finding.Reference{baselines.PSS("Restricted", "Running as Non-root"), baselines.PSS("Restricted", "Running as Non-root user"), refNSAPod, refCISPods},
 	Limitations: "If runAsNonRoot is unset, the effective user depends on the image's USER directive, which Hardex does not inspect.",
 }, func(ctx *assessment.Context, obj *resource.Object, pod map[string]any, prefix string, c resource.Container) {
-	if isWindows(pod) || userNamespaced(pod) {
+	// Unlike the seccomp, capability and privilege-escalation controls,
+	// these apply to Windows pods too (as in PodSecurity admission).
+	if userNamespaced(pod) {
 		return
 	}
 	uid, uidPath, uidSet := effective(pod, prefix, c, "runAsUser")
@@ -284,21 +286,28 @@ var dangerousCapabilities = eachContainer(assessment.Metadata{
 	Title:       "Dangerous Linux capability added",
 	Severity:    finding.High,
 	Category:    assessment.CategoryWorkloads,
-	Description: "Detects containers that add Linux capabilities outside the Pod Security Standards Baseline allow-list. Capabilities that commonly enable escape (SYS_ADMIN, SYS_MODULE, SYS_PTRACE, BPF, ALL, ...) are critical.",
+	Description: "Detects containers that add Linux capabilities outside the Pod Security Standards Baseline allow-list. Capabilities that commonly enable escape (SYS_ADMIN, SYS_MODULE, SYS_PTRACE, BPF, ALL, ...) are critical, in any spelling (sys_admin, CAP_SYS_ADMIN). An allowed capability spelled differently (chown, CAP_CHOWN) is low: the standard and PodSecurity admission accept only the exact name.",
 	Rationale:   "Capabilities split root's power into pieces; several of those pieces are each sufficient to escape the container or tamper with the node.",
 	Remediation: "Remove the capability from securityContext.capabilities.add. Prefer drop: [ALL] and add back only NET_BIND_SERVICE if a low port is required.",
 	References:  []finding.Reference{baselines.PSS("Baseline", "Capabilities"), refNSAPod, refCISPods},
 }, func(ctx *assessment.Context, obj *resource.Object, _ map[string]any, prefix string, c resource.Container) {
 	for i, raw := range resource.Strings(c.Spec, "securityContext", "capabilities", "add") {
-		capName := normalizeCap(raw)
-		if baselineAllowedCaps[capName] {
+		// The standard, and PodSecurity admission, match names exactly:
+		// "chown" or "CAP_CHOWN" is not the allowed "CHOWN". Normalising
+		// only decides how dangerous the capability is.
+		if baselineAllowedCaps[raw] {
 			continue
 		}
+		capName := normalizeCap(raw)
 		hit := assessment.Hit{Object: obj, Container: c.Name,
 			Path:     fmt.Sprintf("%s.securityContext.capabilities.add[%d]", c.Path(prefix), i),
 			Observed: raw, Message: fmt.Sprintf("container %q adds capability %s", c.Name, capName)}
-		if criticalCaps[capName] {
+		switch {
+		case criticalCaps[capName]:
 			hit.Severity = sevCritical
+		case baselineAllowedCaps[capName]:
+			hit.Severity = sevLow
+			hit.Message = fmt.Sprintf("container %q adds capability %q; the Pod Security Standards allow only the exact name %s, so PodSecurity admission rejects the pod", c.Name, raw, capName)
 		}
 		ctx.Report(hit)
 	}
@@ -309,7 +318,7 @@ var minimalCapabilities = eachContainer(assessment.Metadata{
 	Title:       "Capabilities not reduced to minimum",
 	Severity:    finding.Low,
 	Category:    assessment.CategoryWorkloads,
-	Description: "Detects Linux containers that do not drop ALL capabilities, or that add any capability other than NET_BIND_SERVICE.",
+	Description: "Detects Linux containers that do not drop ALL capabilities, or that add any capability other than NET_BIND_SERVICE. Names must be spelled exactly as in the standard (ALL, NET_BIND_SERVICE), as PodSecurity admission requires.",
 	Rationale:   "Container runtimes grant a default capability set that most applications never use. Dropping them removes kernel attack surface at no cost to the workload.",
 	Remediation: "Set securityContext.capabilities.drop: [\"ALL\"] and, only if needed, add: [\"NET_BIND_SERVICE\"].",
 	References:  []finding.Reference{baselines.PSS("Restricted", "Capabilities"), refNSAPod, refCISPods},
@@ -318,23 +327,30 @@ var minimalCapabilities = eachContainer(assessment.Metadata{
 		return
 	}
 	capsPath := c.Path(prefix) + ".securityContext.capabilities"
-	dropsAll := false
+	// As in HX-WL-006, names are matched exactly, as PodSecurity does.
+	dropsAll, spelled := false, ""
 	for _, d := range resource.Strings(c.Spec, "securityContext", "capabilities", "drop") {
-		if normalizeCap(d) == "ALL" {
+		if d == "ALL" {
 			dropsAll = true
+		} else if normalizeCap(d) == "ALL" {
+			spelled = d
 		}
 	}
 	if !dropsAll {
+		msg := fmt.Sprintf("container %q does not drop ALL capabilities", c.Name)
+		if spelled != "" {
+			msg = fmt.Sprintf("container %q drops %q; the Pod Security Standards require the exact name ALL, so PodSecurity admission rejects the pod", c.Name, spelled)
+		}
 		ctx.Report(assessment.Hit{Object: obj, Container: c.Name, Path: capsPath + ".drop",
 			Observed: show(resource.Strings(c.Spec, "securityContext", "capabilities", "drop")),
-			Message:  fmt.Sprintf("container %q does not drop ALL capabilities", c.Name)})
+			Message:  msg})
 	}
 	var extra []string
 	for _, a := range resource.Strings(c.Spec, "securityContext", "capabilities", "add") {
-		n := normalizeCap(a)
-		// Non-baseline capabilities are already reported by HX-WL-006.
-		if n != "NET_BIND_SERVICE" && baselineAllowedCaps[n] {
-			extra = append(extra, n)
+		// Names outside the Baseline list, in any spelling, are already
+		// reported by HX-WL-006.
+		if a != "NET_BIND_SERVICE" && baselineAllowedCaps[a] {
+			extra = append(extra, a)
 		}
 	}
 	if len(extra) > 0 {

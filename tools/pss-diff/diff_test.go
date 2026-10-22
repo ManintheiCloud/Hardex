@@ -100,13 +100,22 @@ func TestAgainstPodSecurityAdmission(t *testing.T) {
 		t.Fatal(err)
 	}
 	latest := psaapi.LatestVersion()
-	mismatches := 0
+	// Mismatches are grouped by cause (level, PodSecurity's reasons, the
+	// Hardex rules involved); each group is reported once, with a count and
+	// its first pod.
+	type group struct {
+		count       int
+		head, first string
+	}
+	groups := map[string]*group{}
 	for _, p := range pods {
 		var hxBaseline, hxRestricted bool
+		rules := map[string]bool{}
 		for _, f := range found[p.Name] {
 			l, _ := level(f)
 			hxBaseline = hxBaseline || l == "baseline"
 			hxRestricted = true
+			rules[f.RuleID+"/"+l] = true
 		}
 		for _, c := range []struct {
 			level psaapi.Level
@@ -116,8 +125,21 @@ func TestAgainstPodSecurityAdmission(t *testing.T) {
 			if res.Allowed == !c.hx {
 				continue
 			}
-			mismatches++
-			if mismatches > 25 {
+			reasons := append([]string(nil), res.ForbiddenReasons...)
+			sort.Strings(reasons)
+			var ids []string
+			for id := range rules {
+				ids = append(ids, id)
+			}
+			sort.Strings(ids)
+			key := fmt.Sprintf("%s: PodSecurity allowed=%v [%s], Hardex [%s]", c.level, res.Allowed, strings.Join(reasons, "; "), strings.Join(ids, " "))
+			g := groups[key]
+			if g == nil {
+				g = &group{}
+				groups[key] = g
+			}
+			g.count++
+			if g.first != "" {
 				continue
 			}
 			spec, _ := json.Marshal(p.Spec)
@@ -127,15 +149,27 @@ func TestAgainstPodSecurityAdmission(t *testing.T) {
 				hx = append(hx, fmt.Sprintf("%s(%s,%s) %s=%s", f.RuleID, l, f.Severity, f.Path, f.Observed))
 			}
 			sort.Strings(hx)
-			t.Errorf("pod %s, %s: PodSecurity allowed=%v, Hardex violation=%v\n  mutations: %s\n  PodSecurity: %s\n  Hardex: %s\n  annotations: %v\n  spec: %s",
-				p.Name, c.level, res.Allowed, c.hx, p.Annotations["pss-diff/mutations"],
+			g.head = fmt.Sprintf("pod %s, %s: PodSecurity allowed=%v, Hardex violation=%v", p.Name, c.level, res.Allowed, c.hx)
+			g.first = fmt.Sprintf("\n  mutations: %s\n  PodSecurity: %s\n  Hardex: %s\n  annotations: %v\n  spec: %s",
+				p.Annotations["pss-diff/mutations"],
 				strings.Join(res.ForbiddenReasons, "; ")+" — "+strings.Join(res.ForbiddenDetails, "; "),
 				strings.Join(hx, "; "), p.Annotations, spec)
 		}
 	}
-	if mismatches > 25 {
-		t.Errorf("... %d mismatches in all", mismatches)
+	keys := make([]string, 0, len(groups))
+	for k := range groups {
+		keys = append(keys, k)
 	}
+	sort.Slice(keys, func(i, j int) bool {
+		if groups[keys[i]].count != groups[keys[j]].count {
+			return groups[keys[i]].count > groups[keys[j]].count
+		}
+		return keys[i] < keys[j]
+	})
+	for _, k := range keys {
+		t.Errorf("%s (%d pods with this cause)%s", groups[k].head, groups[k].count, groups[k].first)
+	}
+	t.Logf("%d causes of disagreement", len(groups))
 }
 
 func ptr[T any](v T) *T { return &v }

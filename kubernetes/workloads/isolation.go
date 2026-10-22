@@ -164,7 +164,7 @@ var unsafeSysctls = eachPod(assessment.Metadata{
 
 var restrictedVolumeTypes = map[string]bool{
 	"configMap": true, "csi": true, "downwardAPI": true, "emptyDir": true, "ephemeral": true,
-	"persistentVolumeClaim": true, "projected": true, "secret": true,
+	"image": true, "persistentVolumeClaim": true, "projected": true, "secret": true,
 }
 
 var volumeTypes = eachPod(assessment.Metadata{
