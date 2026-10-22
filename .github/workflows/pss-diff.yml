@@ -32,13 +32,24 @@ jobs:
         run: |
           if [ ! -f go.sum ]; then
             go mod tidy
-            echo "go.sum (verified against sum.golang.org); commit it:"
-            cat go.sum
+            # Logs are not always at hand; the generated file is also in an
+            # annotation (gzip, base64), to be checked and committed.
+            echo "::warning title=pss-diff go.sum::$(gzip -9c go.sum | base64 -w0)"
             missing=1
           fi
-          go test -count=1 -v ./... 2>&1 | tee pss-diff.log
-          status=${PIPESTATUS[0]}
-          grep -o 'seed [0-9]*' pss-diff.log | head -1 | sed 's/^/::notice title=pss-diff::/'
-          grep -c '^ *diff_test.go:[0-9]*: pod ' pss-diff.log | sed 's/^/::notice title=pss-diff::mismatching verdicts: /'
-          [ -z "$missing" ] || { echo "::error title=pss-diff::go.sum is not committed"; exit 1; }
+          set +e
+          go test -count=1 -v ./... > pss-diff.log 2>&1
+          status=$?
+          set -e
+          cat pss-diff.log
+          grep -o 'seed [0-9]*' pss-diff.log | head -1 | sed 's/^/::notice title=pss-diff::/' || true
+          n=$(grep -c ': pod .*PodSecurity allowed=' pss-diff.log || true)
+          echo "::notice title=pss-diff::pods with differing verdicts: $n"
+          # The first ten, each with its whole report, as annotations.
+          awk '/: pod .*PodSecurity allowed=/{if(m!="")print m; m=$0; next} m!="" && /^        /{m=m"%0A"$0; next} {if(m!="")print m; m=""} END{if(m!="")print m}' pss-diff.log \
+            | head -10 | sed 's/^ *//; s/^/::error title=pss-diff::/'
+          if [ "$status" -ne 0 ] && [ "$n" -eq 0 ]; then
+            echo "::error title=pss-diff::$(tail -30 pss-diff.log | sed ':a;N;$!ba;s/\n/%0A/g')"
+          fi
+          [ -z "${missing:-}" ] || { echo "::error title=pss-diff::go.sum is not committed"; exit 1; }
           exit $status
