@@ -6,6 +6,7 @@ Releases are signed as "built by `.github/workflows/release.yml` on `refs/heads/
 |---|---|
 | `main.json` | `main` changes only through pull requests whose required checks pass (unit tests, minimum Go, supply-chain, kind end-to-end, accuracy corpus, the Action on four runner types, CodeQL); no force-push or deletion. |
 | `release-tags.json` | `v*` tags cannot be moved or deleted. |
+| `repository.json` | Private vulnerability reporting is on (SECURITY.md sends reporters there). |
 | `environments.json` | The `release` environment: a required reviewer, no administrator bypass, and deployments only from `main` and `v*` tags. `release.yml` publishes nothing until a reviewer approves the run. |
 
 Apply (repository admin), either:
