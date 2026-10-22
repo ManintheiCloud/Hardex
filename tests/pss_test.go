@@ -3,6 +3,7 @@ package tests
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/ManintheiCloud/Hardex/core/finding"
@@ -68,6 +69,50 @@ func TestPSSRecentChanges(t *testing.T) {
       readinessProbe: {httpGet: {host: 169.254.169.254, path: /, port: 80}}
 `)
 
+	// Found by tools/pss-diff: PodSecurity matches capability names exactly,
+	// applies the non-root controls to Windows pods, and allows image
+	// volumes.
+	write("cap-spelling", `
+  securityContext: {runAsNonRoot: true, seccompProfile: {type: RuntimeDefault}}
+  containers:
+    - {name: a, image: x, securityContext: {allowPrivilegeEscalation: false, capabilities: {drop: [ALL], add: [net_bind_service]}}}
+    - {name: b, image: x, securityContext: {allowPrivilegeEscalation: false, capabilities: {drop: [all], add: [CAP_SYS_ADMIN]}}}
+`)
+	write("windows-root", `
+  os: {name: windows}
+  securityContext: {runAsNonRoot: false}
+  containers: [{name: c, image: x}]
+`)
+	write("image-volume", `
+  volumes: [{name: v, image: {reference: registry.example/data:1}}]
+  containers: [{name: c, image: x}]
+`)
+
+	// A bad pod-level value that every container overrides: PodSecurity
+	// rejects it, and a container added later inherits it.
+	write("pod-level-overridden", `
+  securityContext:
+    seccompProfile: {type: Unconfined}
+    appArmorProfile: {type: Unconfined}
+    seLinuxOptions: {type: spc_t}
+    runAsNonRoot: false
+    runAsUser: 0
+  containers:
+    - name: c
+      image: x
+      securityContext:
+        seccompProfile: {type: RuntimeDefault}
+        appArmorProfile: {type: RuntimeDefault}
+        seLinuxOptions: {type: container_t}
+        runAsNonRoot: true
+        runAsUser: 1000
+`)
+	write("windows-unconfined", `
+  os: {name: windows}
+  securityContext: {seccompProfile: {type: Unconfined}, runAsNonRoot: true}
+  containers: [{name: c, image: x}]
+`)
+
 	r := scan(t, "restricted", dir)
 	got := map[string][]finding.Finding{}
 	for _, f := range r.Findings {
@@ -96,6 +141,53 @@ func TestPSSRecentChanges(t *testing.T) {
 	// Safe sysctls up to 1.37 pass; somaxconn is not in the safe set.
 	if fs := got["HX-WL-018 sysctls"]; len(fs) != 1 || fs[0].Observed != "net.core.somaxconn" {
 		t.Errorf("HX-WL-018: %+v, want only net.core.somaxconn", fs)
+	}
+
+	sevOf := func(rule, pod, observed string) string {
+		for _, f := range got[rule+" "+pod] {
+			if f.Observed == observed {
+				return f.Severity.String()
+			}
+		}
+		return "not reported"
+	}
+	if s := sevOf("HX-WL-006", "cap-spelling", "net_bind_service"); s != finding.Low.String() {
+		t.Errorf("HX-WL-006 for net_bind_service: %s, want low (PodSecurity rejects the spelling)", s)
+	}
+	if s := sevOf("HX-WL-006", "cap-spelling", "CAP_SYS_ADMIN"); s != finding.Critical.String() {
+		t.Errorf("HX-WL-006 for CAP_SYS_ADMIN: %s, want critical", s)
+	}
+	drops := 0
+	for _, f := range got["HX-WL-007 cap-spelling"] {
+		if strings.HasSuffix(f.Path, "containers[1].securityContext.capabilities.drop") {
+			drops++
+		}
+	}
+	if drops != 1 {
+		t.Errorf(`HX-WL-007 for drop: [all]: %d findings, want 1`, drops)
+	}
+	if count("HX-WL-005", "windows-root") != 1 {
+		t.Error("HX-WL-005 not reported for a Windows pod with runAsNonRoot: false")
+	}
+	if count("HX-WL-019", "image-volume") != 0 {
+		t.Error("HX-WL-019 reported an image volume, which Restricted allows")
+	}
+
+	for _, rule := range []string{"HX-WL-005", "HX-WL-008", "HX-WL-015", "HX-WL-016"} {
+		atPod := 0
+		for _, f := range got[rule+" pod-level-overridden"] {
+			if strings.HasPrefix(f.Path, "spec.securityContext.") {
+				atPod++
+			} else {
+				t.Errorf("%s reported a container that overrides the pod level: %s", rule, f.Path)
+			}
+		}
+		if want := map[string]int{"HX-WL-005": 2}[rule]; atPod != max(want, 1) {
+			t.Errorf("%s: %d findings at the pod level, want %d", rule, atPod, max(want, 1))
+		}
+	}
+	if fs := got["HX-WL-008 windows-unconfined"]; len(fs) != 1 || fs[0].Observed != "Unconfined" {
+		t.Errorf("HX-WL-008 for a Windows pod with seccomp Unconfined: %+v, want one Unconfined finding", fs)
 	}
 
 	// 1.34: host in probes and lifecycle hooks; an empty host is allowed.

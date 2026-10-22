@@ -3,6 +3,14 @@ updates:
   - package-ecosystem: gomod
     directory: /
     schedule: {interval: weekly}
+  # The PodSecurity reference for tools/pss-diff: a new k8s.io version is a
+  # new Kubernetes release to compare against (update docs/baselines.md).
+  - package-ecosystem: gomod
+    directory: /tools/pss-diff
+    schedule: {interval: weekly}
+    groups:
+      kubernetes:
+        patterns: ["k8s.io/*"]
   - package-ecosystem: github-actions
     directory: /
     schedule: {interval: weekly}

@@ -21,6 +21,7 @@ func Fixers() map[string]remediation.Fixer {
 		"HX-WL-002":  setAtFindingPath(false, remediation.High, "stop sharing the host namespace"),
 		"HX-WL-004":  setAtFindingPath(false, remediation.Low, "set allowPrivilegeEscalation: false"),
 		"HX-WL-005":  fixRunAsNonRoot,
+		"HX-WL-006":  fixCapabilitySpelling,
 		"HX-WL-007":  fixDropAll,
 		"HX-WL-008":  fixSeccomp,
 		"HX-WL-009":  setAtFindingPath(true, remediation.High, "set readOnlyRootFilesystem: true (mount emptyDir for writable paths)"),
@@ -66,6 +67,26 @@ func fixDropAll(obj *resource.Object, f finding.Finding) (*remediation.Change, s
 		return nil, "added capabilities must be reviewed individually"
 	}
 	return setAtFindingPath([]any{"ALL"}, remediation.Medium, `set capabilities.drop: ["ALL"]`)(obj, f)
+}
+
+// baselineCaps are the capabilities the Pod Security Standards Baseline lets
+// a container add, spelled as the standard requires.
+var baselineCaps = map[string]bool{
+	"AUDIT_WRITE": true, "CHOWN": true, "DAC_OVERRIDE": true, "FOWNER": true, "FSETID": true,
+	"KILL": true, "MKNOD": true, "NET_BIND_SERVICE": true, "SETFCAP": true, "SETGID": true,
+	"SETPCAP": true, "SETUID": true, "SYS_CHROOT": true,
+}
+
+// fixCapabilitySpelling rewrites an allowed capability spelled differently
+// (net_bind_service, CAP_CHOWN) as the standard spells it: the same
+// capability, under the name PodSecurity admission accepts. Any other added
+// capability needs a person to decide whether the workload needs it.
+func fixCapabilitySpelling(obj *resource.Object, f finding.Finding) (*remediation.Change, string) {
+	name := strings.TrimPrefix(strings.ToUpper(strings.TrimSpace(f.Observed)), "CAP_")
+	if !baselineCaps[name] || name == f.Observed {
+		return nil, "added capabilities must be reviewed individually"
+	}
+	return setAtFindingPath(name, remediation.Low, "spell the capability "+name)(obj, f)
 }
 
 func fixSeccomp(obj *resource.Object, f finding.Finding) (*remediation.Change, string) {

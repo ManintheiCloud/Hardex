@@ -85,10 +85,12 @@ type Rule interface {
 
 // Options tune rule behaviour.
 type Options struct {
-	// IncludeSystem evaluates objects that Kubernetes and kubeadm manage
-	// (system: and kubeadm: RBAC objects, kube-system workloads and
-	// networking). Off by default because operators usually cannot change
-	// them, but available for full audits.
+	// IncludeSystem evaluates objects that Kubernetes and kubeadm manage:
+	// kube-system workloads and the system namespaces' network isolation,
+	// and RBAC objects matching a Kubernetes or kubeadm default (recognised
+	// by content, not by name; kubernetes/rbac/defaults.json). Off by
+	// default because operators usually cannot change them, but available
+	// for full audits.
 	IncludeSystem bool
 }
 
