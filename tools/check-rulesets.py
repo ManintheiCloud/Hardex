@@ -120,13 +120,42 @@ def check_environments(repo, path):
     return failed
 
 
+def check_repository(repo, path):
+    """Repository settings the security policy relies on: SECURITY.md sends
+    reporters to GitHub's private vulnerability reporting, which must be on.
+    Returns failure; a setting this token cannot read is reported as
+    unverified, not as a failure."""
+    if not path.exists():
+        return False
+    want = json.loads(path.read_text())
+    failed = False
+    if "private_vulnerability_reporting" in want:
+        r = subprocess.run(["gh", "api", f"repos/{repo}/private-vulnerability-reporting"], capture_output=True, text=True)
+        if r.returncode != 0:
+            print("ok   repository: private vulnerability reporting not visible to this token (unverified)")
+            annotate("warning", "private vulnerability reporting could not be read with this token (unverified)")
+        elif json.loads(r.stdout).get("enabled") != want["private_vulnerability_reporting"]:
+            print(f"FAIL repository: private vulnerability reporting enabled={json.loads(r.stdout).get('enabled')}, expected {want['private_vulnerability_reporting']} (SECURITY.md depends on it)")
+            failed = True
+        else:
+            print("ok   repository: private vulnerability reporting enabled")
+    return failed
+
+
+def annotate(level, msg):
+    import os
+    if os.environ.get("GITHUB_ACTIONS"):
+        print(f"::{level} title=check-rulesets::{msg}")
+
+
 def main():
     repo = sys.argv[1]
     folder = pathlib.Path(sys.argv[2] if len(sys.argv) > 2 else ".github/rulesets")
     live = {r["name"]: r for r in gh(f"repos/{repo}/rulesets?per_page=100")}
     failed = check_environments(repo, folder / "environments.json")
+    failed = check_repository(repo, folder / "repository.json") or failed
     for f in sorted(folder.glob("*.json")):
-        if f.name == "environments.json":
+        if f.name in ("environments.json", "repository.json"):
             continue
         want = json.loads(f.read_text())
         name = want["name"]

@@ -9,6 +9,7 @@ All notable changes are documented here. The format follows [Keep a Changelog](h
 - Accuracy corpus: Calico's and node-problem-detector's DaemonSets appear in this list.
 
 ### Fixed
+- Security reporting: SECURITY.md directs researchers to GitHub's private vulnerability reporting, which was switched off in the repository, so there was no private channel. It is now on, and the protection check (before every release and weekly) fails if it is switched off again.
 - HX-WL-003 graded writable hostPath mounts of several node-takeover paths as high instead of critical: only exact matches of `/usr`, `/bin`, `/lib` and similar counted, so `/usr/local/bin` or `/lib/modules` did not, and CNI plugin binaries (`/opt/cni/bin`, run as root by the container runtime), FlexVolume drivers (`/usr/libexec/kubernetes`), container runtime state and node logs (`/var/log`: a symlink makes the kubelet's log endpoint serve any host file) were not considered at all. A writable mount of any of these, or of anything inside them, is now critical; read-only mounts stay high.
 
 ## 0.10.6 — 2026-10-21
