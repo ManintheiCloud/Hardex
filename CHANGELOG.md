@@ -2,9 +2,9 @@
 
 All notable changes are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow [Semantic Versioning](https://semver.org/). Before 1.0, minor versions may contain breaking changes.
 
-## 0.11.0 — 2026-10-22
+## 0.12.0 — 2026-10-22
 
-Scans may report findings that 0.10 did not: capability names spelled differently from the standard, disallowed pod-level settings that every container overrides, Windows pods without `runAsNonRoot`, and writable mounts of more host paths as critical. Each matches what PodSecurity admission enforces or a real node-takeover path; see below. Baselines recorded with `hardex monitor --baseline` show them as new.
+RBAC findings change: workloads bound to the default `edit` or `admin` roles are now critical (those roles can impersonate service accounts in their namespace), bindings to `admin` are no longer reported as able to escalate, and permissions granted through aggregated ClusterRoles are reported. Baselines recorded with `hardex monitor --baseline` show the new findings as new.
 
 ### Added
 - The differential tests against Kubernetes' own code (`tools/k8s-diff`, formerly `tools/pss-diff`) also cover RBAC: Hardex's rule matching against the API server's rule-coverage check (`validation.Covers`), and the check that skips Kubernetes' default RBAC objects, which must never accept rules granting more than the default.
