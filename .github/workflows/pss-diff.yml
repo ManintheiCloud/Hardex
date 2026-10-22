@@ -30,12 +30,16 @@ jobs:
       - name: Compare with k8s.io/pod-security-admission
         working-directory: tools/pss-diff
         run: |
-          if [ ! -f go.sum ]; then
-            go mod tidy
-            # Logs are not always at hand; the generated file is also in an
-            # annotation (gzip, base64), to be checked and committed.
+          # go.mod and go.sum must be tidy; go mod tidy verifies new
+          # checksums against sum.golang.org. If anything changed, the
+          # files are also in annotations (gzip, base64), to be checked and
+          # committed, since logs are not always at hand.
+          touch go.sum
+          go mod tidy
+          if ! git diff --quiet -- go.mod go.sum || [ -n "$(git ls-files --others -- go.sum)" ] || [ ! -s go.sum ]; then
+            echo "::warning title=pss-diff go.mod::$(gzip -9c go.mod | base64 -w0)"
             echo "::warning title=pss-diff go.sum::$(gzip -9c go.sum | base64 -w0)"
-            missing=1
+            untidy=1
           fi
           set +e
           go test -count=1 -v ./... > pss-diff.log 2>&1
@@ -51,5 +55,5 @@ jobs:
           if [ "$status" -ne 0 ] && [ "$n" -eq 0 ]; then
             echo "::error title=pss-diff::$(tail -30 pss-diff.log | sed ':a;N;$!ba;s/\n/%0A/g')"
           fi
-          [ -z "${missing:-}" ] || { echo "::error title=pss-diff::go.sum is not committed"; exit 1; }
+          [ -z "${untidy:-}" ] || { echo "::error title=pss-diff::go.mod or go.sum is not tidy (go mod tidy)"; exit 1; }
           exit $status

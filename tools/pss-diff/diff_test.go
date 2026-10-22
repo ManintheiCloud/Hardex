@@ -208,6 +208,9 @@ var mutations = []mutation{
 	}},
 	{"dropCapabilities", func(r *rand.Rand, p *corev1.Pod) {
 		c := container(r, p)
+		if c.SecurityContext.Capabilities == nil {
+			c.SecurityContext.Capabilities = &corev1.Capabilities{}
+		}
 		switch r.Intn(4) {
 		case 0:
 			c.SecurityContext.Capabilities = nil
