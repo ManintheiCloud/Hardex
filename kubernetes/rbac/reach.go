@@ -89,14 +89,26 @@ func effectiveMatch(r map[string]any, g grant) bool {
 	return false
 }
 
+// resourceMatches matches a rule's resource as the RBAC authorizer does:
+// "*" is every resource and "*/sub" that subresource of every resource.
+// There is no other wildcard: "pods/*" is a resource literally named so,
+// and grants nothing on pods/exec.
 func resourceMatches(have, want string) bool {
 	if have == "*" || have == want {
 		return true
 	}
-	if parent, sub, ok := strings.Cut(want, "/"); ok {
-		return have == parent+"/*" || have == "*/"+sub
+	if _, sub, ok := strings.Cut(want, "/"); ok {
+		return have == "*/"+sub
 	}
 	return false
+}
+
+// RuleAllows reports whether a policy rule allows a request for every object
+// of a resource ("pods", "pods/exec") in an API group with a verb. Exported
+// for tools/k8s-diff, which checks it against Kubernetes' own rule
+// comparison.
+func RuleAllows(rule map[string]any, group, res, verb string) bool {
+	return effectiveMatch(rule, grant{groups: []string{group}, resources: []string{res}, verbs: []string{verb}})
 }
 
 // Capability identifies a class of dangerous permission (an index into

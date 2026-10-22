@@ -1,4 +1,4 @@
-package pssdiff
+package k8sdiff
 
 import (
 	"encoding/json"

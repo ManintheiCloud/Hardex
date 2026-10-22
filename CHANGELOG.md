@@ -4,8 +4,12 @@ All notable changes are documented here. The format follows [Keep a Changelog](h
 
 ## Unreleased
 
+### Added
+- The differential tests against Kubernetes' own code (`tools/k8s-diff`, formerly `tools/pss-diff`) also cover RBAC: Hardex's rule matching against the API server's rule-coverage check (`validation.Covers`), and the check that skips Kubernetes' default RBAC objects, which must never accept rules granting more than the default.
+
 ### Fixed
 - HX-RBAC-008 (which workloads hold dangerous permissions) judged bindings to the default `admin`, `edit` and `view` ClusterRoles by a hand-written summary when those roles were not in the input, as in manifest scans. The summary was wrong both ways: `edit` and `admin` can impersonate service accounts and mint their tokens (critical and high), which was missing, so a workload bound to `edit` was reported as high instead of critical; and `admin` was said to have `escalate`/`bind`, which it does not. The default roles are now taken from the upstream bootstrap policy (`kubernetes/rbac/defaults.json`), and every default ClusterRole is known, not only those four (a binding to `system:controller:…` or `system:node` is followed too).
+- RBAC rules with a resource such as `pods/*` were treated as granting every subresource of pods (`pods/exec` among them). The RBAC authorizer has no such wildcard: only `*` and `*/subresource`; `pods/*` matches only a resource literally named so and grants nothing. HX-RBAC-008 no longer reports such rules as allowing exec or attach.
 - Aggregated ClusterRoles were not resolved. In manifests their `rules` are usually empty, so a binding to one looked harmless (HX-RBAC-008), and HX-RBAC-007 could treat a binding of `system:authenticated` to one as "named objects only". A role's effective rules now include those of every ClusterRole its selectors select, transitively, and for `admin`, `edit` and `view` the upstream defaults.
 - A ClusterRole labelled `rbac.authorization.k8s.io/aggregate-to-view` (or `-edit`, `-admin`, or a custom aggregation label) grants its rules to everyone bound to the aggregating role. Its findings (HX-RBAC-001, -003 to -006) now say so ("aggregated into ClusterRole edit, view: granted to everyone bound to it"; through the defaults, a role added to `view` also reaches `edit` and `admin`), and HX-RBAC-008 follows it.
 

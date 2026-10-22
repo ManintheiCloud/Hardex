@@ -13,8 +13,12 @@ kind: Role
 metadata: {name: debug, namespace: app}
 rules:
   - apiGroups: [""]
-    resources: ["pods/*"]
+    resources: ["*/exec"]
     verbs: ["create"]
+  # Not a wildcard: RBAC matches "pods/*" only literally.
+  - apiGroups: [""]
+    resources: ["pods/*"]
+    verbs: ["get", "list"]
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding

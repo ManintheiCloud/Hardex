@@ -46,7 +46,7 @@ Profiles are nested (`minimal ⊂ baseline ⊂ restricted`); a test enforces thi
 | Restricted | Seccomp | HX-WL-008 (unset → medium) |
 | Restricted | Capabilities | HX-WL-007 (`drop` must name `ALL` exactly) |
 
-The table follows the standard as of Kubernetes 1.37, checked against the `PodSecurity` admission controller's policy package (`k8s.io/pod-security-admission/policy`), including the user-namespace relaxations that the published page describes on the [user namespaces](https://kubernetes.io/docs/concepts/workloads/pods/user-namespaces/#integration-with-pod-security-admission-checks) page. CI checks it continuously: [`tools/pss-diff`](../tools/pss-diff/README.md) builds thousands of pods near each control's boundary and fails if Hardex and that policy package disagree on any of them, at Baseline or Restricted.
+The table follows the standard as of Kubernetes 1.37, checked against the `PodSecurity` admission controller's policy package (`k8s.io/pod-security-admission/policy`), including the user-namespace relaxations that the published page describes on the [user namespaces](https://kubernetes.io/docs/concepts/workloads/pods/user-namespaces/#integration-with-pod-security-admission-checks) page. CI checks it continuously: [`tools/k8s-diff`](../tools/k8s-diff/README.md) builds thousands of pods near each control's boundary and fails if Hardex and that policy package disagree on any of them, at Baseline or Restricted.
 
 Differences from the in-cluster `PodSecurity` admission controller, by design:
 
