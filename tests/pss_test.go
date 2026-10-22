@@ -69,7 +69,7 @@ func TestPSSRecentChanges(t *testing.T) {
       readinessProbe: {httpGet: {host: 169.254.169.254, path: /, port: 80}}
 `)
 
-	// Found by tools/pss-diff: PodSecurity matches capability names exactly,
+	// Found by tools/k8s-diff: PodSecurity matches capability names exactly,
 	// applies the non-root controls to Windows pods, and allows image
 	// volumes.
 	write("cap-spelling", `

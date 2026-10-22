@@ -4,8 +4,8 @@ HX-PATH-001 high Deployment keda/keda-metrics-apiserver | compromise of this wor
 HX-PATH-001 high Deployment keda/keda-operator | compromise of this workload leads to root on a node: uses its mounted token (service account keda/keda-operator) → reaches the kubelet API through nodes/proxy and executes in any pod (cluster-wide, via ClusterRoleBinding keda-operator → ClusterRole keda-operator)
 HX-RBAC-001 high ClusterRole -/keda-operator | rule 3 uses a wildcard in apiGroups, resources
 HX-RBAC-001 low ClusterRole -/keda-external-metrics-reader | rule 0 uses a wildcard in resources, verbs (limited to the API group external.metrics.k8s.io)
-HX-RBAC-001 low ClusterRole -/keda:edit | rule 0 uses a wildcard in resources (limited to the API group keda.sh, eventing.keda.sh)
-HX-RBAC-001 low ClusterRole -/keda:view | rule 0 uses a wildcard in resources (limited to the API group keda.sh, eventing.keda.sh)
+HX-RBAC-001 low ClusterRole -/keda:edit | rule 0 uses a wildcard in resources (limited to the API group keda.sh, eventing.keda.sh) (aggregated into ClusterRole admin, edit: granted to everyone bound to it)
+HX-RBAC-001 low ClusterRole -/keda:view | rule 0 uses a wildcard in resources (limited to the API group keda.sh, eventing.keda.sh) (aggregated into ClusterRole admin, edit, view: granted to everyone bound to it)
 HX-RBAC-001 medium ClusterRole -/keda-operator | rule 4 uses a wildcard in apiGroups (scale subresources only)
 HX-RBAC-003 high ClusterRole -/keda-operator | rule 0 grants get on all secrets in scope
 HX-RBAC-003 medium Role keda/keda-operator | rule 0 grants get on all secrets in scope

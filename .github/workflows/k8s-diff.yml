@@ -1,0 +1,62 @@
+name: k8s-diff
+
+# Differential tests against Kubernetes' own code: random pods near each Pod
+# Security Standards control, judged by Hardex and by the PodSecurity
+# admission controller's policy package; and random RBAC rules, judged by
+# Hardex and by the API server's escalation check (rule coverage). Any
+# disagreement fails the job, with an example. A new seed each run; seeds
+# are in the annotations for reproduction. See tools/k8s-diff/README.md.
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    - cron: "23 5 * * 2"
+
+permissions:
+  contents: read
+
+jobs:
+  k8s-diff:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: tools/k8s-diff/go.mod
+          cache-dependency-path: tools/k8s-diff/go.sum
+      - name: Compare with Kubernetes' implementations
+        working-directory: tools/k8s-diff
+        run: |
+          # go.mod and go.sum must be tidy; go mod tidy verifies new
+          # checksums against sum.golang.org. If anything changed, the
+          # files are also in annotations (gzip, base64), to be checked and
+          # committed, since logs are not always at hand.
+          touch go.sum
+          go mod tidy
+          if ! git diff --quiet -- go.mod go.sum || [ -n "$(git ls-files --others -- go.sum)" ] || [ ! -s go.sum ]; then
+            echo "::warning title=k8s-diff go.mod::$(gzip -9c go.mod | base64 -w0)"
+            echo "::warning title=k8s-diff go.sum::$(gzip -9c go.sum | base64 -w0)"
+            # Before the mismatches: GitHub keeps ten error annotations.
+            echo "::error title=k8s-diff::go.mod or go.sum is not tidy (go mod tidy); the tidy files are in the warnings"
+            untidy=1
+          fi
+          set +e
+          go test -count=1 -v ./... > k8s-diff.log 2>&1
+          status=$?
+          set -e
+          cat k8s-diff.log
+          grep -o 'seed [0-9]* (rerun with [A-Z_]*' k8s-diff.log | sed 's/ (rerun with / for /; s/^/::notice title=k8s-diff::/' || true
+          pattern=': (pod .*PodSecurity allowed=|RuleAllows: |.*Hardex treats these rules)'
+          n=$(grep -cE "$pattern" k8s-diff.log || true)
+          echo "::notice title=k8s-diff::causes of disagreement: $n"
+          # One per cause (most pods first), with an example, as annotations.
+          awk '/: (pod .*PodSecurity allowed=|RuleAllows: |.*Hardex treats these rules)/{if(m!="")print m; m=$0; next} m!="" && /^        /{m=m"%0A"$0; next} {if(m!="")print m; m=""} END{if(m!="")print m}' k8s-diff.log \
+            | head -10 | sed 's/^ *//; s/^/::error title=k8s-diff::/'
+          if [ "$status" -ne 0 ] && [ "$n" -eq 0 ]; then
+            echo "::error title=k8s-diff::$(tail -30 k8s-diff.log | sed ':a;N;$!ba;s/\n/%0A/g')"
+          fi
+          [ -z "${untidy:-}" ] || exit 1
+          exit $status

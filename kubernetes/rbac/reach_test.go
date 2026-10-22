@@ -13,8 +13,12 @@ kind: Role
 metadata: {name: debug, namespace: app}
 rules:
   - apiGroups: [""]
-    resources: ["pods/*"]
+    resources: ["*/exec"]
     verbs: ["create"]
+  # Not a wildcard: RBAC matches "pods/*" only literally.
+  - apiGroups: [""]
+    resources: ["pods/*"]
+    verbs: ["get", "list"]
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
@@ -78,7 +82,11 @@ spec: {containers: [{name: c, image: x}]}
 	joined := strings.Join(got, "\n")
 	for _, want := range []string{
 		"viagroup: high: ", "execute commands in other pods in namespace app (via RoleBinding debug",
-		"viabuiltin: high: ", "read secrets in namespace app (via RoleBinding editors → ClusterRole edit)",
+		// The default edit role (not in the input) as Kubernetes defines it:
+		// it can impersonate service accounts and mint their tokens.
+		"viabuiltin: critical: ", "read secrets in namespace app (via RoleBinding editors → ClusterRole edit)",
+		"impersonate other identities in namespace app (via RoleBinding editors → ClusterRole edit)",
+		"mint service account tokens in namespace app (via RoleBinding editors → ClusterRole edit)",
 		"projected: high:",
 	} {
 		if !strings.Contains(joined, want) {

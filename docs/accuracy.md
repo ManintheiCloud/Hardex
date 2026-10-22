@@ -27,7 +27,7 @@ Findings on software that thousands of clusters run unchanged are the best test 
 | KEDA 2.21 (`keda-2.21.0.yaml`) | HX-RBAC-008, HX-PATH-001 (nodes/proxy), HX-RBAC-003 | True: the operator has `get` on every resource, which includes Secrets and `nodes/proxy` (exec through the kubelet). **Recalibrated:** `*/scale` across all groups is medium; the external metrics API wildcard is low. |
 | Strimzi 1.3 | HX-RBAC-003, -005 | True: the operator reads Secrets and mints tokens. |
 | Rook Ceph 1.21 (`common.yaml`, `operator.yaml`) | HX-RBAC-003, -005, -008, HX-PATH-001 | True: the operator execs into pods and creates privileged storage daemons. |
-| Knative Serving 1.23 (`serving-core.yaml`) | HX-RBAC-003, -008 medium | True. **Recalibrated:** `*/scale` across all groups is medium; wildcards on Knative's own groups are low. |
+| Knative Serving 1.23 (`serving-core.yaml`) | HX-RBAC-003, HX-RBAC-008 high, HX-PATH-001 | True. **Fixed false negative:** the controller is bound cluster-wide to `knative-serving-admin`, an aggregated ClusterRole with no rules of its own in the manifest; it aggregates `knative-serving-core`, which reads every Secret and creates workloads. Before aggregation was resolved, the controller looked powerless. **Recalibrated:** `*/scale` across all groups is medium; wildcards on Knative's own groups are low. |
 | node-problem-detector 1.37 | none | — |
 | Hardex's own deployments | HX-WL-003 (high), HX-WL-005, HX-WL-012, HX-WL-013 | Documented in `deploy/README.md`. **Fixed false positive:** read-only mounts of individual host files were treated as node escape (0.8.1). |
 

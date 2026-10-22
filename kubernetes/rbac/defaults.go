@@ -4,6 +4,7 @@ import (
 	_ "embed"
 	"encoding/json"
 	"fmt"
+	"sort"
 	"strings"
 	"sync"
 
@@ -24,6 +25,15 @@ type defaultsData struct {
 		RoleRef  string   `json:"roleRef"`
 		Subjects []string `json:"subjects"`
 	} `json:"bindings"`
+	// Aggregated holds, for each default aggregated ClusterRole, the
+	// permissions it has once aggregated and the selectors it uses.
+	Aggregated map[string]struct {
+		Selectors   []map[string]any `json:"selectors"`
+		Permissions []string         `json:"permissions"`
+	} `json:"aggregated"`
+	// AggregationLabels holds the aggregate-to-* labels of default
+	// ClusterRoles (view is aggregated into edit, edit into admin).
+	AggregationLabels map[string]map[string]string `json:"aggregationLabels"`
 }
 
 var (
@@ -72,12 +82,7 @@ func isSystem(o *resource.Object) bool {
 			_, aggregated := resource.Lookup(o.Raw, "aggregationRule")
 			return aggregated
 		}
-		for _, a := range ruleAtoms(resource.Maps(o.Raw, "rules")) {
-			if !covered(a, want) {
-				return false
-			}
-		}
-		return true
+		return GrantsNoMoreThanDefault(objectKey(o), resource.Maps(o.Raw, "rules"))
 	case "ClusterRoleBinding", "RoleBinding":
 		want, ok := d.Bindings[objectKey(o)]
 		if !ok {
@@ -98,6 +103,41 @@ func isSystem(o *resource.Object) bool {
 		return true
 	}
 	return false
+}
+
+// GrantsNoMoreThanDefault reports whether rules grant nothing beyond the
+// default role with the given key ("ClusterRole/edit", "Role/ns/name") as
+// Kubernetes or kubeadm define it. It may say no to rules that only restate
+// the default differently (it fails closed); it must never say yes to rules
+// granting more. tools/k8s-diff checks that against Kubernetes' own
+// escalation check.
+func GrantsNoMoreThanDefault(key string, rules []map[string]any) bool {
+	want, ok := loadDefaults().Roles[key]
+	if !ok {
+		return false
+	}
+	for _, a := range ruleAtoms(rules) {
+		if !covered(a, want) {
+			return false
+		}
+	}
+	return true
+}
+
+// DefaultRules returns a default role's rules (its own, before any
+// aggregation), for tools/k8s-diff.
+func DefaultRules(key string) []map[string]any {
+	return atomRules(loadDefaults().Roles[key])
+}
+
+// DefaultRoleKeys lists the default roles, for tools/k8s-diff.
+func DefaultRoleKeys() []string {
+	var out []string
+	for k := range loadDefaults().Roles {
+		out = append(out, k)
+	}
+	sort.Strings(out)
+	return out
 }
 
 func defaultSubjectKey(s map[string]any, bindingNS string) string {
