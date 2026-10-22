@@ -48,7 +48,7 @@ See [`examples/modules/organization-policy.yaml`](../examples/modules/organizati
 | Scope | `path` is relative to | Applies to |
 |---|---|---|
 | `object` | the object root (`metadata…`, `spec…`) | objects of `kinds` |
-| `podSpec` | the pod spec | every workload (Pod, Deployment, CronJob, …) |
+| `podSpec` | the pod spec | every workload (Pod, Deployment, CronJob, …, and Argo Rollouts, Knative Services and Revisions, KEDA ScaledJobs, OpenKruise CloneSets and BroadcastJobs) |
 | `container` | each container, including init and ephemeral containers | every workload |
 
 ### Paths

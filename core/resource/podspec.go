@@ -1,6 +1,10 @@
 package resource
 
-import "fmt"
+import (
+	"fmt"
+	"sort"
+	"strings"
+)
 
 // workloadPodSpecPath maps each workload kind to the location of its pod spec.
 var workloadPodSpecPath = map[string][]string{
@@ -15,36 +19,73 @@ var workloadPodSpecPath = map[string][]string{
 	"PodTemplate":           {"template", "spec"},
 }
 
+// groupPodSpecPath adds custom resources that embed a full pod template,
+// keyed by API group and kind: a kind name alone can clash (Knative's
+// Service is not the core Service). Their controllers create the pods, so a
+// manifest scan must judge the template here or not at all.
+var groupPodSpecPath = map[string][]string{
+	"argoproj.io/Rollout":               {"spec", "template", "spec"},
+	"serving.knative.dev/Service":       {"spec", "template", "spec"},
+	"serving.knative.dev/Configuration": {"spec", "template", "spec"},
+	"serving.knative.dev/Revision":      {"spec"},
+	"keda.sh/ScaledJob":                 {"spec", "jobTargetRef", "template", "spec"},
+	"apps.kruise.io/CloneSet":           {"spec", "template", "spec"},
+	"apps.kruise.io/BroadcastJob":       {"spec", "template", "spec"},
+}
+
+// podSpecPath returns where an object's pod spec is, if it has one.
+func podSpecPath(o *Object) ([]string, bool) {
+	if p, ok := groupPodSpecPath[o.Group()+"/"+o.Kind]; ok {
+		return p, true
+	}
+	// The built-in kinds by name alone, so that look-alikes keep their
+	// assessment (OpenKruise's apps.kruise.io StatefulSet and DaemonSet
+	// share the layout).
+	p, ok := workloadPodSpecPath[o.Kind]
+	return p, ok
+}
+
+// groupKinds are the kinds of groupPodSpecPath.
+var groupKinds = func() map[string]bool {
+	out := map[string]bool{}
+	for k := range groupPodSpecPath {
+		out[k[strings.LastIndex(k, "/")+1:]] = true
+	}
+	return out
+}()
+
 // IsWorkload reports whether the object carries a pod spec.
 func IsWorkload(o *Object) bool {
-	_, ok := workloadPodSpecPath[o.Kind]
+	_, ok := podSpecPath(o)
 	return ok
 }
 
-// WorkloadKinds returns every kind that carries a pod spec.
+// WorkloadKinds returns every kind that may carry a pod spec (PodSpec
+// decides for a given object, by group as well).
 func WorkloadKinds() []string {
-	out := make([]string, 0, len(workloadPodSpecPath))
+	seen := map[string]bool{}
 	for k := range workloadPodSpecPath {
+		seen[k] = true
+	}
+	for k := range groupKinds {
+		seen[k] = true
+	}
+	out := make([]string, 0, len(seen))
+	for k := range seen {
 		out = append(out, k)
 	}
+	sort.Strings(out)
 	return out
 }
 
 // PodSpec returns the pod spec of a workload and its dotted path prefix
 // (e.g. "spec.template.spec"), or nil if the object is not a workload.
 func PodSpec(o *Object) (map[string]any, string) {
-	path, ok := workloadPodSpecPath[o.Kind]
+	path, ok := podSpecPath(o)
 	if !ok {
 		return nil, ""
 	}
-	prefix := ""
-	for i, p := range path {
-		if i > 0 {
-			prefix += "."
-		}
-		prefix += p
-	}
-	return Map(o.Raw, path...), prefix
+	return Map(o.Raw, path...), strings.Join(path, ".")
 }
 
 // Container is one container entry within a pod spec.
