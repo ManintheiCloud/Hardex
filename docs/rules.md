@@ -255,7 +255,7 @@ Severity is the default; individual findings may be raised or lowered where the 
 
 **Remediation:** Add a NetworkPolicy with podSelector: {} and policyTypes: [Ingress], then add policies allowing only required traffic. Confirm your CNI plugin enforces NetworkPolicy.
 
-**Known limitations:** Only policies present in the scanned input are considered: Kubernetes NetworkPolicies, Cilium (CiliumNetworkPolicy, CiliumClusterwideNetworkPolicy) and Calico (NetworkPolicy, GlobalNetworkPolicy). A policy re-opening all traffic beside a default deny is recognised for Kubernetes NetworkPolicies (an allow-all rule, or a peer matching every pod or address); for Cilium and Calico, each policy is judged on its own. Whether the CNI plugin enforces policies at all is not visible in manifests.
+**Known limitations:** Only policies present in the scanned input are considered: Kubernetes NetworkPolicies, Cilium (CiliumNetworkPolicy, CiliumClusterwideNetworkPolicy) and Calico (NetworkPolicy, GlobalNetworkPolicy). A policy re-opening all traffic beside a default deny is recognised for every kind: an allow-all rule, or a peer matching every pod or address (Kubernetes); fromEntities/toEntities all, cluster or world, or every endpoint of a clusterwide policy (Cilium); an Allow rule without a peer (Calico). Where a Cilium or Calico policy has explicit Deny (or Calico Pass) rules for the direction, which take precedence or may be ordered first, Cilium and Calico allow-all policies in that scope are not judged. Whether the CNI plugin enforces policies at all is not visible in manifests.
 
 **References:**
 
