@@ -12,7 +12,7 @@ ARG VERSION=0.12.0-dev
 RUN CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH \
     go build -trimpath -ldflags "-s -w -X github.com/ManintheiCloud/Hardex.Version=${VERSION}" -o /hardex ./cmd/hardex
 
-FROM gcr.io/distroless/static-debian13:nonroot@sha256:516757106de35205efb70b91ba03f6f1298424a0678c603255cf2852a7000087
+FROM gcr.io/distroless/static-debian13:nonroot@sha256:d62067879de890a1def9da0e7766b7d20810a5e5555cef8506b752437d7a3e88
 LABEL org.opencontainers.image.source="https://github.com/ManintheiCloud/Hardex" \
       org.opencontainers.image.description="Hardex: Kubernetes security hardening" \
       org.opencontainers.image.licenses="Apache-2.0"
