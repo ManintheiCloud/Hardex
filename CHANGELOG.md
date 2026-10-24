@@ -5,6 +5,7 @@ All notable changes are documented here. The format follows [Keep a Changelog](h
 ## Unreleased
 
 ### Fixed
+- HX-NET-001/002 treated a namespace as isolated when it had a default-deny NetworkPolicy, even if another policy there allowed all traffic to every pod again: policies add up, so the allow-all wins. Such a namespace is now reported ("default deny cancelled by <policy>"). A rule whose peer matches everything, `namespaceSelector: {}` (every pod of every namespace) or an `ipBlock` of `0.0.0.0/0` or `::/0` without exceptions, now counts as allowing all traffic, as a rule without peers did.
 - Custom resources that embed a pod template were not assessed: a privileged Argo `Rollout`, Knative `Service`, `Configuration` or `Revision`, KEDA `ScaledJob`, or OpenKruise `CloneSet` or `BroadcastJob` in a manifest produced no workload findings, though their controllers create exactly those pods. They are now assessed like Deployments, recognised by API group and kind (Knative's `Service` is not the core `Service`). Live-cluster scans were less affected: they assess the ReplicaSets and Pods the controllers create.
 
 ## 0.12.0 — 2026-10-22
