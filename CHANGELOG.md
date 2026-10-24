@@ -2,7 +2,12 @@
 
 All notable changes are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow [Semantic Versioning](https://semver.org/). Before 1.0, minor versions may contain breaking changes.
 
-## Unreleased
+## 0.12.1 — 2026-10-24
+
+Scans may report findings 0.12.0 did not: workloads in Argo Rollouts, Knative, KEDA ScaledJobs and OpenKruise resources, and namespaces whose default-deny NetworkPolicy another policy cancels.
+
+### Changed
+- The container image is built on the current `gcr.io/distroless/static-debian13:nonroot` (d620678).
 
 ### Fixed
 - HX-NET-001/002 treated a namespace as isolated when it had a default-deny NetworkPolicy, even if another policy there allowed all traffic to every pod again: policies add up, so the allow-all wins. Such a namespace is now reported ("default deny cancelled by <policy>"). A rule whose peer matches everything, `namespaceSelector: {}` (every pod of every namespace) or an `ipBlock` of `0.0.0.0/0` or `::/0` without exceptions, now counts as allowing all traffic, as a rule without peers did.
