@@ -33,6 +33,7 @@ rules:
   - HX-WL-018
   - HX-SEC-001
   - HX-SEC-002
+  - HX-SEC-003
   - HX-RBAC-001
   - HX-RBAC-003
   - HX-RBAC-005

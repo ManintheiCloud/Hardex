@@ -35,6 +35,7 @@ rules:
   - HX-WL-018 # unsafe sysctls
   - HX-SEC-001 # secret values in manifests
   - HX-SEC-002 # credentials in env literals
+  - HX-SEC-003 # credentials in ConfigMaps
   - HX-RBAC-001 # wildcards
   - HX-RBAC-003 # secrets read access
   - HX-RBAC-005 # sensitive subresources

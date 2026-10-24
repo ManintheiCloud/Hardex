@@ -41,6 +41,7 @@ Severity is the default; individual findings may be raised or lowered where the 
 | [HX-RBAC-008](#hx-rbac-008) | high | rbac | Workload holds dangerous API permissions | baseline, minimal, restricted |
 | [HX-SEC-001](#hx-sec-001) | medium | secrets | Secret values in manifest | baseline, restricted |
 | [HX-SEC-002](#hx-sec-002) | medium | secrets | Credential in environment variable literal | baseline, restricted |
+| [HX-SEC-003](#hx-sec-003) | medium | secrets | Credential in a ConfigMap | baseline, restricted |
 | [HX-WL-001](#hx-wl-001) | critical | workloads | Privileged container | baseline, minimal, restricted |
 | [HX-WL-002](#hx-wl-002) | high | workloads | Host namespace sharing | baseline, minimal, restricted |
 | [HX-WL-003](#hx-wl-003) | high | workloads | HostPath volume | baseline, minimal, restricted |
@@ -684,6 +685,24 @@ Severity is the default; individual findings may be raised or lowered where the 
 - CIS: [CIS Kubernetes Benchmark v2.0 5.4.1 Prefer using Secrets as files over Secrets as environment variables](https://www.cisecurity.org/benchmark/kubernetes)
 - NSA-CISA: [NSA/CISA Kubernetes Hardening Guidance v1.2 (August 2022) — Network separation and hardening › Secrets](https://media.defense.gov/2022/Aug/29/2003066362/1/1/0/CTR_KUBERNETES_HARDENING_GUIDANCE_1.2_20220829.PDF)
 - NIST: [NIST SP 800-190 Application Container Security Guide (September 2017) — 4.1.4 Embedded clear text secrets](https://nvlpubs.nist.gov/nistpubs/SpecialPublications/NIST.SP.800-190.pdf)
+
+## HX-SEC-003
+
+**Credential in a ConfigMap** — medium, secrets
+
+**Checks:** Detects ConfigMap keys whose name suggests a credential and that hold a literal value, and any ConfigMap value or container environment literal that contains a PEM private key (high, whatever the name).
+
+**Why it matters:** ConfigMaps are readable by far more principals than Secrets: the default view role reads every ConfigMap in its namespace and no Secret, and ConfigMaps are not encrypted at rest by the usual API server configuration. A credential placed there is exposed to every viewer, and to everything that can read the manifests in version control.
+
+**Remediation:** Move the value into a Secret (and reference it with secretKeyRef or a secret volume); rotate it if the ConfigMap has been committed or applied.
+
+**Known limitations:** Name-based heuristic for keys, as for HX-SEC-002; credentials inside configuration files stored under one key are found only if they contain a private key. Live-cluster scans do not read ConfigMaps (the reader role is kept minimal), so this applies to manifests. Values are never included in findings.
+
+**References:**
+
+- NSA-CISA: [NSA/CISA Kubernetes Hardening Guidance v1.2 (August 2022) — Network separation and hardening › Secrets](https://media.defense.gov/2022/Aug/29/2003066362/1/1/0/CTR_KUBERNETES_HARDENING_GUIDANCE_1.2_20220829.PDF)
+- NIST: [NIST SP 800-190 Application Container Security Guide (September 2017) — 4.1.4 Embedded clear text secrets](https://nvlpubs.nist.gov/nistpubs/SpecialPublications/NIST.SP.800-190.pdf)
+- Kubernetes: [ConfigMaps: not for confidential data](https://kubernetes.io/docs/concepts/configuration/configmap/)
 
 ## HX-WL-001
 
