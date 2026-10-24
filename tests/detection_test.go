@@ -51,6 +51,7 @@ var insecureExpectations = []expectation{
 	{"HX-WL-022", "Pod kube-system/kube-apiserver-cp1", finding.Info},
 	{"HX-SEC-001", "Secret shop/db-credentials", finding.Medium},
 	{"HX-SEC-002", "Deployment shop/insecure-web [web]", finding.Medium},
+	{"HX-SEC-003", "ConfigMap shop/insecure-config", finding.Medium},
 	{"HX-RBAC-001", "ClusterRole god-mode", finding.High},
 	{"HX-RBAC-002", "ClusterRoleBinding ci-admin", finding.Critical},
 	{"HX-RBAC-003", "ClusterRole secrets-reader", finding.High},

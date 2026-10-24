@@ -8,7 +8,7 @@ Harden the cluster. Reduce the attack surface. Establish trust.
 
 Hardex is an open-source Kubernetes security hardening framework. It brings systematic, measurable and reproducible security controls to containerized infrastructure: assess, harden, verify, defend.
 
-> **Status: v0.12.1.** Every roadmap objective in phases I–IV is implemented and tested: assessment (56 rules mapped to CIS v2.0 items, NSA/CISA v1.2 sections and NIST SP 800-190 countermeasures, three profiles, policy and waivers), read-only live-cluster and node scanning, RBAC reachability and placement-aware attack paths into cluster admin, nodes and cloud identities, guarded remediation with backup and rollback, history and drift monitoring with signed notifications, rule modules, an admission webhook, posture scoring with evidence reports, multi-cluster comparison, and offline keyless Sigstore verification with SBOM vulnerability lookup. Ongoing work is in [ROADMAP.md](ROADMAP.md). No production-readiness or security certification is claimed.
+> **Status: v0.12.1.** Every roadmap objective in phases I–IV is implemented and tested: assessment (58 rules mapped to CIS v2.0 items, NSA/CISA v1.2 sections and NIST SP 800-190 countermeasures, three profiles, policy and waivers), read-only live-cluster and node scanning, RBAC reachability and placement-aware attack paths into cluster admin, nodes and cloud identities, guarded remediation with backup and rollback, history and drift monitoring with signed notifications, rule modules, an admission webhook, posture scoring with evidence reports, multi-cluster comparison, and offline keyless Sigstore verification with SBOM vulnerability lookup. Ongoing work is in [ROADMAP.md](ROADMAP.md). No production-readiness or security certification is claimed.
 
 ## What Hardex does today
 
@@ -25,7 +25,7 @@ $ hardex scan --profile restricted ./manifests
 Summary: 76 findings (critical 13, high 24, medium 23, low 14, info 2), 0 waived
 ```
 
-- **Assessment** of workloads (the built-in kinds, and custom resources that embed a pod template: Argo Rollouts, Knative Services, KEDA ScaledJobs, OpenKruise CloneSets), RBAC, network segmentation, Secrets handling, control-plane static pods, and kubelet configuration — [55 rules](docs/rules.md), each with rationale, remediation, known limitations and references.
+- **Assessment** of workloads (the built-in kinds, and custom resources that embed a pod template: Argo Rollouts, Knative Services, KEDA ScaledJobs, OpenKruise CloneSets), RBAC, network segmentation, Secrets handling, control-plane static pods, and kubelet configuration — [58 rules](docs/rules.md), each with rationale, remediation, known limitations and references.
 - **Live-cluster scanning** (`--cluster`) with a minimal read-only client: no Secrets access, TLS required, least-privilege [reader role](deploy/hardex-reader.yaml) provided. **Node scanning** (`--node`) reads kubelet configuration, its flag overrides and static pod manifests from the node, without `nodes/proxy` ([docs/node-scanning.md](docs/node-scanning.md)).
 - **RBAC reachability**: follows each workload's service account through bindings to the permissions its token really carries (HX-RBAC-008).
 - **Remediation** (`hardex fix`): dry-run plans with risk ratings and a predicted result; patched manifests written to a new directory; on a cluster, explicitly authorised apply with backup, automatic all-or-nothing rollback on failure, post-change verification, and `hardex rollback`. See [docs/remediation.md](docs/remediation.md).

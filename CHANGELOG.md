@@ -4,6 +4,9 @@ All notable changes are documented here. The format follows [Keep a Changelog](h
 
 ## Unreleased
 
+### Added
+- HX-SEC-003: credentials in ConfigMaps. ConfigMaps are readable by far more principals than Secrets (the default `view` role reads every ConfigMap in its namespace and no Secret), so a key whose name suggests a credential and holds a literal value is reported (medium), and a PEM private key in any ConfigMap value, `binaryData` included, or in a container's environment literal is reported whatever its name (high). Key names are matched like HX-SEC-002's, with ConfigMap conventions (`secretName`, `token-endpoint`, `password.file`) recognised as non-secret; templates such as `${TOKEN}` are skipped. Values never appear in findings. Manifests only: live-cluster scans do not read ConfigMaps. In the baseline and restricted profiles; no finding in the accuracy corpus.
+
 ### Fixed
 - HX-NET-001/002: an allow-all Cilium or Calico policy beside a default deny now cancels it too, as it does in those engines, where allows add up with Kubernetes NetworkPolicies (`fromEntities: [all]`, `toEntities: [world]`, a clusterwide policy allowing every endpoint, a Calico `Allow` rule without a peer). Not judged where explicit Cilium or Calico deny rules exist for the direction, since they take precedence or may be ordered first.
 
