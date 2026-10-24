@@ -49,24 +49,86 @@ func isolates(np *resource.Object, direction string) bool {
 	if !declared {
 		return false
 	}
-	// A rule with no peers and no ports allows everything.
+	return !opensAll(np, direction)
+}
+
+// opensAll reports whether one of the policy's rules for the direction
+// allows all traffic: no ports, and no peers or a peer that matches
+// everything (every pod in every namespace, or every address).
+func opensAll(np *resource.Object, direction string) bool {
+	field, peers := "ingress", "from"
+	if direction == "Egress" {
+		field, peers = "egress", "to"
+	}
 	for _, r := range resource.Maps(np.Raw, "spec", field) {
-		peers := "from"
-		if direction == "Egress" {
-			peers = "to"
+		if len(resource.Slice(r, "ports")) > 0 {
+			continue
 		}
-		if len(resource.Slice(r, peers)) == 0 && len(resource.Slice(r, "ports")) == 0 {
-			return false
+		ps := resource.Maps(r, peers)
+		if len(resource.Slice(r, peers)) == 0 {
+			return true
+		}
+		for _, p := range ps {
+			if peerMatchesAll(p) {
+				return true
+			}
 		}
 	}
-	return true
+	return false
+}
+
+// peerMatchesAll: namespaceSelector: {} (with no podSelector, or an empty
+// one) selects every pod in the cluster; an ipBlock of 0.0.0.0/0 or ::/0
+// without exceptions, every address.
+func peerMatchesAll(p map[string]any) bool {
+	if ns, ok := resource.Lookup(p, "namespaceSelector"); ok && emptySelector(ns) {
+		pod, hasPod := resource.Lookup(p, "podSelector")
+		if !hasPod || emptySelector(pod) {
+			return true
+		}
+	}
+	if b := resource.Map(p, "ipBlock"); b != nil && len(resource.Slice(b, "except")) == 0 {
+		cidr := resource.String(b, "cidr")
+		return cidr == "0.0.0.0/0" || cidr == "::/0"
+	}
+	return false
+}
+
+// reopens reports whether a NetworkPolicy selects every pod of its
+// namespace and allows all traffic in the direction. Policies add up: such
+// a policy cancels any default deny beside it.
+func reopens(np *resource.Object, direction string) bool {
+	if np.Kind != "NetworkPolicy" || np.Group() != "networking.k8s.io" {
+		return false
+	}
+	sel, ok := resource.Lookup(np.Raw, "spec", "podSelector")
+	if !ok || !emptySelector(sel) {
+		return false
+	}
+	types := resource.Strings(np.Raw, "spec", "policyTypes")
+	field := map[string]string{"Ingress": "ingress", "Egress": "egress"}[direction]
+	declared := (len(types) == 0 && (direction == "Ingress" || resource.Slice(np.Raw, "spec", field) != nil)) || contains(types, direction)
+	return declared && opensAll(np, direction)
+}
+
+func contains(xs []string, s string) bool {
+	for _, x := range xs {
+		if x == s {
+			return true
+		}
+	}
+	return false
 }
 
 func isolationRule(meta assessment.Metadata, direction string) assessment.Rule {
 	return assessment.InventoryRule{Meta: meta, Check: func(ctx *assessment.Context) {
 		isolatedNS := map[string]bool{}
+		reopenedBy := map[string]string{}
 		clusterWide := false
 		for _, np := range ctx.Inventory.OfKind(PolicyKinds...) {
+			if reopens(np, direction) {
+				reopenedBy[np.EffectiveNamespace()] = np.Name
+			}
 			if ok, global := policyScope(np, direction); ok {
 				if global {
 					clusterWide = true
@@ -84,6 +146,11 @@ func isolationRule(meta assessment.Metadata, direction string) assessment.Rule {
 				continue // namespace declared but has no workloads in scope
 			}
 			isolated := clusterWide || isolatedNS[ns]
+			if by, ok := reopenedBy[ns]; ok && isolated {
+				ctx.Report(assessment.Hit{Object: subject, Observed: "default deny cancelled by " + by,
+					Message: fmt.Sprintf("namespace %s has a default-deny policy for %s traffic, but NetworkPolicy %s allows all of it to every pod (policies add up)", ns, direction, by)})
+				continue
+			}
 			if !isolated {
 				ctx.Report(assessment.Hit{Object: subject, Observed: "no default-deny policy",
 					Message: fmt.Sprintf("namespace %s has no NetworkPolicy isolating all pods for %s traffic", ns, direction)})
@@ -120,11 +187,11 @@ var ingressIsolation = isolationRule(assessment.Metadata{
 	Title:          "Namespace without default-deny ingress",
 	Severity:       finding.Medium,
 	Category:       assessment.CategoryNetworking,
-	Description:    "Detects namespaces containing workloads where no NetworkPolicy selects all pods and denies ingress by default.",
+	Description:    "Detects namespaces containing workloads where no NetworkPolicy selects all pods and denies ingress by default, or where another policy allows all ingress to every pod again (policies add up, so it cancels the default deny). A rule whose peer matches everything (namespaceSelector: {}, ipBlock 0.0.0.0/0) allows all traffic.",
 	Rationale:      "Kubernetes allows all pod-to-pod traffic by default. Without a default-deny policy, one compromised pod can reach every service in the cluster, including databases and internal admin endpoints.",
 	Remediation:    "Add a NetworkPolicy with podSelector: {} and policyTypes: [Ingress], then add policies allowing only required traffic. Confirm your CNI plugin enforces NetworkPolicy.",
 	References:     []finding.Reference{refNSANet, refCISNet},
-	Limitations:    "Only NetworkPolicies present in the scanned input are considered. CNI-specific policies (e.g. CiliumNetworkPolicy, Calico GlobalNetworkPolicy) are not yet understood.",
+	Limitations:    "Only policies present in the scanned input are considered: Kubernetes NetworkPolicies, Cilium (CiliumNetworkPolicy, CiliumClusterwideNetworkPolicy) and Calico (NetworkPolicy, GlobalNetworkPolicy). A policy re-opening all traffic beside a default deny is recognised for Kubernetes NetworkPolicies (an allow-all rule, or a peer matching every pod or address); for Cilium and Calico, each policy is judged on its own. Whether the CNI plugin enforces policies at all is not visible in manifests.",
 	NeedsInventory: true,
 }, "Ingress")
 

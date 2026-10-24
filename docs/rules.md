@@ -249,13 +249,13 @@ Severity is the default; individual findings may be raised or lowered where the 
 
 **Namespace without default-deny ingress** — medium, networking
 
-**Checks:** Detects namespaces containing workloads where no NetworkPolicy selects all pods and denies ingress by default.
+**Checks:** Detects namespaces containing workloads where no NetworkPolicy selects all pods and denies ingress by default, or where another policy allows all ingress to every pod again (policies add up, so it cancels the default deny). A rule whose peer matches everything (namespaceSelector: {}, ipBlock 0.0.0.0/0) allows all traffic.
 
 **Why it matters:** Kubernetes allows all pod-to-pod traffic by default. Without a default-deny policy, one compromised pod can reach every service in the cluster, including databases and internal admin endpoints.
 
 **Remediation:** Add a NetworkPolicy with podSelector: {} and policyTypes: [Ingress], then add policies allowing only required traffic. Confirm your CNI plugin enforces NetworkPolicy.
 
-**Known limitations:** Only NetworkPolicies present in the scanned input are considered. CNI-specific policies (e.g. CiliumNetworkPolicy, Calico GlobalNetworkPolicy) are not yet understood.
+**Known limitations:** Only policies present in the scanned input are considered: Kubernetes NetworkPolicies, Cilium (CiliumNetworkPolicy, CiliumClusterwideNetworkPolicy) and Calico (NetworkPolicy, GlobalNetworkPolicy). A policy re-opening all traffic beside a default deny is recognised for Kubernetes NetworkPolicies (an allow-all rule, or a peer matching every pod or address); for Cilium and Calico, each policy is judged on its own. Whether the CNI plugin enforces policies at all is not visible in manifests.
 
 **References:**
 
