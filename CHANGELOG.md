@@ -2,6 +2,11 @@
 
 All notable changes are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow [Semantic Versioning](https://semver.org/). Before 1.0, minor versions may contain breaking changes.
 
+## Unreleased
+
+### Fixed
+- HX-NET-001/002: an allow-all Cilium or Calico policy beside a default deny now cancels it too, as it does in those engines, where allows add up with Kubernetes NetworkPolicies (`fromEntities: [all]`, `toEntities: [world]`, a clusterwide policy allowing every endpoint, a Calico `Allow` rule without a peer). Not judged where explicit Cilium or Calico deny rules exist for the direction, since they take precedence or may be ordered first.
+
 ## 0.12.1 — 2026-10-24
 
 Scans may report findings 0.12.0 did not: workloads in Argo Rollouts, Knative, KEDA ScaledJobs and OpenKruise resources, and namespaces whose default-deny NetworkPolicy another policy cancels.

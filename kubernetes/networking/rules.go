@@ -124,10 +124,30 @@ func isolationRule(meta assessment.Metadata, direction string) assessment.Rule {
 	return assessment.InventoryRule{Meta: meta, Check: func(ctx *assessment.Context) {
 		isolatedNS := map[string]bool{}
 		reopenedBy := map[string]string{}
+		clusterReopenedBy := ""
+		// Cilium and Calico deny rules take precedence or may be ordered
+		// first; where any exist, a CNI allow-all is not judged.
+		cniDenyNS, cniDenyCluster := map[string]bool{}, false
+		type cniOpen struct{ ns, name string }
+		var cniOpens, cniClusterOpens []cniOpen
 		clusterWide := false
 		for _, np := range ctx.Inventory.OfKind(PolicyKinds...) {
 			if reopens(np, direction) {
-				reopenedBy[np.EffectiveNamespace()] = np.Name
+				reopenedBy[np.EffectiveNamespace()] = "NetworkPolicy " + np.Name
+			}
+			if r, global := cniReopens(np, direction); r {
+				if global {
+					cniClusterOpens = append(cniClusterOpens, cniOpen{"", np.Kind + " " + np.Name})
+				} else {
+					cniOpens = append(cniOpens, cniOpen{np.EffectiveNamespace(), np.Kind + " " + np.Name})
+				}
+			}
+			if cniDenies(np, direction) {
+				if np.Kind == "CiliumClusterwideNetworkPolicy" || np.Kind == "GlobalNetworkPolicy" {
+					cniDenyCluster = true
+				} else {
+					cniDenyNS[np.EffectiveNamespace()] = true
+				}
 			}
 			if ok, global := policyScope(np, direction); ok {
 				if global {
@@ -135,6 +155,18 @@ func isolationRule(meta assessment.Metadata, direction string) assessment.Rule {
 				} else {
 					isolatedNS[np.EffectiveNamespace()] = true
 				}
+			}
+		}
+		if !cniDenyCluster {
+			for _, o := range cniOpens {
+				if !cniDenyNS[o.ns] {
+					if _, set := reopenedBy[o.ns]; !set {
+						reopenedBy[o.ns] = o.name
+					}
+				}
+			}
+			if len(cniClusterOpens) > 0 {
+				clusterReopenedBy = cniClusterOpens[0].name
 			}
 		}
 		for _, ns := range ctx.Inventory.Namespaces() {
@@ -146,9 +178,13 @@ func isolationRule(meta assessment.Metadata, direction string) assessment.Rule {
 				continue // namespace declared but has no workloads in scope
 			}
 			isolated := clusterWide || isolatedNS[ns]
-			if by, ok := reopenedBy[ns]; ok && isolated {
+			by, ok := reopenedBy[ns]
+			if !ok && clusterReopenedBy != "" && !cniDenyNS[ns] {
+				by, ok = clusterReopenedBy, true
+			}
+			if ok && isolated {
 				ctx.Report(assessment.Hit{Object: subject, Observed: "default deny cancelled by " + by,
-					Message: fmt.Sprintf("namespace %s has a default-deny policy for %s traffic, but NetworkPolicy %s allows all of it to every pod (policies add up)", ns, direction, by)})
+					Message: fmt.Sprintf("namespace %s has a default-deny policy for %s traffic, but %s allows all of it to every pod (policies add up)", ns, direction, by)})
 				continue
 			}
 			if !isolated {
@@ -191,7 +227,7 @@ var ingressIsolation = isolationRule(assessment.Metadata{
 	Rationale:      "Kubernetes allows all pod-to-pod traffic by default. Without a default-deny policy, one compromised pod can reach every service in the cluster, including databases and internal admin endpoints.",
 	Remediation:    "Add a NetworkPolicy with podSelector: {} and policyTypes: [Ingress], then add policies allowing only required traffic. Confirm your CNI plugin enforces NetworkPolicy.",
 	References:     []finding.Reference{refNSANet, refCISNet},
-	Limitations:    "Only policies present in the scanned input are considered: Kubernetes NetworkPolicies, Cilium (CiliumNetworkPolicy, CiliumClusterwideNetworkPolicy) and Calico (NetworkPolicy, GlobalNetworkPolicy). A policy re-opening all traffic beside a default deny is recognised for Kubernetes NetworkPolicies (an allow-all rule, or a peer matching every pod or address); for Cilium and Calico, each policy is judged on its own. Whether the CNI plugin enforces policies at all is not visible in manifests.",
+	Limitations:    "Only policies present in the scanned input are considered: Kubernetes NetworkPolicies, Cilium (CiliumNetworkPolicy, CiliumClusterwideNetworkPolicy) and Calico (NetworkPolicy, GlobalNetworkPolicy). A policy re-opening all traffic beside a default deny is recognised for every kind: an allow-all rule, or a peer matching every pod or address (Kubernetes); fromEntities/toEntities all, cluster or world, or every endpoint of a clusterwide policy (Cilium); an Allow rule without a peer (Calico). Where a Cilium or Calico policy has explicit Deny (or Calico Pass) rules for the direction, which take precedence or may be ordered first, Cilium and Calico allow-all policies in that scope are not judged. Whether the CNI plugin enforces policies at all is not visible in manifests.",
 	NeedsInventory: true,
 }, "Ingress")
 

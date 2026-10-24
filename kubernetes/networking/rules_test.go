@@ -94,7 +94,7 @@ metadata: {name: allow-all, namespace: app}
 spec: {podSelector: {}, ingress: [{from: [{namespaceSelector: {}}]}]}
 `
 	got := strings.Join(run(allowAll), "; ")
-	if got != "HX-NET-001 default deny cancelled by allow-all" {
+	if got != "HX-NET-001 default deny cancelled by NetworkPolicy allow-all" {
 		t.Errorf("with an allow-all ingress policy: %q", got)
 	}
 	// Opening one set of pods, or one port, does not cancel it.
@@ -111,5 +111,59 @@ spec: {podSelector: {}, policyTypes: [Egress], egress: [{ports: [{port: 53, prot
 `
 	if got := run(partial); len(got) != 0 {
 		t.Errorf("partial allows reported: %v", got)
+	}
+}
+
+// Cilium and Calico allows add up with Kubernetes NetworkPolicies, so their
+// allow-all policies cancel a default deny too, unless explicit deny rules
+// exist (they take precedence, or may be ordered first).
+func TestCNIAllowAllCancelsDefaultDeny(t *testing.T) {
+	run := func(extra string) string {
+		y := `apiVersion: v1
+kind: Pod
+metadata: {name: p, namespace: app}
+spec: {containers: [{name: c, image: x}]}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata: {name: deny, namespace: app}
+spec: {podSelector: {}, policyTypes: [Ingress, Egress]}
+---
+` + extra
+		inv, err := resource.Load([]string{"-"}, strings.NewReader(y))
+		if err != nil {
+			t.Fatal(err)
+		}
+		reg, _ := assessment.NewRegistry(ingressIsolation, egressIsolation)
+		var out []string
+		for _, f := range assessment.Evaluate(inv, reg.All(), assessment.Options{}).Findings {
+			out = append(out, f.RuleID+" "+f.Observed)
+		}
+		return strings.Join(out, "; ")
+	}
+	const cnp = "apiVersion: cilium.io/v2\nkind: CiliumNetworkPolicy\nmetadata: {name: open, namespace: app}\n"
+	const ccnp = "apiVersion: cilium.io/v2\nkind: CiliumClusterwideNetworkPolicy\nmetadata: {name: open}\n"
+	const cal = "apiVersion: crd.projectcalico.org/v1\nkind: NetworkPolicy\nmetadata: {name: open, namespace: app}\n"
+	const gnp = "apiVersion: projectcalico.org/v3\nkind: GlobalNetworkPolicy\nmetadata: {name: open}\n"
+	for _, c := range []struct{ name, extra, want string }{
+		{"cilium from all entities", cnp + "spec: {endpointSelector: {}, ingress: [{fromEntities: [all]}]}\n",
+			"HX-NET-001 default deny cancelled by CiliumNetworkPolicy open"},
+		{"cilium egress to world", cnp + "spec: {endpointSelector: {}, egress: [{toEntities: [world]}]}\n",
+			"HX-NET-002 default deny cancelled by CiliumNetworkPolicy open"},
+		{"cilium clusterwide from every endpoint", ccnp + "spec: {endpointSelector: {}, ingress: [{fromEndpoints: [{}]}]}\n",
+			"HX-NET-001 default deny cancelled by CiliumClusterwideNetworkPolicy open"},
+		{"cilium with ports is partial", cnp + "spec: {endpointSelector: {}, ingress: [{fromEntities: [all], toPorts: [{ports: [{port: '80'}]}]}]}\n", ""},
+		{"cilium narrowed selector", cnp + "spec: {endpointSelector: {matchLabels: {app: web}}, ingress: [{fromEntities: [all]}]}\n", ""},
+		{"cilium deny rules: not judged", cnp + "spec: {endpointSelector: {}, ingress: [{fromEntities: [all]}], ingressDeny: [{fromEntities: [world]}]}\n", ""},
+		{"calico allow all", cal + "spec: {selector: all(), types: [Ingress], ingress: [{action: Allow}]}\n",
+			"HX-NET-001 default deny cancelled by NetworkPolicy open"},
+		{"calico global allow all", gnp + "spec: {selector: all(), types: [Egress], egress: [{action: Allow}]}\n",
+			"HX-NET-002 default deny cancelled by GlobalNetworkPolicy open"},
+		{"calico allow with a source", cal + "spec: {selector: all(), types: [Ingress], ingress: [{action: Allow, source: {selector: app == 'fe'}}]}\n", ""},
+		{"calico deny first: not judged", cal + "spec: {selector: all(), types: [Ingress], ingress: [{action: Deny, source: {nets: [10.0.0.0/8]}}, {action: Allow}]}\n", ""},
+	} {
+		if got := run(c.extra); got != c.want {
+			t.Errorf("%s: %q, want %q", c.name, got, c.want)
+		}
 	}
 }
