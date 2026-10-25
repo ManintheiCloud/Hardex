@@ -2,7 +2,9 @@
 
 All notable changes are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow [Semantic Versioning](https://semver.org/). Before 1.0, minor versions may contain breaking changes.
 
-## Unreleased
+## 0.13.0 — 2026-10-25
+
+Scans may report findings 0.12 did not: credentials in ConfigMaps (new rule HX-SEC-003), and namespaces whose default deny a Cilium or Calico allow-all policy cancels.
 
 ### Added
 - HX-SEC-003: credentials in ConfigMaps. ConfigMaps are readable by far more principals than Secrets (the default `view` role reads every ConfigMap in its namespace and no Secret), so a key whose name suggests a credential and holds a literal value is reported (medium), and a PEM private key in any ConfigMap value, `binaryData` included, or in a container's environment literal is reported whatever its name (high). Key names are matched like HX-SEC-002's, with ConfigMap conventions (`secretName`, `token-endpoint`, `password.file`) recognised as non-secret; templates such as `${TOKEN}` are skipped. Values never appear in findings. Manifests only: live-cluster scans do not read ConfigMaps. In the baseline and restricted profiles; no finding in the accuracy corpus.
