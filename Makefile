@@ -1,4 +1,4 @@
-VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo 0.12.1-dev)
+VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo 0.13.0-dev)
 LDFLAGS := -s -w -X github.com/ManintheiCloud/Hardex.Version=$(VERSION)
 GOVULNCHECK := golang.org/x/vuln/cmd/govulncheck@v1.9.0
 
