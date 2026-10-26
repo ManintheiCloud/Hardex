@@ -1,7 +1,7 @@
 # Multi-architecture image: the binary is cross-compiled on the build
 # platform (no emulation) and shipped on a distroless, non-root base. Both
 # base images are pinned by digest; Dependabot proposes digest updates.
-FROM --platform=$BUILDPLATFORM golang:1@sha256:957861185dbf29d93668ace41e011d091c6e779953d47f0316ef2cc58e28fe2b AS build
+FROM --platform=$BUILDPLATFORM golang:1@sha256:f20d83a83e18dbd2a4714b8ffd4b30b287b6243962dd75608e86abcc63ba4efc AS build
 WORKDIR /src
 COPY go.mod go.sum ./
 RUN go mod download && go mod verify
